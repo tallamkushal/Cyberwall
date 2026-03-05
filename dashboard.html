@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CyberWall — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    body { display: flex; min-height: 100vh; overflow: hidden; }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar {
+      width: 240px; background: #0f0f0e;
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .sidebar-logo-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .sidebar-logo-text {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 800; font-size: 18px; color: white; letter-spacing: -0.5px;
+    }
+    .sidebar-section { padding: 16px 10px 6px; }
+    .sidebar-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      color: rgba(255,255,255,0.25); text-transform: uppercase;
+      padding: 0 8px; margin-bottom: 5px;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      cursor: pointer; color: rgba(255,255,255,0.6);
+      font-size: 13px; font-weight: 500;
+      transition: all 0.15s; text-decoration: none;
+      position: relative;
+    }
+    .sidebar-item:hover  { background: rgba(255,255,255,0.07); color: white; }
+    .sidebar-item.active { background: var(--accent); color: white; }
+    .sidebar-item-icon   { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-notif {
+      margin-left: auto; background: var(--red);
+      color: white; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center;
+    }
+    .sidebar-footer {
+      margin-top: auto; padding: 14px 10px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .sidebar-user {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sidebar-user:hover { background: rgba(255,255,255,0.07); }
+    .sidebar-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .sidebar-user-name { font-size: 13px; font-weight: 600; color: white; }
+    .sidebar-user-sub  { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+    /* ---- MAIN ---- */
+    .main {
+      margin-left: 240px; flex: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh; overflow-y: auto;
+    }
+
+    /* ---- TOPBAR ---- */
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 28px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 40;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-title { font-size: 16px; font-weight: 700; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-btn {
+      padding: 7px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: transparent;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; color: var(--muted);
+      transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .topbar-btn:hover { background: var(--bg); color: var(--text); }
+    .topbar-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .topbar-btn.primary:hover { background: var(--accent-hover); }
+
+    /* ---- CONTENT ---- */
+    .content { padding: 24px 28px; flex: 1; }
+    .panel { display: none; }
+    .panel.active { display: block; animation: slideUp 0.3s ease; }
+
+    /* ---- STAT CARDS ---- */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+    }
+    .stat-card-top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 14px;
+    }
+    .stat-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .stat-value {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 4px;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); }
+
+    /* ---- GRID LAYOUTS ---- */
+    .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+    .grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 18px; }
+
+    /* ---- CHART ---- */
+    .chart-wrap { display: flex; align-items: flex-end; gap: 6px; height: 110px; padding: 0 2px; }
+    .chart-col  { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .chart-bar  {
+      width: 100%; border-radius: 4px 4px 0 0;
+      background: var(--accent-light); cursor: pointer; transition: background 0.2s;
+    }
+    .chart-bar:hover { background: var(--accent); }
+    .chart-bar.active { background: var(--accent); }
+    .chart-lbl { font-size: 10px; color: var(--muted-light); }
+
+    /* ---- TABLE ---- */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      text-align: left; font-size: 11px; font-weight: 600;
+      color: var(--muted-light); text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 10px 16px;
+      border-bottom: 1px solid var(--border); background: var(--bg);
+    }
+    .data-table td {
+      padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg); }
+
+    /* ---- SCORE CARD ---- */
+    .score-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
+    .score-grade {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 52px; font-weight: 800; color: var(--green); margin-bottom: 4px;
+    }
+    .score-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .score-row {
+      width: 100%; display: flex; align-items: center;
+      justify-content: space-between; padding: 9px 0;
+      border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .score-row:last-child { border-bottom: none; }
+    .score-row-label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .score-row-val { font-weight: 600; }
+
+    /* ---- SSL ---- */
+    .ssl-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .ssl-row:last-child { border-bottom: none; }
+    .ssl-label { color: var(--muted); }
+    .ssl-val   { font-weight: 600; }
+
+    /* ---- ALERT ITEMS ---- */
+    .alert-item {
+      display: flex; gap: 12px; padding: 14px;
+      border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); margin-bottom: 10px;
+    }
+    .alert-item.high   { border-color: #fecaca; background: var(--red-light); }
+    .alert-item.medium { border-color: #fed7aa; background: var(--orange-light); }
+    .alert-icon  { font-size: 18px; flex-shrink: 0; }
+    .alert-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .alert-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .alert-time  { font-size: 11px; color: var(--muted-light); margin-top: 5px; }
+
+    /* ---- REPORTS ---- */
+    .report-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .report-row:last-child { border-bottom: none; }
+    .report-icon {
+      width: 38px; height: 38px; border-radius: 9px;
+      background: var(--accent-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .report-name { font-size: 13px; font-weight: 600; }
+    .report-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .report-dl   { margin-left: auto; font-size: 13px; color: var(--accent); font-weight: 600; cursor: pointer; }
+    .report-dl:hover { text-decoration: underline; }
+
+    /* ---- BILLING ---- */
+    .billing-plan {
+      background: var(--accent-light); border: 1px solid #c7d7fb;
+      border-radius: 14px; padding: 20px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .billing-plan-name  { font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; font-weight: 800; }
+    .billing-plan-price { font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 800; color: var(--accent); }
+
+    /* ---- SETTINGS ---- */
+    .settings-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { font-size: 14px; font-weight: 500; }
+    .settings-desc  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .settings-section { margin-bottom: 24px; }
+    .toggle {
+      width: 42px; height: 22px; border-radius: 11px;
+      background: var(--border); position: relative;
+      cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: white; transition: left 0.2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+    .toggle.on::after { left: 23px; }
+
+    /* ---- EMPTY STATE ---- */
+    .empty-state {
+      text-align: center; padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state h3   { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .empty-state p    { font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-3-1 { grid-template-columns: 1fr; }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <a href="index.html" class="sidebar-logo">
+    <div class="sidebar-logo-icon">🛡</div>
+    <span class="sidebar-logo-text">CyberWall</span>
+  </a>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Overview</div>
+    <a class="sidebar-item active" onclick="showPanel('overview', this)">
+      <span class="sidebar-item-icon">📊</span> Dashboard
+    </a>
+    <a class="sidebar-item" onclick="showPanel('threats', this)">
+      <span class="sidebar-item-icon">🚨</span> Threats
+      <span class="sidebar-notif">12</span>
+    </a>
+    <a class="sidebar-item" onclick="showPanel('reports', this)">
+      <span class="sidebar-item-icon">📄</span> Reports
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Security</div>
+    <a class="sidebar-item" onclick="showPanel('ssl', this)">
+      <span class="sidebar-item-icon">🔐</span> SSL Monitor
+    </a>
+    <a class="sidebar-item" onclick="showPanel('alerts', this)" style="cursor:pointer">
+      <span class="sidebar-item-icon">🔔</span> Alerts
+      <span class="sidebar-notif">3</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Account</div>
+    <a class="sidebar-item" onclick="showPanel('billing', this)">
+      <span class="sidebar-item-icon">💳</span> Billing
+    </a>
+    <a class="sidebar-item" onclick="showPanel('settings', this)">
+      <span class="sidebar-item-icon">⚙️</span> Settings
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="user-initials">U</div>
+      <div>
+        <div class="sidebar-user-name" id="user-name">Loading...</div>
+        <div class="sidebar-user-sub" id="user-plan">...</div>
+      </div>
+    </div>
+    <a class="sidebar-item" onclick="handleLogout()" style="margin-top:6px;color:rgba(255,255,255,0.5);cursor:pointer">
+      <span class="sidebar-item-icon">🚪</span> Logout
+    </a>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <span class="badge badge-green" id="protection-status">
+        <span class="live-dot"></span> Protected
+      </span>
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-blue" id="plan-badge">Pro Plan</span>
+      <a href="https://wa.me/919999999999" target="_blank" class="topbar-btn">💬 WhatsApp Us</a>
+      <button class="topbar-btn primary">↓ Download Report</button>
+    </div>
+  </div>
+
+  <!-- PANELS -->
+  <div class="content">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="panel active" id="panel-overview">
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#fee2e2">🛡</div>
+            <span class="badge badge-green">↑ 12%</span>
+          </div>
+          <div class="stat-value" id="stat-blocked">0</div>
+          <div class="stat-label">Attacks Blocked (30 days)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#dcfce7">✅</div>
+            <span class="badge badge-green">↑ 0.2%</span>
+          </div>
+          <div class="stat-value"><span id="stat-uptime">0</span></div>
+          <div class="stat-label">Uptime This Month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#dbeafe">⚡</div>
+            <span class="badge badge-blue">Fast</span>
+          </div>
+          <div class="stat-value"><span id="stat-response">0</span></div>
+          <div class="stat-label">Avg Response Time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#f0fdf4">🏆</div>
+            <span class="badge badge-green">A+</span>
+          </div>
+          <div class="stat-value"><span id="stat-score">0</span>/100</div>
+          <div class="stat-label">Security Score</div>
+        </div>
+      </div>
+
+      <!-- Chart + Score -->
+      <div class="grid-3-1">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Attacks Blocked — Last 7 Days</span>
+            <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <div class="chart-col"><div class="chart-bar" style="height:55%" title="Mon: 1,240"></div><span class="chart-lbl">Mon</span></div>
+              <div class="chart-col"><div class="chart-bar" style="height:72%" title="Tue: 1,621"></div><span class="chart-lbl">Tue</span></div>
+              <div class="chart-col"><div class="chart-bar" style="height:48%" title="Wed: 1,082"></div><span class="chart-lbl">Wed</span></div>
+              <div class="chart-col"><div class="chart-bar" style="height:88%" title="Thu: 1,982"></div><span class="chart-lbl">Thu</span></div>
+              <div class="chart-col"><div class="chart-bar" style="height:63%" title="Fri: 1,420"></div><span class="chart-lbl">Fri</span></div>
+              <div class="chart-col"><div class="chart-bar" style="height:40%" title="Sat: 902"></div><span class="chart-lbl">Sat</span></div>
+              <div class="chart-col"><div class="chart-bar active" style="height:76%" title="Today: 1,712"></div><span class="chart-lbl">Today</span></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px">
+              <span style="color:var(--muted)">Peak: Thursday · 1,982 attacks</span>
+              <span style="color:var(--green);font-weight:600">All blocked ✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Security Score</span></div>
+          <div class="card-body">
+            <div class="score-wrap">
+              <div class="score-grade">A+</div>
+              <div class="score-sub">Excellent Protection</div>
+              <div class="score-row"><span class="score-row-label">🛡 WAF Rules</span><span class="score-row-val text-green">Active</span></div>
+              <div class="score-row"><span class="score-row-label">🔐 SSL</span><span class="score-row-val text-green">Valid</span></div>
+              <div class="score-row"><span class="score-row-label">✉ SPF/DKIM</span><span class="score-row-val text-green">Pass</span></div>
+              <div class="score-row"><span class="score-row-label">🤖 Bot Shield</span><span class="score-row-val text-green">Active</span></div>
+              <div class="score-row"><span class="score-row-label">🔒 HTTPS</span><span class="score-row-val text-green">Enforced</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Threats -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Threats Blocked</span>
+          <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Threat Type</th><th>IP Address</th><th>Country</th>
+                <th>Time</th><th>Severity</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="threats-tbody">
+              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading threats...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== THREATS ===== -->
+    <div class="panel" id="panel-threats">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value">1,847</div><div class="stat-label">Threats Today</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value">48,291</div><div class="stat-label">Blocked This Month</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fef9c3">🌍</div></div><div class="stat-value">34</div><div class="stat-label">Countries of Origin</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Full Threats Log</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Threat</th><th>IP</th><th>Country</th><th>Target</th><th>Time</th><th>Severity</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>SQL Injection</td><td class="font-mono" style="font-size:12px">103.28.xx.xx</td><td>🇨🇳 China</td><td>/api/users</td><td>2 min ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+              <tr><td>XSS Attack</td><td class="font-mono" style="font-size:12px">185.220.xx.xx</td><td>🇷🇺 Russia</td><td>/search</td><td>14 min ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+              <tr><td>Bot Crawl</td><td class="font-mono" style="font-size:12px">45.33.xx.xx</td><td>🇺🇸 USA</td><td>/products</td><td>28 min ago</td><td><span class="badge badge-orange">Medium</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+              <tr><td>DDoS Attempt</td><td class="font-mono" style="font-size:12px">198.54.xx.xx</td><td>🇧🇷 Brazil</td><td>/checkout</td><td>1 hr ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+              <tr><td>Path Traversal</td><td class="font-mono" style="font-size:12px">92.118.xx.xx</td><td>🇩🇪 Germany</td><td>/../config</td><td>3 hrs ago</td><td><span class="badge badge-orange">Medium</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+              <tr><td>Brute Force</td><td class="font-mono" style="font-size:12px">77.88.xx.xx</td><td>🇺🇦 Ukraine</td><td>/admin</td><td>5 hrs ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REPORTS ===== -->
+    <div class="panel" id="panel-reports">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Monthly Security Reports</span>
+          <span class="card-action">Request custom report →</span>
+        </div>
+        <div class="card-body">
+          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">February 2025 Security Report</div><div class="report-date">Generated Mar 1, 2025 · 2.4 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
+          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">January 2025 Security Report</div><div class="report-date">Generated Feb 1, 2025 · 2.1 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
+          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">December 2024 Security Report</div><div class="report-date">Generated Jan 1, 2025 · 1.9 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SSL ===== -->
+    <div class="panel" id="panel-ssl">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">SSL Certificate</span></div>
+          <div class="card-body">
+            <div class="ssl-row"><span class="ssl-label">Domain</span><span class="ssl-val" id="user-domain">Loading...</span></div>
+            <div class="ssl-row"><span class="ssl-label">Status</span><span class="ssl-val text-green">✓ Valid</span></div>
+            <div class="ssl-row"><span class="ssl-label">Issuer</span><span class="ssl-val">Let's Encrypt</span></div>
+            <div class="ssl-row"><span class="ssl-label">Expires</span><span class="ssl-val text-green">Nov 28, 2025 (289 days)</span></div>
+            <div class="ssl-row"><span class="ssl-label">Protocol</span><span class="ssl-val text-green">TLS 1.3</span></div>
+            <div class="ssl-row"><span class="ssl-label">HTTPS Enforced</span><span class="ssl-val text-green">✓ Yes</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Email Security (SPF/DKIM/DMARC)</span></div>
+          <div class="card-body">
+            <div class="ssl-row"><span class="ssl-label">SPF Record</span><span class="ssl-val text-green">✓ Pass</span></div>
+            <div class="ssl-row"><span class="ssl-label">DKIM</span><span class="ssl-val text-green">✓ Pass</span></div>
+            <div class="ssl-row"><span class="ssl-label">DMARC</span><span class="ssl-val" style="color:var(--orange)">⚠ Not configured</span></div>
+            <div class="ssl-row"><span class="ssl-label">MX Records</span><span class="ssl-val text-green">✓ Configured</span></div>
+            <div class="card-body" style="padding:12px 0 0">
+              <div style="background:var(--orange-light);border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--orange)">
+                ⚠ DMARC not set — your domain could be spoofed. Contact us on WhatsApp to fix this.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ALERTS ===== -->
+    <div class="panel" id="panel-alerts">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Security Alerts</span></div>
+        <div class="card-body">
+          <div class="alert-item high"><span class="alert-icon">🚨</span><div><div class="alert-title">DDoS Attack Detected & Blocked</div><div class="alert-desc">198 requests/sec from 45 IPs. Automatically mitigated by CyberWall.</div><div class="alert-time">Today, 2:34 PM</div></div></div>
+          <div class="alert-item medium"><span class="alert-icon">⚠️</span><div><div class="alert-title">Brute Force Login Attempt</div><div class="alert-desc">47 failed login attempts from IP 77.88.xx.xx (Ukraine). IP permanently blocked.</div><div class="alert-time">Today, 11:12 AM</div></div></div>
+          <div class="alert-item"><span class="alert-icon">📄</span><div><div class="alert-title">February Report Ready</div><div class="alert-desc">Your February 2025 security report is ready to download.</div><div class="alert-time">Mar 1, 2025</div></div></div>
+          <div class="alert-item"><span class="alert-icon">✅</span><div><div class="alert-title">SSL Certificate Renewed</div><div class="alert-desc">Your SSL certificate was automatically renewed. Valid for 289 more days.</div><div class="alert-time">Feb 28, 2025</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== BILLING ===== -->
+    <div class="panel" id="panel-billing">
+      <div class="billing-plan">
+        <div>
+          <div class="billing-plan-name">Pro Plan</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Next billing: April 1, 2025 · Auto-renews via Razorpay</div>
+        </div>
+        <div style="text-align:right">
+          <div class="billing-plan-price">₹5,999</div>
+          <div style="font-size:12px;color:var(--muted)">/month + GST</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Payment History</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>GST</th><th>Status</th><th>Invoice</th></tr></thead>
+            <tbody>
+              <tr><td>Mar 1, 2025</td><td>Pro Plan — March</td><td>₹5,999</td><td>₹1,080</td><td><span class="badge badge-green">Paid</span></td><td><span class="report-dl">↓ PDF</span></td></tr>
+              <tr><td>Feb 1, 2025</td><td>Pro Plan — February</td><td>₹5,999</td><td>₹1,080</td><td><span class="badge badge-green">Paid</span></td><td><span class="report-dl">↓ PDF</span></td></tr>
+              <tr><td>Jan 1, 2025</td><td>Pro Plan — January</td><td>₹5,999</td><td>₹1,080</td><td><span class="badge badge-green">Paid</span></td><td><span class="report-dl">↓ PDF</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div class="panel" id="panel-settings">
+      <div class="card">
+        <div class="card-body">
+
+          <div class="settings-section">
+            <div class="settings-title">Notifications</div>
+            <div class="settings-row">
+              <div><div class="settings-label">WhatsApp Alerts</div><div class="settings-desc">Instant messages for high-severity threats</div></div>
+              <div class="toggle on" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Email Alerts</div><div class="settings-desc">Daily summary of blocked threats</div></div>
+              <div class="toggle on" onclick="toggleSwitch(this)"></div>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Monthly Reports</div><div class="settings-desc">Auto-send PDF report on 1st of every month</div></div>
+              <div class="toggle on" onclick="toggleSwitch(this)"></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Account Details</div>
+            <div class="settings-row">
+              <div><div class="settings-label">Business Name</div><div class="settings-desc" id="user-biz">Loading...</div></div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px">Edit</button>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Password</div><div class="settings-desc">Last changed recently</div></div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px">Change</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Danger Zone</div>
+            <div class="settings-row">
+              <div><div class="settings-label">Cancel Subscription</div><div class="settings-desc">Protection ends at current billing period</div></div>
+              <button class="btn btn-danger" style="font-size:12px;padding:6px 14px">Cancel Plan</button>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Logout</div><div class="settings-desc">Sign out of your account</div></div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="handleLogout()">Logout</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- end content -->
+</div>
+<!-- end main -->
+
+<!-- Scripts — ORDER MATTERS -->
+<!-- 1. Supabase SDK (must load first) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 2. Our connection file -->
+<script src="js/supabase.js"></script>
+<!-- 3. Auth helpers -->
+<script src="js/auth.js"></script>
+<!-- 4. Dashboard logic -->
+<script src="js/cloudflare.js"></script>
+<script src="js/dashboard.js"></script>
+
+</body>
+</html>

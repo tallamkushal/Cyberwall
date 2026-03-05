@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CyberWall — Admin</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    body { display: flex; min-height: 100vh; overflow: hidden; }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar {
+      width: 220px; background: #0a0a0f;
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+    }
+    .sidebar-logo {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--red);
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .sidebar-logo-text {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 800; font-size: 17px; color: white;
+    }
+    .admin-badge {
+      display: inline-block; margin: 0 16px 10px;
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      background: var(--red); color: white;
+      padding: 3px 8px; border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .sidebar-section { padding: 10px 10px 4px; }
+    .sidebar-section-label {
+      font-size: 9px; font-weight: 600; letter-spacing: 1px;
+      color: rgba(255,255,255,0.25); text-transform: uppercase;
+      padding: 0 8px; margin-bottom: 4px;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 10px; border-radius: 7px;
+      cursor: pointer; color: rgba(255,255,255,0.6);
+      font-size: 13px; font-weight: 500;
+      transition: all 0.15s; text-decoration: none;
+    }
+    .sidebar-item:hover  { background: rgba(255,255,255,0.07); color: white; }
+    .sidebar-item.active { background: var(--accent); color: white; }
+    .sidebar-item-icon   { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    .sidebar-notif {
+      margin-left: auto; background: var(--red);
+      color: white; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 8px;
+    }
+    .sidebar-footer {
+      margin-top: auto; padding: 12px 10px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .admin-user {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .admin-user:hover { background: rgba(255,255,255,0.07); }
+    .admin-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--red);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: white;
+    }
+    .admin-name { font-size: 12px; font-weight: 600; color: white; }
+    .admin-role { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+    /* ---- MAIN ---- */
+    .main {
+      margin-left: 220px; flex: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh; overflow-y: auto;
+    }
+
+    /* ---- TOPBAR ---- */
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 40;
+    }
+    .topbar-title { font-size: 15px; font-weight: 700; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-btn {
+      padding: 7px 14px; border-radius: 7px;
+      border: 1px solid var(--border); background: transparent;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; color: var(--muted); transition: all 0.2s;
+    }
+    .topbar-btn:hover  { background: var(--bg); }
+    .topbar-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+
+    /* ---- CONTENT ---- */
+    .content { padding: 22px 24px; flex: 1; }
+    .panel { display: none; }
+    .panel.active { display: block; animation: slideUp 0.3s ease; }
+
+    /* ---- STAT CARDS ---- */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 14px; margin-bottom: 18px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+    }
+    .stat-card-top {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 12px;
+    }
+    .stat-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .stat-value {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 26px; font-weight: 800; margin-bottom: 3px;
+    }
+    .stat-label { font-size: 12px; color: var(--muted); }
+
+    /* ---- LAYOUTS ---- */
+    .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* ---- CHART ---- */
+    .rev-chart-wrap {
+      display: flex; align-items: flex-end;
+      gap: 8px; height: 110px;
+    }
+
+    /* ---- TABLE ---- */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      text-align: left; font-size: 11px; font-weight: 600;
+      color: var(--muted-light); text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 10px 14px;
+      border-bottom: 1px solid var(--border); background: var(--bg);
+    }
+    .data-table td {
+      padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg); }
+
+    .plan-tag {
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 5px; background: var(--bg); border: 1px solid var(--border);
+    }
+    .action-btn {
+      padding: 5px 10px; border-radius: 6px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: none; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+    }
+    .action-view { background: var(--accent-light); color: var(--accent); }
+    .action-view:hover { background: var(--accent); color: white; }
+    .action-warn { background: var(--red-light); color: var(--red); }
+    .action-warn:hover { background: var(--red); color: white; }
+
+    /* ---- MRR BREAKDOWN ---- */
+    .mrr-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .mrr-row:last-child { border-bottom: none; }
+    .mrr-plan   { font-size: 13px; font-weight: 600; }
+    .mrr-count  { font-size: 12px; color: var(--muted); }
+    .mrr-amount {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 16px; font-weight: 700; color: var(--accent);
+    }
+
+    /* ---- TASKS ---- */
+    .task-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+    }
+    .task-item:last-child { border-bottom: none; }
+    .task-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .dot-high  { background: var(--red); }
+    .dot-med   { background: var(--orange); }
+    .dot-low   { background: var(--green); }
+    .task-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .task-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .task-time  { font-size: 11px; color: var(--muted-light); margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+    .task-done  { text-decoration: line-through; color: var(--muted); }
+    .section-tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; margin: 16px 0 8px;
+    }
+
+    /* ---- SUPPORT ---- */
+    .support-item {
+      display: flex; gap: 12px; padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .support-item:last-child { border-bottom: none; }
+    .support-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .support-name    { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .support-msg     { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .support-time    { font-size: 11px; color: var(--muted-light); margin-top: 4px; }
+    .support-reply   { margin-left: auto; flex-shrink: 0; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+      .grid-2, .grid-3-1 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">⚙</div>
+    <span class="sidebar-logo-text">CyberWall</span>
+  </div>
+  <div class="admin-badge">Admin Panel</div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Overview</div>
+    <a class="sidebar-item active" onclick="showPanel('overview', this)">
+      <span class="sidebar-item-icon">📊</span> Overview
+    </a>
+    <a class="sidebar-item" onclick="showPanel('clients', this)">
+      <span class="sidebar-item-icon">👥</span> Clients
+      <span class="sidebar-notif" id="clients-count-badge">0</span>
+    </a>
+    <a class="sidebar-item" onclick="showPanel('revenue', this)">
+      <span class="sidebar-item-icon">💰</span> Revenue
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Operations</div>
+    <a class="sidebar-item" onclick="showPanel('tasks', this)">
+      <span class="sidebar-item-icon">✅</span> Tasks
+      <span class="sidebar-notif" style="background:var(--orange)">4</span>
+    </a>
+    <a class="sidebar-item" onclick="showPanel('add', this)">
+      <span class="sidebar-item-icon">➕</span> Add Client
+    </a>
+    <a class="sidebar-item" onclick="showPanel('support', this)">
+      <span class="sidebar-item-icon">💬</span> Support
+      <span class="sidebar-notif">2</span>
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="admin-user" onclick="handleLogout()">
+      <div class="admin-avatar">AD</div>
+      <div>
+        <div class="admin-name">Admin</div>
+        <div class="admin-role">Super Admin · Logout</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Admin Overview</span>
+    <div class="topbar-right">
+      <button class="topbar-btn">🔔 Alerts</button>
+      <button class="topbar-btn primary" onclick="showPanel('add', null)">+ Add Client</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="panel active" id="panel-overview">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#dcfce7">👥</div>
+            <span class="badge badge-green">Growing</span>
+          </div>
+          <div class="stat-value" id="total-clients">—</div>
+          <div class="stat-label">Total Clients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#dbeafe">💰</div>
+            <span class="badge badge-blue">MRR</span>
+          </div>
+          <div class="stat-value" id="total-mrr">—</div>
+          <div class="stat-label">Monthly Revenue</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#fef9c3">🆓</div>
+          </div>
+          <div class="stat-value" id="total-trials">—</div>
+          <div class="stat-label">On Free Trial</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top">
+            <div class="stat-icon" style="background:#fee2e2">⚠</div>
+            <span class="badge badge-red">Action</span>
+          </div>
+          <div class="stat-value" id="total-overdue">—</div>
+          <div class="stat-label">Overdue Payments</div>
+        </div>
+      </div>
+
+      <div class="grid-3-1">
+        <!-- Revenue Chart -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">MRR Growth — Last 6 Months</span>
+            <span class="card-action" onclick="showPanel('revenue', null)">Full report →</span>
+          </div>
+          <div class="card-body">
+            <div class="rev-chart-wrap" id="rev-chart">
+              <!-- Filled by admin.js -->
+              <div style="color:var(--muted);font-size:13px">Loading chart...</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px">
+              <span style="color:var(--muted)">Current MRR</span>
+              <span style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:var(--accent)" id="mrr-display">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MRR Breakdown -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">Plan Breakdown</span></div>
+          <div class="card-body">
+            <div class="mrr-row">
+              <div><div class="mrr-plan">Starter</div><div class="mrr-count">₹2,999/mo each</div></div>
+              <div class="mrr-amount">—</div>
+            </div>
+            <div class="mrr-row">
+              <div><div class="mrr-plan">Pro</div><div class="mrr-count">₹5,999/mo each</div></div>
+              <div class="mrr-amount">—</div>
+            </div>
+            <div class="mrr-row">
+              <div><div class="mrr-plan">Business</div><div class="mrr-count">₹9,999/mo each</div></div>
+              <div class="mrr-amount">—</div>
+            </div>
+            <div class="mrr-row" style="border-top:2px solid var(--border);margin-top:8px;padding-top:12px">
+              <div><div class="mrr-plan" style="font-size:14px">Total MRR</div></div>
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:var(--accent)" id="total-mrr-2">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Tasks -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🔴 Pending Action Items</span>
+          <span class="card-action" onclick="showPanel('tasks', null)">View all →</span>
+        </div>
+        <div class="card-body">
+          <div class="task-item">
+            <div class="task-dot dot-high"></div>
+            <div>
+              <div class="task-title">Onboard new client — WAF setup pending</div>
+              <div class="task-desc">Configure Cloudflare WAF, update DNS, verify protection is live.</div>
+            </div>
+            <span class="task-time" style="color:var(--red)">Overdue</span>
+          </div>
+          <div class="task-item">
+            <div class="task-dot dot-high"></div>
+            <div>
+              <div class="task-title">Follow up: overdue payment</div>
+              <div class="task-desc">Payment failed. Send WhatsApp reminder.</div>
+            </div>
+            <span class="task-time">3 days late</span>
+          </div>
+          <div class="task-item">
+            <div class="task-dot dot-med"></div>
+            <div>
+              <div class="task-title">Send monthly security reports to all clients</div>
+              <div class="task-desc">Generate PDFs and send via WhatsApp + email.</div>
+            </div>
+            <span class="task-time">Today</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CLIENTS ===== -->
+    <div class="panel" id="panel-clients">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Clients</span>
+          <span class="card-action">Export CSV →</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Plan</th>
+                <th>Status</th>
+                <th>MRR</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-tbody">
+              <tr>
+                <td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">
+                  Loading clients...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REVENUE ===== -->
+    <div class="panel" id="panel-revenue">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dbeafe">💰</div></div><div class="stat-value" id="rev-mrr">—</div><div class="stat-label">Current MRR</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">📈</div></div><div class="stat-value" id="rev-arr">—</div><div class="stat-label">Projected ARR</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">⚠</div></div><div class="stat-value" id="rev-overdue">—</div><div class="stat-label">Overdue</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#f0fdf4">📉</div></div><div class="stat-value">0%</div><div class="stat-label">Churn This Month</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Payment History</span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Client</th><th>Plan</th><th>Amount</th><th>GST</th><th>Status</th></tr></thead>
+            <tbody id="payments-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No payments yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TASKS ===== -->
+    <div class="panel" id="panel-tasks">
+      <div class="card">
+        <div class="card-header"><span class="card-title">All Tasks & Action Items</span></div>
+        <div class="card-body">
+
+          <div class="section-tag" style="color:var(--red)">🔴 High Priority</div>
+          <div class="task-item">
+            <div class="task-dot dot-high"></div>
+            <div>
+              <div class="task-title">Onboard new client — WAF setup pending</div>
+              <div class="task-desc">Configure Cloudflare WAF, update DNS records, verify protection is active.</div>
+            </div>
+            <span class="task-time" style="color:var(--red)">Overdue</span>
+          </div>
+          <div class="task-item">
+            <div class="task-dot dot-high"></div>
+            <div>
+              <div class="task-title">Payment follow-up — overdue client</div>
+              <div class="task-desc">March payment failed 3 days ago. Send WhatsApp reminder. Escalate if no response in 48hrs.</div>
+            </div>
+            <span class="task-time">3 days late</span>
+          </div>
+
+          <div class="section-tag" style="color:var(--orange);margin-top:20px">🟡 Medium Priority</div>
+          <div class="task-item">
+            <div class="task-dot dot-med"></div>
+            <div>
+              <div class="task-title">Generate & send monthly security reports</div>
+              <div class="task-desc">Generate PDFs using report template, send via WhatsApp + email to all active clients.</div>
+            </div>
+            <span class="task-time">Today</span>
+          </div>
+          <div class="task-item">
+            <div class="task-dot dot-med"></div>
+            <div>
+              <div class="task-title">Fix missing DMARC record for client</div>
+              <div class="task-desc">Client flagged missing DMARC. Configure on Cloudflare DNS, verify with mail-tester.com</div>
+            </div>
+            <span class="task-time">This week</span>
+          </div>
+
+          <div class="section-tag" style="color:var(--green);margin-top:20px">🟢 Low Priority</div>
+          <div class="task-item">
+            <div class="task-dot dot-low"></div>
+            <div>
+              <div class="task-title task-done">Set up WhatsApp alert for new client</div>
+              <div class="task-desc task-done">Completed — alerts active</div>
+            </div>
+            <span class="task-time">✓ Done</span>
+          </div>
+          <div class="task-item">
+            <div class="task-dot dot-low"></div>
+            <div>
+              <div class="task-title">Upsell trial client from Starter → Pro</div>
+              <div class="task-desc">Good engagement. Send case study showing value of real-time alerts.</div>
+            </div>
+            <span class="task-time">This week</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ADD CLIENT ===== -->
+    <div class="panel" id="panel-add">
+      <div class="card" style="max-width:580px">
+        <div class="card-header"><span class="card-title">Add New Client</span></div>
+        <div class="card-body">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">First Name</label>
+              <input class="form-input" id="ac-fname" placeholder="Rahul"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Last Name</label>
+              <input class="form-input" id="ac-lname" placeholder="Khanna"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <div class="input-wrapper">
+              <span class="input-icon">✉</span>
+              <input type="email" class="form-input" id="ac-email" placeholder="rahul@company.com"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">WhatsApp Number</label>
+            <div style="display:flex;gap:8px">
+              <select class="form-input" style="width:88px;padding:11px 8px"><option>🇮🇳 +91</option></select>
+              <input type="tel" class="form-input" id="ac-phone" placeholder="98765 43210" style="flex:1"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Business Name</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🏢</span>
+              <input class="form-input" id="ac-biz" placeholder="ShopKaro Pvt Ltd"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Website Domain</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🌐</span>
+              <input class="form-input" id="ac-domain" placeholder="https://shopkaro.in"/>
+            </div>
+            <div class="form-hint">The website you'll configure WAF for</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Plan</label>
+            <select class="form-input" id="ac-plan">
+              <option value="starter">Starter — ₹2,999/month</option>
+              <option value="pro">Pro — ₹5,999/month</option>
+              <option value="business">Business — ₹9,999/month</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Internal Notes</label>
+            <textarea class="form-input" id="ac-notes" rows="3"
+              placeholder="Any notes about this client (only you can see this)..."></textarea>
+          </div>
+
+          <div id="add-client-error" class="form-error hidden"></div>
+
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-ghost" onclick="showPanel('clients', null)">Cancel</button>
+            <button class="btn btn-primary" id="add-client-btn" onclick="addClient()">Add Client →</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SUPPORT ===== -->
+    <div class="panel" id="panel-support">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Client Messages</span>
+          <span class="card-action">Open WhatsApp Business →</span>
+        </div>
+        <div class="card-body">
+
+          <div class="support-item">
+            <div class="support-avatar" style="background:var(--accent)">RK</div>
+            <div style="flex:1">
+              <div class="support-name">Rahul Khanna <span style="font-size:11px;color:var(--muted);font-weight:400">· shopkaro.in</span></div>
+              <div class="support-msg">"Hey, I'm seeing the DMARC warning still. Has it been fixed yet?"</div>
+              <div class="support-time">2 hours ago</div>
+            </div>
+            <div class="support-reply">
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
+            </div>
+          </div>
+
+          <div class="support-item">
+            <div class="support-avatar" style="background:var(--green)">DN</div>
+            <div style="flex:1">
+              <div class="support-name">Deepa Nair <span style="font-size:11px;color:var(--muted);font-weight:400">· deepaclinic.in</span></div>
+              <div class="support-msg">"Can you explain what SQL injection means in my last report?"</div>
+              <div class="support-time">Yesterday</div>
+            </div>
+            <div class="support-reply">
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
+            </div>
+          </div>
+
+          <div class="support-item">
+            <div class="support-avatar" style="background:var(--orange)">MI</div>
+            <div style="flex:1">
+              <div class="support-name">Meera Iyer <span style="font-size:11px;color:var(--muted);font-weight:400">· meeracoaching.in</span></div>
+              <div class="support-msg">"Thank you for the February report! Very helpful. 🙏"</div>
+              <div class="support-time">2 days ago</div>
+            </div>
+            <div class="support-reply">
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Scripts — ORDER MATTERS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cloudflare.js"></script>
+<script src="js/whatsapp.js"></script>
+<script src="js/admin.js"></script>
+
+</body>
+</html>
