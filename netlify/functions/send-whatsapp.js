@@ -18,10 +18,10 @@ exports.handler = async (event) => {
   try {
     const { to, message } = JSON.parse(event.body);
 
-    // Twilio credentials — stored safely on server
-    const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
-    const TWILIO_TOKEN = "f1d9ccb32b712c875e10022bcb311628";
-    const TWILIO_FROM  = "whatsapp:+14155238886";
+    // Twilio credentials — loaded from Netlify environment variables
+    const TWILIO_SID   = process.env.TWILIO_SID;
+    const TWILIO_TOKEN = process.env.TWILIO_TOKEN;
+    const TWILIO_FROM  = process.env.TWILIO_FROM || "whatsapp:+14155238886";
 
     // Format phone number
     // Must be in format: whatsapp:+919876543210
