@@ -18,7 +18,8 @@ const TWILIO_FROM  = "whatsapp:+14155238886"; // Twilio sandbox number
 // ---- SEND WHATSAPP MESSAGE ----
 async function sendWhatsApp(toPhone, message) {
   try {
-    const response = await fetch('/.netlify/functions/send-whatsapp', {
+    const base = window.location.port === '3000' ? 'http://localhost:3001' : '';
+    const response = await fetch(`${base}/.netlify/functions/send-whatsapp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -90,6 +91,7 @@ Welcome to CyberWall! 🛡🇮🇳`;
 
 // Sent to ADMIN when a new client signs up
 function alertAdminNewSignup(clientName, email, plan, domain) {
+  plan = plan || 'starter';
   return `🆕 *New CyberWall Signup!*
 
 *Name:* ${clientName}

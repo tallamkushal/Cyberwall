@@ -38,8 +38,8 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     }
     if (profileError) throw profileError;
 
-    // Notify admin on WhatsApp
-    await notifyAdminNewSignup(fullName, email, plan, domain);
+    // Notify admin on WhatsApp (non-blocking)
+    try { await notifyAdminNewSignup(fullName, email, plan, domain); } catch (e) { console.error('WhatsApp notify failed:', e); }
 
     return { success: true, user: data.user };
   } catch (error) {
