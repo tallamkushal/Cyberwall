@@ -70,7 +70,7 @@ function showPanel(name, el) {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'SSL Monitor',alerts:'Alerts',billing:'Billing',settings:'Settings'};
+  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'SSL Monitor',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant'};
   document.getElementById('page-title').textContent = titles[name] || name;
 }
 

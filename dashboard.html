@@ -253,6 +253,21 @@
     .empty-state h3   { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
     .empty-state p    { font-size: 13px; }
 
+    .ai-msg { display: flex; }
+    .ai-msg-user { justify-content: flex-end; }
+    .ai-msg-bot  { justify-content: flex-start; }
+    .ai-bubble {
+      max-width: 80%; padding: 10px 14px; border-radius: 14px;
+      font-size: 13px; line-height: 1.6;
+    }
+    .ai-msg-user .ai-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .ai-msg-bot  .ai-bubble { background: white; border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+    .ai-typing { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
+    .ai-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+    .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main { margin-left: 0; }
@@ -293,6 +308,13 @@
     <a class="sidebar-item" onclick="showPanel('alerts', this)" style="cursor:pointer">
       <span class="sidebar-item-icon">🔔</span> Alerts
       <span class="sidebar-notif">3</span>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">AI</div>
+    <a class="sidebar-item" onclick="showPanel('ai', this)">
+      <span class="sidebar-item-icon">🤖</span> AI Assistant
     </a>
   </div>
 
@@ -602,6 +624,39 @@
       </div>
     </div>
 
+    <!-- ===== AI ASSISTANT ===== -->
+    <div class="panel" id="panel-ai">
+      <div class="card" style="max-width:720px;margin:0 auto">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px">🤖</div>
+            <div>
+              <div style="font-weight:700;font-size:16px">CyberWall AI Assistant</div>
+              <div style="font-size:12px;color:var(--muted)">Ask me anything about your website security</div>
+            </div>
+          </div>
+
+          <div id="ai-messages" style="height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg);border-radius:12px;border:1px solid var(--border);margin-bottom:16px">
+            <div class="ai-msg ai-msg-bot">
+              <div class="ai-bubble">👋 Hi! I'm your CyberWall AI security assistant. Ask me about your protection, threats, or anything about website security!</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <input type="text" id="ai-input" class="form-input" placeholder="Ask about your security..." style="flex:1" onkeydown="if(event.key==='Enter') sendAiMessage()"/>
+            <button class="btn btn-primary" onclick="sendAiMessage()" id="ai-send-btn">Send →</button>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+            <button class="copy-btn" onclick="askSuggestion('Am I fully protected?')">Am I protected?</button>
+            <button class="copy-btn" onclick="askSuggestion('What is SQL injection?')">What is SQL injection?</button>
+            <button class="copy-btn" onclick="askSuggestion('What does a WAF do?')">What does a WAF do?</button>
+            <button class="copy-btn" onclick="askSuggestion('How do I improve my security score?')">Improve my score</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
   <!-- end content -->
 </div>
@@ -617,6 +672,70 @@
 <!-- 4. Dashboard logic -->
 <script src="js/cloudflare.js"></script>
 <script src="js/dashboard.js"></script>
+<script>
+  const aiMessages = [];
+
+  async function sendAiMessage() {
+    const input = document.getElementById('ai-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    appendAiMessage('user', text);
+    aiMessages.push({ role: 'user', content: text });
+
+    const typingEl = appendTyping();
+
+    try {
+      const profile = await getCurrentProfile();
+      const res = await fetch('http://localhost:3001/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: aiMessages,
+          domain: profile?.domain || '',
+          plan: profile?.plan || 'starter'
+        })
+      });
+      const data = await res.json();
+      typingEl.remove();
+      if (data.success) {
+        appendAiMessage('bot', data.reply);
+        aiMessages.push({ role: 'assistant', content: data.reply });
+      } else {
+        appendAiMessage('bot', '⚠️ Sorry, I ran into an issue. Please try again.');
+      }
+    } catch (err) {
+      typingEl.remove();
+      appendAiMessage('bot', '⚠️ Could not connect to AI. Make sure the server is running.');
+    }
+  }
+
+  function appendAiMessage(role, text) {
+    const container = document.getElementById('ai-messages');
+    const div = document.createElement('div');
+    div.className = `ai-msg ai-msg-${role}`;
+    div.innerHTML = `<div class="ai-bubble">${text.replace(/\n/g, '<br>')}</div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  function appendTyping() {
+    const container = document.getElementById('ai-messages');
+    const div = document.createElement('div');
+    div.className = 'ai-msg ai-msg-bot';
+    div.innerHTML = `<div class="ai-bubble ai-typing"><span></span><span></span><span></span></div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  function askSuggestion(text) {
+    document.getElementById('ai-input').value = text;
+    sendAiMessage();
+  }
+</script>
 
 </body>
 </html>
