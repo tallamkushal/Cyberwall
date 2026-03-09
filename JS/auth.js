@@ -15,8 +15,15 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     });
     if (error) throw error;
 
+    // Wait for user to be fully created
+    const userId = data?.user?.id || data?.session?.user?.id;
+    if (!userId) throw new Error('User creation failed. Please try again.');
+
+    // Small delay to ensure auth user is saved
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const { error: profileError } = await supabaseClient.from('profiles').insert({
-      id: data.user.id,
+      id: userId,
       full_name: fullName,
       email, phone,
       business_name: businessName,
@@ -26,6 +33,9 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
       created_at: new Date()
     });
     if (profileError) throw profileError;
+
+    // Notify admin on WhatsApp
+    await notifyAdminNewSignup(fullName, email, plan, domain);
 
     return { success: true, user: data.user };
   } catch (error) {
