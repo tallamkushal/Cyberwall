@@ -80,13 +80,12 @@ const server = http.createServer((req, res) => {
       try {
         const { messages, domain, plan } = JSON.parse(body);
 
-        const systemPrompt = `You are CyberWall AI, a friendly cybersecurity assistant built into the CyberWall dashboard.
-You help clients understand their website security, explain threats, and answer questions about their WAF protection.
+        const systemPrompt = `You are CyberWall AI, a friendly cybersecurity assistant built into the CyberWall dashboard. You help clients understand their website security, explain threats, and answer questions about their WAF protection.
 
 The client's protected domain is: ${domain || 'not set yet'}
 Their plan is: ${plan || 'starter'}
 
-Keep responses concise, friendly, and non-technical where possible.
+Respond in natural, conversational prose. Never use markdown formatting — no bold text, no bullet points, no headers, no asterisks, no emojis. Be concise and friendly, like a knowledgeable human would speak.
 If asked about something unrelated to cybersecurity or their website, politely redirect.`;
 
         res.writeHead(200, {
