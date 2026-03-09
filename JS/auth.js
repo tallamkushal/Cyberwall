@@ -19,19 +19,23 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     const userId = data?.user?.id || data?.session?.user?.id;
     if (!userId) throw new Error('User creation failed. Please try again.');
 
-    // Small delay to ensure auth user is saved
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const { error: profileError } = await supabaseClient.from('profiles').insert({
-      id: userId,
-      full_name: fullName,
-      email, phone,
-      business_name: businessName,
-      domain, plan,
-      status: 'trial',
-      role: 'client',
-      created_at: new Date()
-    });
+    // Retry profile insert to handle auth propagation delay
+    let profileError;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, attempt * 500));
+      const { error } = await supabaseClient.from('profiles').insert({
+        id: userId,
+        full_name: fullName,
+        email, phone,
+        business_name: businessName,
+        domain, plan,
+        status: 'trial',
+        role: 'client',
+        created_at: new Date()
+      });
+      if (!error) { profileError = null; break; }
+      profileError = error;
+    }
     if (profileError) throw profileError;
 
     // Notify admin on WhatsApp
