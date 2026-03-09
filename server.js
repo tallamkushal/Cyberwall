@@ -89,15 +89,33 @@ Their plan is: ${plan || 'starter'}
 Keep responses concise, friendly, and non-technical where possible.
 If asked about something unrelated to cybersecurity or their website, politely redirect.`;
 
-        const response = await anthropic.messages.create({
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        const stream = anthropic.messages.stream({
           model: 'claude-opus-4-6',
           max_tokens: 1024,
           system: systemPrompt,
           messages: messages
         });
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, reply: response.content[0].text }));
+        stream.on('text', (text) => {
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        });
+
+        stream.on('finalMessage', () => {
+          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+          res.end();
+        });
+
+        stream.on('error', (err) => {
+          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+          res.end();
+        });
+
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));

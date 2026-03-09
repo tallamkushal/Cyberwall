@@ -674,8 +674,10 @@
 <script src="js/dashboard.js"></script>
 <script>
   const aiMessages = [];
+  let aiTyping = false;
 
   async function sendAiMessage() {
+    if (aiTyping) return;
     const input = document.getElementById('ai-input');
     const text = input.value.trim();
     if (!text) return;
@@ -684,6 +686,7 @@
     appendAiMessage('user', text);
     aiMessages.push({ role: 'user', content: text });
 
+    aiTyping = true;
     const typingEl = appendTyping();
 
     try {
@@ -697,17 +700,40 @@
           plan: profile?.plan || 'starter'
         })
       });
-      const data = await res.json();
+
       typingEl.remove();
-      if (data.success) {
-        appendAiMessage('bot', data.reply);
-        aiMessages.push({ role: 'assistant', content: data.reply });
-      } else {
-        appendAiMessage('bot', '⚠️ Sorry, I ran into an issue. Please try again.');
+      const bubble = appendAiMessage('bot', '');
+      const bubbleEl = bubble.querySelector('.ai-bubble');
+      let fullText = '';
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = JSON.parse(line.slice(6));
+          if (data.text) {
+            fullText += data.text;
+            bubbleEl.innerHTML = fullText.replace(/\n/g, '<br>');
+            document.getElementById('ai-messages').scrollTop = 9999;
+          }
+          if (data.done) {
+            aiMessages.push({ role: 'assistant', content: fullText });
+          }
+        }
       }
     } catch (err) {
       typingEl.remove();
       appendAiMessage('bot', '⚠️ Could not connect to AI. Make sure the server is running.');
+    } finally {
+      aiTyping = false;
     }
   }
 
