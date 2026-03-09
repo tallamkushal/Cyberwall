@@ -20,7 +20,7 @@ exports.handler = async (event) => {
 
     // Twilio credentials
     const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
-    const TWILIO_TOKEN = "f1d9ccb32b712c875e10022bcb311628";
+    const TWILIO_TOKEN = "83bd0490a83a0c5420b5d08f9902720e";
     const TWILIO_FROM  = "whatsapp:+14155238886";
 
     // Format phone number
