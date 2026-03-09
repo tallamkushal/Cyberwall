@@ -41,6 +41,7 @@ async function loadAllClients() {
 
   // Update client count
   safeSet('total-clients', clients.length);
+  safeSet('clients-count-badge', clients.length);
 
   // Count trials
   const trials = clients.filter(c => c.status === 'trial').length;
