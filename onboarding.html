@@ -386,7 +386,7 @@
         <strong>Don't know how?</strong> WhatsApp us and we'll walk you through it step by step:
       </p>
 
-      <a href="https://wa.me/919999999999?text=Hi%20CyberWall!%20I%20need%20help%20updating%20my%20DNS%20settings." 
+      <a href="https://wa.me/919844482193?text=Hi%20CyberWall!%20I%20need%20help%20updating%20my%20DNS%20settings." 
          class="wa-box" target="_blank">
         <div class="wa-icon">💬</div>
         <div>
@@ -445,8 +445,7 @@
     </div>
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
-      <button class="btn btn-primary" id="verify-next-btn" onclick="goTo(5)" style="display:none">Go to Dashboard →</button>
-      <button class="btn btn-primary" id="verify-skip-btn" onclick="goTo(5)">Go to Dashboard →</button>
+      <button class="btn btn-primary" id="verify-skip-btn" onclick="goTo(5)" style="display:none">Go to Dashboard →</button>
     </div>
   </div>
 
@@ -487,7 +486,7 @@
         </div>
       </div>
 
-      <a href="https://wa.me/919999999999?text=Hi%20CyberWall!%20I%20just%20completed%20my%20setup.%20My%20domain%20is%20ready%20for%20WAF%20configuration."
+      <a href="https://wa.me/919844482193?text=Hi%20CyberWall!%20I%20just%20completed%20my%20setup.%20My%20domain%20is%20ready%20for%20WAF%20configuration."
          class="wa-box" target="_blank">
         <div class="wa-icon">💬</div>
         <div>
@@ -531,11 +530,18 @@
 
   // ---- NAVIGATE BETWEEN STEPS ----
   function goTo(step) {
+    const goingForward = step > currentStep;
+
     // Hide current
     document.getElementById('step-' + currentStep).classList.remove('active');
     document.getElementById('ps-' + currentStep).classList.remove('active');
-    document.getElementById('ps-' + currentStep).classList.add('done');
-    document.getElementById('ps-' + currentStep).querySelector('.p-dot').textContent = '✓';
+    if (goingForward) {
+      document.getElementById('ps-' + currentStep).classList.add('done');
+      document.getElementById('ps-' + currentStep).querySelector('.p-dot').textContent = '✓';
+    } else {
+      document.getElementById('ps-' + currentStep).classList.remove('done');
+      document.getElementById('ps-' + currentStep).querySelector('.p-dot').textContent = currentStep;
+    }
 
     // Show new
     currentStep = step;
@@ -560,10 +566,15 @@
   // ---- VALIDATE DOMAIN ----
   function validateDomain(val) {
     const warning = document.getElementById('domain-warning');
-    if (val.length > 5) {
-      warning.style.display = 'block';
-    } else {
-      warning.style.display = 'none';
+    warning.style.display = val.length > 5 ? 'block' : 'none';
+  }
+
+  function isValidDomain(val) {
+    try {
+      const url = new URL(val.startsWith('http') ? val : 'https://' + val);
+      return url.hostname.includes('.') && url.hostname.split('.').every(p => p.length > 0);
+    } catch {
+      return false;
     }
   }
 
@@ -572,7 +583,7 @@
     const domain = document.getElementById('domain-input').value.trim();
     const err = document.getElementById('domain-error');
 
-    if (!domain || !domain.includes('.')) {
+    if (!domain || !isValidDomain(domain)) {
       err.classList.remove('hidden');
       return;
     }
