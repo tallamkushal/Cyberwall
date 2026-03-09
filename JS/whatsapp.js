@@ -6,7 +6,7 @@
 
 const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
 const TWILIO_TOKEN = "f1d9ccb32b712c875e10022bcb311628";
-const TWILIO_FROM  = whatsapp:+14155238886"; // Twilio sandbox number
+const TWILIO_FROM  = "whatsapp:+14155238886"; // Twilio sandbox number
 
 // ============================================
 // NOTE: In production, NEVER put API keys in
@@ -145,7 +145,7 @@ async function sendReportReadyAlert(clientPhone, clientName, month) {
 }
 
 async function notifyAdminNewSignup(clientName, email, plan, domain) {
-  const adminPhone = '+919844482193'; // YOUR WhatsApp number // YOUR WhatsApp number — update this!
+  const adminPhone = '+919844482193'; // Kushal's WhatsApp
   const message = alertAdminNewSignup(clientName, email, plan, domain);
   return await sendWhatsApp(adminPhone, message);
 }
