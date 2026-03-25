@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CyberWall — Dashboard</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { display: flex; min-height: 100vh; overflow: hidden; }
+    body { display: flex; height: 100vh; overflow: hidden; }
 
     /* ---- SIDEBAR ---- */
     .sidebar {
@@ -75,7 +76,7 @@
     .main {
       margin-left: 240px; flex: 1;
       display: flex; flex-direction: column;
-      min-height: 100vh; overflow-y: auto;
+      height: 100vh; overflow-y: auto;
     }
 
     /* ---- TOPBAR ---- */
@@ -285,7 +286,7 @@
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <a href="index.html" class="sidebar-logo">
+  <a href="dashboard.html" class="sidebar-logo">
     <div class="sidebar-logo-icon">🛡</div>
     <span class="sidebar-logo-text">CyberWall</span>
   </a>
@@ -406,23 +407,15 @@
         </div>
       </div>
 
-      <!-- Chart + Score -->
-      <div class="grid-3-1">
+      <!-- Chart + Attack Types + Score -->
+      <div class="grid-3-1" style="grid-template-columns:1fr 0.5fr 1fr">
         <div class="card">
           <div class="card-header">
             <span class="card-title">Attacks Blocked — Last 7 Days</span>
             <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
           </div>
           <div class="card-body">
-            <div class="chart-wrap">
-              <div class="chart-col"><div class="chart-bar" style="height:55%" title="Mon: 1,240"></div><span class="chart-lbl">Mon</span></div>
-              <div class="chart-col"><div class="chart-bar" style="height:72%" title="Tue: 1,621"></div><span class="chart-lbl">Tue</span></div>
-              <div class="chart-col"><div class="chart-bar" style="height:48%" title="Wed: 1,082"></div><span class="chart-lbl">Wed</span></div>
-              <div class="chart-col"><div class="chart-bar" style="height:88%" title="Thu: 1,982"></div><span class="chart-lbl">Thu</span></div>
-              <div class="chart-col"><div class="chart-bar" style="height:63%" title="Fri: 1,420"></div><span class="chart-lbl">Fri</span></div>
-              <div class="chart-col"><div class="chart-bar" style="height:40%" title="Sat: 902"></div><span class="chart-lbl">Sat</span></div>
-              <div class="chart-col"><div class="chart-bar active" style="height:76%" title="Today: 1,712"></div><span class="chart-lbl">Today</span></div>
-            </div>
+            <canvas id="chart-attacks-7d" height="120"></canvas>
             <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px">
               <span style="color:var(--muted)">Peak: Thursday · 1,982 attacks</span>
               <span style="color:var(--green);font-weight:600">All blocked ✓</span>
@@ -431,16 +424,23 @@
         </div>
 
         <div class="card">
+          <div class="card-header"><span class="card-title">Attack Types</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <canvas id="chart-attack-types" height="80"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header"><span class="card-title">Security Score</span></div>
           <div class="card-body">
             <div class="score-wrap">
-              <div class="score-grade">A+</div>
+              <div class="score-grade" id="score-grade">A+</div>
               <div class="score-sub">Excellent Protection</div>
-              <div class="score-row"><span class="score-row-label">🛡 WAF Rules</span><span class="score-row-val text-green">Active</span></div>
-              <div class="score-row"><span class="score-row-label">🔐 SSL</span><span class="score-row-val text-green">Valid</span></div>
-              <div class="score-row"><span class="score-row-label">✉ SPF/DKIM</span><span class="score-row-val text-green">Pass</span></div>
-              <div class="score-row"><span class="score-row-label">🤖 Bot Shield</span><span class="score-row-val text-green">Active</span></div>
-              <div class="score-row"><span class="score-row-label">🔒 HTTPS</span><span class="score-row-val text-green">Enforced</span></div>
+              <div class="score-row"><span class="score-row-label">🛡 WAF Rules</span><span id="score-waf" class="score-row-val text-green">Active</span></div>
+              <div class="score-row"><span class="score-row-label">🔐 SSL</span><span id="score-ssl" class="score-row-val text-green">Valid</span></div>
+              <div class="score-row"><span class="score-row-label">✉ SPF/DKIM</span><span id="score-spf" class="score-row-val text-green">Pass</span></div>
+              <div class="score-row"><span class="score-row-label">🤖 Bot Shield</span><span id="score-bot" class="score-row-val text-green">Active</span></div>
+              <div class="score-row"><span class="score-row-label">🔒 HTTPS</span><span id="score-https" class="score-row-val text-green">Enforced</span></div>
             </div>
           </div>
         </div>
@@ -452,7 +452,7 @@
           <span class="card-title">Recent Threats Blocked</span>
           <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
         </div>
-        <div style="overflow-x:auto">
+        <div style="overflow:auto;max-height:260px">
           <table class="data-table">
             <thead>
               <tr>
@@ -471,16 +471,16 @@
     <!-- ===== THREATS ===== -->
     <div class="panel" id="panel-threats">
       <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value">1,847</div><div class="stat-label">Threats Today</div></div>
-        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value">48,291</div><div class="stat-label">Blocked This Month</div></div>
-        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fef9c3">🌍</div></div><div class="stat-value">34</div><div class="stat-label">Countries of Origin</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value" id="threats-today">—</div><div class="stat-label">Threats Today</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value" id="threats-month">—</div><div class="stat-label">Blocked This Month</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fef9c3">🌍</div></div><div class="stat-value" id="threats-countries">—</div><div class="stat-label">Countries of Origin</div></div>
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Full Threats Log</span></div>
         <div style="overflow-x:auto">
           <table class="data-table">
             <thead><tr><th>Threat</th><th>IP</th><th>Country</th><th>Target</th><th>Time</th><th>Severity</th><th>Status</th></tr></thead>
-            <tbody>
+            <tbody id="threats-full-tbody">
               <tr><td>SQL Injection</td><td class="font-mono" style="font-size:12px">103.28.xx.xx</td><td>🇨🇳 China</td><td>/api/users</td><td>2 min ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
               <tr><td>XSS Attack</td><td class="font-mono" style="font-size:12px">185.220.xx.xx</td><td>🇷🇺 Russia</td><td>/search</td><td>14 min ago</td><td><span class="badge badge-red">High</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
               <tr><td>Bot Crawl</td><td class="font-mono" style="font-size:12px">45.33.xx.xx</td><td>🇺🇸 USA</td><td>/products</td><td>28 min ago</td><td><span class="badge badge-orange">Medium</span></td><td><span class="badge badge-green">Blocked</span></td></tr>
@@ -515,20 +515,20 @@
           <div class="card-header"><span class="card-title">SSL Certificate</span></div>
           <div class="card-body">
             <div class="ssl-row"><span class="ssl-label">Domain</span><span class="ssl-val" id="user-domain">Loading...</span></div>
-            <div class="ssl-row"><span class="ssl-label">Status</span><span class="ssl-val text-green">✓ Valid</span></div>
-            <div class="ssl-row"><span class="ssl-label">Issuer</span><span class="ssl-val">Let's Encrypt</span></div>
-            <div class="ssl-row"><span class="ssl-label">Expires</span><span class="ssl-val text-green">Nov 28, 2025 (289 days)</span></div>
-            <div class="ssl-row"><span class="ssl-label">Protocol</span><span class="ssl-val text-green">TLS 1.3</span></div>
-            <div class="ssl-row"><span class="ssl-label">HTTPS Enforced</span><span class="ssl-val text-green">✓ Yes</span></div>
+            <div class="ssl-row"><span class="ssl-label">Status</span><span id="ssl-status" class="ssl-val text-green">✓ Valid</span></div>
+            <div class="ssl-row"><span class="ssl-label">Issuer</span><span id="ssl-issuer" class="ssl-val">Let's Encrypt</span></div>
+            <div class="ssl-row"><span class="ssl-label">Expires</span><span id="ssl-expires" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Protocol</span><span id="ssl-protocol" class="ssl-val text-green">TLS 1.3</span></div>
+            <div class="ssl-row"><span class="ssl-label">HTTPS Enforced</span><span id="ssl-https" class="ssl-val text-green">✓ Yes</span></div>
           </div>
         </div>
         <div class="card">
           <div class="card-header"><span class="card-title">Email Security (SPF/DKIM/DMARC)</span></div>
           <div class="card-body">
-            <div class="ssl-row"><span class="ssl-label">SPF Record</span><span class="ssl-val text-green">✓ Pass</span></div>
-            <div class="ssl-row"><span class="ssl-label">DKIM</span><span class="ssl-val text-green">✓ Pass</span></div>
-            <div class="ssl-row"><span class="ssl-label">DMARC</span><span class="ssl-val" style="color:var(--orange)">⚠ Not configured</span></div>
-            <div class="ssl-row"><span class="ssl-label">MX Records</span><span class="ssl-val text-green">✓ Configured</span></div>
+            <div class="ssl-row"><span class="ssl-label">SPF Record</span><span id="email-spf" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">DKIM</span><span id="email-dkim" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">DMARC</span><span id="email-dmarc" class="ssl-val">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">MX Records</span><span id="email-mx" class="ssl-val text-green">—</span></div>
             <div class="card-body" style="padding:12px 0 0">
               <div style="background:var(--orange-light);border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--orange)">
                 ⚠ DMARC not set — your domain could be spoofed. Contact us on WhatsApp to fix this.
@@ -696,7 +696,7 @@
 
     try {
       const profile = await getCurrentProfile();
-      const res = await fetch('http://localhost:3001/api/ai-chat', {
+      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com'}/api/ai-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -766,6 +766,70 @@
     document.getElementById('ai-input').value = text;
     sendAiMessage();
   }
+</script>
+
+<script>
+  window.addEventListener('DOMContentLoaded', function () {
+    window._attackTypesChart = new Chart(document.getElementById('chart-attack-types'), {
+      type: 'pie',
+      data: {
+        labels: ['SQL Injection', 'XSS', 'DDoS', 'Bot Crawl', 'Brute Force', 'Other'],
+        datasets: [{
+          data: [28, 22, 18, 15, 11, 6],
+          backgroundColor: ['#ef4444','#f97316','#eab308','#4f5eff','#8b5cf6','#6b7280'],
+          borderWidth: 2,
+          borderColor: 'var(--surface)',
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#888', boxWidth: 12, padding: 10 } },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + '%' } },
+        },
+      },
+    });
+
+    window._attacksChart = new Chart(document.getElementById('chart-attacks-7d'), {
+      type: 'bar',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'],
+        datasets: [{
+          label: 'Attacks Blocked',
+          data: [1240, 1621, 1082, 1982, 1420, 902, 1712],
+          backgroundColor: [
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.5)',
+            'rgba(79,94,255,0.85)',
+          ],
+          borderColor: [
+            '#4f5eff','#4f5eff','#4f5eff','#4f5eff','#4f5eff','#4f5eff','#4f5eff',
+          ],
+          borderWidth: 1,
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ' + ctx.parsed.y.toLocaleString('en-IN') + ' attacks',
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 11 } }, grid: { display: false } },
+          y: { ticks: { color: '#888', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        },
+      },
+    });
+  });
 </script>
 
 </body>
