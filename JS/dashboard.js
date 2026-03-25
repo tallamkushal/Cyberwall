@@ -4,46 +4,31 @@ async function loadDashboard() {
   const user = await requireAuth();
   if (!user) return;
   const profile = await getCurrentProfile();
-  if (!profile) return;
+  if (!profile) { window.location.href = 'onboarding.html'; return; }
 
   document.getElementById('user-name').textContent     = profile.full_name || 'User';
   document.getElementById('user-plan').textContent     = capitalize(profile.plan || 'starter') + ' Plan';
-  document.getElementById('user-domain').textContent   = profile.domain || 'Not set';
+  document.getElementById('user-domain').textContent   = profile.domain || 'Not configured';
   document.getElementById('user-initials').textContent = getInitials(profile.full_name);
+  document.getElementById('user-biz').textContent      = profile.company || 'Not set';
+  const planBadge = document.getElementById('plan-badge');
+  if (planBadge) planBadge.textContent = capitalize(profile.plan || 'starter') + ' Plan';
 
   loadStats(profile);
   loadThreats();
   loadReports();
+  loadCloudflareForProfile(profile);
 }
 
 function loadStats(profile) {
-  const days = profile.created_at
-    ? Math.floor((Date.now() - new Date(profile.created_at)) / 86400000) : 30;
-  document.getElementById('stat-blocked').textContent  = (days * 180 + 1200).toLocaleString('en-IN');
-  document.getElementById('stat-uptime').textContent   = '99.9%';
-  document.getElementById('stat-response').textContent = '38ms';
-  document.getElementById('stat-score').textContent    = '94/100';
+  document.getElementById('stat-blocked').textContent  = '—';
+  document.getElementById('stat-uptime').textContent   = '—';
+  document.getElementById('stat-response').textContent = '—';
+  document.getElementById('stat-score').textContent    = '—';
 }
 
 function loadThreats() {
-  const threats = [
-    { type:'SQL Injection',  ip:'103.28.xx.xx',  country:'🇨🇳 China',   time:'2 min ago',  sev:'high'   },
-    { type:'XSS Attack',     ip:'185.220.xx.xx', country:'🇷🇺 Russia',  time:'14 min ago', sev:'high'   },
-    { type:'Bot Crawl',      ip:'45.33.xx.xx',   country:'🇺🇸 USA',     time:'28 min ago', sev:'medium' },
-    { type:'DDoS Attempt',   ip:'198.54.xx.xx',  country:'🇧🇷 Brazil',  time:'1 hr ago',   sev:'high'   },
-    { type:'Path Traversal', ip:'92.118.xx.xx',  country:'🇩🇪 Germany', time:'3 hrs ago',  sev:'medium' },
-  ];
-  const tbody = document.getElementById('threats-body');
-  if (!tbody) return;
-  tbody.innerHTML = threats.map(t => `
-    <tr>
-      <td>${t.type}</td>
-      <td style="font-family:monospace;font-size:12px">${t.ip}</td>
-      <td>${t.country}</td>
-      <td style="color:var(--muted)">${t.time}</td>
-      <td><span class="badge ${t.sev==='high'?'badge-red':'badge-orange'}">${capitalize(t.sev)}</span></td>
-      <td><span class="badge badge-green">Blocked</span></td>
-    </tr>`).join('');
+  // Real data loaded by loadCloudflareForProfile() — nothing to do here
 }
 
 function loadReports() {
@@ -65,21 +50,78 @@ function loadReports() {
     </div>`).join('');
 }
 
-function showPanel(name, el) {
+function showPanel(name, el, pushState = true) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
-  if (el) el.classList.add('active');
+  // highlight matching sidebar item by finding the one that calls showPanel with this name
+  if (el) {
+    el.classList.add('active');
+  } else {
+    const match = document.querySelector(`.sidebar-item[onclick*="'${name}'"]`);
+    if (match) match.classList.add('active');
+  }
   const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'SSL Monitor',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant'};
-  document.getElementById('page-title').textContent = titles[name] || name;
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  if (pushState) history.pushState({ panel: name }, '', '#' + name);
 }
+
+window.addEventListener('popstate', function (e) {
+  const panel = (e.state && e.state.panel) || 'overview';
+  showPanel(panel, null, false);
+});
 
 function toggleSwitch(el) { el.classList.toggle('on'); }
 async function handleLogout() { await logOut(); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function getInitials(name) { return name ? name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'U'; }
 
-window.addEventListener('DOMContentLoaded', loadDashboard);
+window.addEventListener('DOMContentLoaded', function () {
+  // Seed initial history entry so the first back press stays on the dashboard
+  const initial = location.hash.replace('#', '') || 'overview';
+  history.replaceState({ panel: initial }, '', '#' + initial);
+  loadDashboard();
+});
+
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function editBusinessName() {
+  const current = document.getElementById('user-biz').textContent;
+  document.getElementById('biz-input').value = current === 'Not set' ? '' : current;
+  openModal('modal-biz');
+}
+
+async function saveBizName() {
+  const newName = document.getElementById('biz-input').value.trim();
+  if (!newName) return;
+  const session = await supabaseClient.auth.getSession();
+  const userId = session?.data?.session?.user?.id;
+  if (!userId) return;
+  const { error } = await supabaseClient.from('profiles').update({ company: newName }).eq('id', userId);
+  if (error) { showToast('Failed to update: ' + error.message, 'error'); return; }
+  document.getElementById('user-biz').textContent = newName;
+  closeModal('modal-biz');
+}
+
+function changePassword() {
+  document.getElementById('pass-new').value = '';
+  document.getElementById('pass-confirm').value = '';
+  document.getElementById('pass-error').textContent = '';
+  openModal('modal-pass');
+}
+
+async function savePassword() {
+  const newPass = document.getElementById('pass-new').value;
+  const confirm = document.getElementById('pass-confirm').value;
+  const errEl = document.getElementById('pass-error');
+  if (newPass.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; return; }
+  if (newPass !== confirm) { errEl.textContent = 'Passwords do not match.'; return; }
+  const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+  if (error) { errEl.textContent = 'Error: ' + error.message; return; }
+  closeModal('modal-pass');
+  showToast('Password updated successfully.', 'success');
+}
 
 // ---- LOAD CLOUDFLARE DATA ----
 // Called after profile is loaded

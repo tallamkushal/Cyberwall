@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Step 2: Check if they are an admin
   const profile = await getCurrentProfile();
   if (!profile || profile.role !== 'admin') {
-    // Not an admin — send them to client dashboard
-    alert('Access denied. Admins only.');
     window.location.href = 'dashboard.html';
     return;
   }
@@ -25,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAllClients();
   loadRevenueStats();
 });
+
 
 // ---- LOAD ALL CLIENTS ----
 async function loadAllClients() {
@@ -36,30 +35,31 @@ async function loadAllClients() {
 
   if (error) {
     console.error('Error loading clients:', error);
-    return;
   }
 
+  const list = clients || [];
+
   // Update client count
-  safeSet('total-clients', clients.length);
-  safeSet('clients-count-badge', clients.length);
+  safeSet('total-clients', list.length);
+  safeSet('clients-count-badge', list.length);
 
   // Count trials
-  const trials = clients.filter(c => c.status === 'trial').length;
+  const trials = list.filter(c => c.status === 'trial').length;
   safeSet('total-trials', trials);
 
   // Count overdue
-  const overdue = clients.filter(c => c.status === 'overdue').length;
+  const overdue = list.filter(c => c.status === 'overdue').length;
   safeSet('total-overdue', overdue);
 
   // Calculate MRR
   const planPrices = { starter: 2999, pro: 5999, business: 9999 };
-  const mrr = clients
+  const mrr = list
     .filter(c => c.status === 'active')
     .reduce((sum, c) => sum + (planPrices[c.plan] || 0), 0);
   safeSet('total-mrr', '₹' + mrr.toLocaleString('en-IN'));
 
   // Render client table
-  renderClientTable(clients);
+  renderClientTable(list);
 }
 
 // ---- RENDER CLIENT TABLE ----
@@ -125,7 +125,7 @@ async function addClient() {
     id: crypto.randomUUID(),
     full_name: fname + ' ' + lname,
     email, phone,
-    business_name: bizname,
+    company: bizname,
     domain, plan,
     status: 'trial',
     role: 'client',
@@ -150,13 +150,86 @@ async function addClient() {
 }
 
 // ---- VIEW CLIENT ----
-function viewClient(id) {
-  showToast('Client view coming soon!', 'default');
+async function viewClient(id) {
+  const { data: client, error } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !client) {
+    showToast('Could not load client details', 'error');
+    return;
+  }
+
+  // Populate modal
+  document.getElementById('cv-name').textContent    = client.full_name || '—';
+  document.getElementById('cv-domain').textContent  = client.domain || '—';
+  document.getElementById('cv-email').textContent   = client.email || '—';
+  document.getElementById('cv-phone').textContent   = client.phone || '—';
+  document.getElementById('cv-biz').textContent     = client.company || '—';
+  document.getElementById('cv-joined').textContent  = formatDate(client.created_at);
+  document.getElementById('cv-plan').textContent    = capitalize(client.plan || 'starter');
+  document.getElementById('cv-status').innerHTML    = getStatusBadge(client.status);
+  document.getElementById('cv-notes').textContent   = client.notes || 'No notes.';
+
+  // Plan select
+  const planSel = document.getElementById('cv-plan-select');
+  planSel.value = client.plan || 'starter';
+
+  // Status select
+  const statusSel = document.getElementById('cv-status-select');
+  statusSel.value = client.status || 'trial';
+
+  // WhatsApp button
+  document.getElementById('cv-whatsapp-btn').onclick = () => {
+    const phone = (client.phone || '').replace(/\D/g, '').slice(-10);
+    if (!phone) { showToast('No phone number on file', 'error'); return; }
+    window.open(`https://wa.me/91${phone}`, '_blank');
+  };
+
+  // Save changes button
+  document.getElementById('cv-save-btn').onclick = () => saveClientChanges(id);
+
+  // Store id for save
+  document.getElementById('cv-modal').dataset.clientId = id;
+
+  document.getElementById('cv-modal').classList.remove('hidden');
+}
+
+function closeClientModal() {
+  document.getElementById('cv-modal').classList.add('hidden');
+}
+
+async function saveClientChanges(id) {
+  const plan   = document.getElementById('cv-plan-select').value;
+  const status = document.getElementById('cv-status-select').value;
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .update({ plan, status })
+    .eq('id', id);
+
+  if (error) {
+    showToast('Failed to save changes', 'error');
+  } else {
+    showToast('Client updated!', 'success');
+    closeClientModal();
+    await loadAllClients();
+  }
 }
 
 // ---- SEND REMINDER ----
-function sendReminder(id, name) {
-  showToast(`Reminder sent to ${name} on WhatsApp`, 'success');
+async function sendReminder(id, name) {
+  const { data: client } = await supabaseClient.from('profiles').select('phone, domain').eq('id', id).single();
+  if (!client?.phone) { showToast('No phone number on file for ' + name, 'error'); return; }
+  const message = `Hi ${name}! 👋\n\nThis is a reminder from CyberWall that your payment is overdue.\n\nPlease renew your subscription to keep your website *${client.domain || ''}* protected.\n\nReply to this message or log in to your dashboard to sort it out.\n\n— CyberWall Team 🛡`;
+  const result = await sendWhatsApp(client.phone, message);
+  if (result.success) {
+    showToast(`Reminder sent to ${name} on WhatsApp ✅`, 'success');
+  } else {
+    showToast('Failed to send reminder: ' + (result.error || 'unknown error'), 'error');
+  }
 }
 
 // ---- REVENUE STATS ----

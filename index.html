@@ -3,180 +3,430 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CyberWall — Enterprise WAF for Indian Businesses</title>
+  <title>CyberWall — Managed WAF for SMBs</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
-    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 5%;display:flex;align-items:center;height:64px;gap:32px; }
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes float { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-10px); } }
+    @keyframes pulse-ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(2.2); opacity:0; } }
+    @keyframes gradientShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+    @keyframes scanline { 0% { top:-10%; } 100% { top:110%; } }
+    @keyframes countUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes shimmer { 0% { background-position:-200% 0; } 100% { background-position:200% 0; } }
+
+    .reveal { opacity:0; transform:translateY(32px); transition:opacity 0.65s ease, transform 0.65s ease; }
+    .reveal.visible { opacity:1; transform:translateY(0); }
+    .reveal-delay-1 { transition-delay:0.1s; }
+    .reveal-delay-2 { transition-delay:0.2s; }
+    .reveal-delay-3 { transition-delay:0.3s; }
+
+    /* ── NAV ── */
+    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:0 5%;display:flex;align-items:center;height:64px;gap:32px; }
     .nav-logo { display:flex;align-items:center;gap:10px;text-decoration:none; }
-    .nav-logo-icon { width:34px;height:34px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px; }
+    .nav-logo-icon { width:34px;height:34px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(26,71,232,0.3); }
     .nav-logo-text { font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;color:var(--text);letter-spacing:-0.5px; }
     .nav-links { display:flex;gap:24px;margin-left:24px; }
     .nav-link { font-size:14px;font-weight:500;color:var(--muted);text-decoration:none;transition:color 0.2s; }
     .nav-link:hover { color:var(--text); }
     .nav-right { margin-left:auto;display:flex;align-items:center;gap:10px; }
-    .hero { padding:96px 5% 80px;text-align:center;max-width:860px;margin:0 auto; }
-    .hero-tag { display:inline-flex;align-items:center;gap:7px;background:var(--accent-light);color:var(--accent);border:1px solid #c7d7fb;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;margin-bottom:24px; }
-    .hero h1 { font-size:58px;font-weight:800;letter-spacing:-2px;line-height:1.1;margin-bottom:20px; }
-    .hero h1 span { color:var(--accent); }
-    .hero p { font-size:18px;color:var(--muted);line-height:1.7;max-width:580px;margin:0 auto 36px; }
-    .hero-ctas { display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap; }
-    .social-proof { text-align:center;padding:20px 5% 48px;border-bottom:1px solid var(--border); }
-    .social-proof p { font-size:12px;color:var(--muted-light);margin-bottom:16px;font-weight:500;letter-spacing:1px;text-transform:uppercase; }
-    .logos { display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap; }
-    .logo-item { font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:var(--border);letter-spacing:-0.5px; }
-    .stats-bar { display:flex;justify-content:center;background:var(--text);padding:28px 5%;flex-wrap:wrap; }
-    .stat-item { flex:1;min-width:140px;text-align:center;padding:0 20px;border-right:1px solid rgba(255,255,255,0.1); }
+
+    /* ── HERO ── */
+    .hero-wrap {
+      position:relative;overflow:hidden;
+      background: linear-gradient(135deg, #f0f4ff 0%, #ffffff 40%, #f5f0ff 100%);
+    }
+    .hero-wrap::before {
+      content:'';position:absolute;inset:0;
+      background: radial-gradient(ellipse 80% 60% at 60% 40%, rgba(26,71,232,0.08) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 40% at 20% 80%, rgba(139,92,246,0.06) 0%, transparent 60%);
+      pointer-events:none;
+    }
+    .hero-grid-bg {
+      position:absolute;inset:0;
+      background-image: linear-gradient(rgba(26,71,232,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(26,71,232,0.04) 1px, transparent 1px);
+      background-size:48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+      pointer-events:none;
+    }
+    .hero { padding:100px 5% 80px;text-align:center;max-width:820px;margin:0 auto;position:relative;z-index:1; }
+    .hero-tag {
+      display:inline-flex;align-items:center;gap:7px;
+      background:rgba(255,255,255,0.9);border:1px solid rgba(26,71,232,0.15);
+      border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--accent);
+      margin-bottom:28px;box-shadow:0 2px 12px rgba(26,71,232,0.08);
+      backdrop-filter:blur(8px);
+      animation: fadeUp 0.6s ease both;
+    }
+    .live-dot { width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;position:relative; }
+    .live-dot::after { content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);animation:pulse-ring 1.5s ease-out infinite; }
+    .hero h1 {
+      font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1.08;margin-bottom:22px;
+      animation: fadeUp 0.6s ease 0.1s both;
+      background: linear-gradient(135deg, #0f172a 0%, #1a47e8 60%, #7c3aed 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    }
+    .hero p { font-size:18px;color:var(--muted);line-height:1.75;max-width:540px;margin:0 auto 36px;animation:fadeUp 0.6s ease 0.2s both; }
+    .hero-ctas { display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;animation:fadeUp 0.6s ease 0.3s both; }
+    .hero-sub { font-size:13px;color:var(--muted-light);margin-top:16px;animation:fadeUp 0.6s ease 0.4s both; }
+
+    /* floating shield visual */
+    .hero-visual { margin-top:52px;position:relative;display:flex;justify-content:center;animation:fadeUp 0.7s ease 0.5s both; }
+    .shield-card {
+      background:rgba(255,255,255,0.9);backdrop-filter:blur(20px);border:1px solid rgba(26,71,232,0.12);
+      border-radius:24px;padding:28px 36px;box-shadow:0 20px 60px rgba(26,71,232,0.12),0 4px 16px rgba(0,0,0,0.06);
+      display:flex;align-items:center;gap:20px;animation:float 4s ease-in-out infinite;
+      max-width:440px;width:100%;
+    }
+    .shield-icon-wrap { width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;box-shadow:0 8px 24px rgba(26,71,232,0.3); }
+    .shield-info { flex:1; }
+    .shield-title { font-size:15px;font-weight:700;margin-bottom:4px; }
+    .shield-sub { font-size:13px;color:var(--muted); }
+    .shield-badge { background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#16a34a;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;white-space:nowrap; }
+
+    .threat-badges { display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px;animation:fadeUp 0.7s ease 0.65s both; }
+    .threat-badge {
+      background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);
+      border-radius:10px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--muted);
+      display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,0.04);
+      backdrop-filter:blur(8px);
+    }
+    .threat-badge .dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+
+    /* ── SOCIAL PROOF ── */
+    .social-proof { text-align:center;padding:32px 5%;border-bottom:1px solid var(--border);background:white; }
+    .social-proof p { font-size:11px;color:var(--muted-light);margin-bottom:20px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase; }
+    .logos { display:flex;align-items:center;justify-content:center;gap:36px;flex-wrap:wrap; }
+    .logo-item { font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:800;color:#d1d5db;letter-spacing:-0.5px;transition:color 0.2s; }
+    .logo-item:hover { color:#9ca3af; }
+
+    /* ── STATS ── */
+    .stats-bar {
+      display:flex;justify-content:center;
+      background:linear-gradient(135deg,#0f172a,#1e3a8a);
+      padding:32px 5%;flex-wrap:wrap;position:relative;overflow:hidden;
+    }
+    .stats-bar::after {
+      content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.03),transparent);
+      animation:shimmer 3s ease-in-out infinite;
+    }
+    .stat-item { flex:1;min-width:140px;text-align:center;padding:0 20px;border-right:1px solid rgba(255,255,255,0.08); }
     .stat-item:last-child { border-right:none; }
-    .stat-num { font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;color:white; }
-    .stat-lbl { font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px; }
-    .section { padding:80px 5%; }
-    .section-center { text-align:center;max-width:640px;margin:0 auto 52px; }
-    .section-tag { font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px; }
-    .section-title { font-size:38px;font-weight:800;letter-spacing:-1px;margin-bottom:14px; }
-    .section-sub { font-size:16px;color:var(--muted);line-height:1.7; }
+    .stat-num { font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:white;letter-spacing:-1px; }
+    .stat-lbl { font-size:12px;color:rgba(255,255,255,0.45);margin-top:5px;font-weight:500; }
+
+    /* ── SECTIONS ── */
+    .section { padding:88px 5%; }
+    .section-center { text-align:center;max-width:600px;margin:0 auto 56px; }
+    .section-tag { display:inline-block;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;background:var(--accent-light);padding:4px 12px;border-radius:6px; }
+    .section-title { font-size:40px;font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;line-height:1.15; }
+    .section-sub { font-size:16px;color:var(--muted);line-height:1.75; }
+
+    /* ── PROBLEM ── */
     .problem-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px; }
-    .problem-card { background:var(--red-light);border:1px solid #fecaca;border-radius:16px;padding:28px; }
-    .problem-num { font-family:'Bricolage Grotesque',sans-serif;font-size:40px;font-weight:800;color:var(--red);margin:10px 0 8px; }
-    .problem-text { font-size:14px;color:var(--muted);line-height:1.6; }
+    .problem-card {
+      background:linear-gradient(135deg,#fff5f5,#fff);border:1px solid #fecaca;
+      border-radius:20px;padding:32px;transition:transform 0.2s,box-shadow 0.2s;
+    }
+    .problem-card:hover { transform:translateY(-4px);box-shadow:0 12px 32px rgba(239,68,68,0.1); }
+    .problem-num { font-family:'Bricolage Grotesque',sans-serif;font-size:44px;font-weight:800;color:var(--red);margin:14px 0 10px;letter-spacing:-2px; }
+    .problem-text { font-size:14px;color:var(--muted);line-height:1.7; }
+
+    /* ── STEPS ── */
     .steps-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:20px; }
-    .step-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;text-align:center;position:relative; }
+    .step-card {
+      background:white;border:1px solid var(--border);border-radius:20px;padding:28px;
+      text-align:center;position:relative;transition:all 0.2s;
+    }
+    .step-card:hover { border-color:var(--accent);box-shadow:0 8px 28px rgba(26,71,232,0.1); }
     .step-card:not(:last-child)::after { content:'→';position:absolute;right:-14px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--border);font-weight:700; }
-    .step-num { width:36px;height:36px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;margin:0 auto 14px; }
+    .step-num { width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7c3aed);color:white;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;margin:0 auto 14px;box-shadow:0 4px 12px rgba(26,71,232,0.3); }
     .step-icon { font-size:28px;margin-bottom:10px; }
     .step-title { font-size:15px;font-weight:700;margin-bottom:8px; }
-    .step-desc { font-size:13px;color:var(--muted);line-height:1.6; }
+    .step-desc { font-size:13px;color:var(--muted);line-height:1.65; }
+
+    /* ── FEATURES ── */
     .features-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px; }
-    .feature-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;transition:all 0.2s; }
-    .feature-card:hover { border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-md); }
-    .feature-icon { font-size:28px;margin-bottom:12px; }
+    .feature-card {
+      background:white;border:1px solid var(--border);border-radius:20px;padding:28px;
+      transition:all 0.25s;position:relative;overflow:hidden;
+    }
+    .feature-card::before { content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(26,71,232,0.03),transparent);opacity:0;transition:opacity 0.25s; }
+    .feature-card:hover { border-color:var(--accent);transform:translateY(-3px);box-shadow:0 12px 32px rgba(26,71,232,0.1); }
+    .feature-card:hover::before { opacity:1; }
+    .feature-icon { font-size:28px;margin-bottom:14px; }
     .feature-title { font-size:15px;font-weight:700;margin-bottom:8px; }
-    .feature-desc { font-size:13px;color:var(--muted);line-height:1.6; }
-    .pricing-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:900px;margin:0 auto; }
-    .pricing-card { background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;position:relative; }
-    .pricing-card.popular { border-color:var(--accent);border-width:2px;box-shadow:0 8px 32px rgba(26,71,232,0.12); }
-    .popular-tag { position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;white-space:nowrap; }
-    .pricing-plan { font-size:14px;font-weight:700;color:var(--muted);margin-bottom:8px; }
-    .pricing-price { font-family:'Bricolage Grotesque',sans-serif;font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:4px; }
-    .pricing-period { font-size:13px;color:var(--muted);margin-bottom:24px; }
-    .pricing-features { list-style:none;margin-bottom:28px;display:flex;flex-direction:column;gap:10px; }
-    .pricing-features li { font-size:14px;color:var(--muted);display:flex;gap:8px; }
-    .pricing-features li::before { content:'✓';color:var(--green);font-weight:700;flex-shrink:0; }
+    .feature-desc { font-size:13px;color:var(--muted);line-height:1.65; }
+
+    /* ── PRICING ── */
+    .pricing-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:920px;margin:0 auto; }
+    .pricing-card { background:white;border:1px solid var(--border);border-radius:24px;padding:36px;position:relative;transition:all 0.2s; }
+    .pricing-card:hover { box-shadow:0 12px 40px rgba(0,0,0,0.08); }
+    .pricing-card.popular {
+      border-color:var(--accent);border-width:2px;
+      background:linear-gradient(135deg,#f0f4ff,white);
+      box-shadow:0 8px 40px rgba(26,71,232,0.14);
+      transform:scale(1.03);
+    }
+    .popular-tag { position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent),#7c3aed);color:white;font-size:11px;font-weight:700;padding:4px 16px;border-radius:20px;white-space:nowrap;box-shadow:0 4px 12px rgba(26,71,232,0.3); }
+    .pricing-plan { font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px; }
+    .pricing-price { font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;letter-spacing:-2px;margin-bottom:4px; }
+    .pricing-period { font-size:13px;color:var(--muted);margin-bottom:28px; }
+    .pricing-features { list-style:none;margin-bottom:28px;display:flex;flex-direction:column;gap:11px; }
+    .pricing-features li { font-size:14px;color:var(--muted);display:flex;gap:9px;align-items:flex-start; }
+    .pricing-features li::before { content:'✓';color:var(--green);font-weight:800;flex-shrink:0;margin-top:1px; }
+
+    /* ── TESTIMONIALS ── */
     .testimonials-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px; }
-    .testimonial-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px; }
-    .testimonial-text { font-size:14px;color:var(--muted);line-height:1.7;margin:12px 0 20px;font-style:italic; }
+    .testimonial-card { background:white;border:1px solid var(--border);border-radius:20px;padding:28px;transition:all 0.2s; }
+    .testimonial-card:hover { transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.07); }
+    .stars { font-size:14px;letter-spacing:1px; }
+    .testimonial-text { font-size:14px;color:var(--muted);line-height:1.75;margin:14px 0 20px;font-style:italic; }
     .testimonial-author { display:flex;align-items:center;gap:10px; }
     .testimonial-avatar { width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0; }
     .testimonial-name { font-size:14px;font-weight:700; }
     .testimonial-role { font-size:12px;color:var(--muted); }
-    .cta-banner { background:var(--accent);padding:72px 5%;text-align:center;color:white; }
-    .cta-banner h2 { font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:14px; }
-    .cta-banner p { font-size:16px;color:rgba(255,255,255,0.75);margin-bottom:32px; }
-    .btn-white { background:white;color:var(--accent);padding:14px 32px;font-size:15px;border-radius:10px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s; }
-    .btn-white:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2); }
-    .footer { background:var(--text);padding:36px 5%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px; }
+
+    /* ── CTA BANNER ── */
+    .cta-banner {
+      background:linear-gradient(135deg,#1a47e8,#7c3aed);
+      padding:80px 5%;text-align:center;color:white;position:relative;overflow:hidden;
+    }
+    .cta-banner::before {
+      content:'';position:absolute;inset:0;
+      background: radial-gradient(ellipse 60% 80% at 70% 50%, rgba(255,255,255,0.07) 0%, transparent 70%);
+    }
+    .cta-banner h2 { font-size:42px;font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;position:relative; }
+    .cta-banner p { font-size:16px;color:rgba(255,255,255,0.75);margin-bottom:36px;position:relative; }
+    .btn-white { background:white;color:var(--accent);padding:15px 34px;font-size:15px;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;position:relative;box-shadow:0 4px 20px rgba(0,0,0,0.15); }
+    .btn-white:hover { transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,0.2); }
+
+    /* ── FOOTER ── */
+    .footer { background:#0f172a;padding:40px 5%;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px; }
     .footer-logo { display:flex;align-items:center;gap:8px; }
     .footer-logo-icon { width:28px;height:28px;border-radius:7px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px; }
     .footer-logo-text { font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px;color:white; }
     .footer-links { display:flex;gap:20px; }
-    .footer-link { font-size:13px;color:rgba(255,255,255,0.5);text-decoration:none; }
-    .footer-copy { font-size:12px;color:rgba(255,255,255,0.3); }
-    .wa-float { position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;color:white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(37,211,102,0.4);transition:all 0.2s;text-decoration:none; }
-    .wa-float:hover { transform:scale(1.1); }
-    @media(max-width:768px){.hero h1{font-size:36px;}.problem-grid,.steps-grid,.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr;}.step-card::after{display:none;}.nav-links{display:none;}}
+    .footer-link { font-size:13px;color:rgba(255,255,255,0.4);text-decoration:none;transition:color 0.2s; }
+    .footer-link:hover { color:rgba(255,255,255,0.7); }
+    .footer-copy { font-size:12px;color:rgba(255,255,255,0.25); }
+
+    /* ── WHATSAPP ── */
+    .wa-float { position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;color:white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(37,211,102,0.5);transition:all 0.2s;text-decoration:none; }
+    .wa-float:hover { transform:scale(1.1);box-shadow:0 8px 28px rgba(37,211,102,0.6); }
+
+    @media(max-width:768px){
+      .hero h1{font-size:38px;letter-spacing:-1.5px;}
+      .problem-grid,.steps-grid,.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr;}
+      .step-card::after{display:none;}
+      .nav-links{display:none;}
+      .pricing-card.popular{transform:none;}
+    }
   </style>
 </head>
 <body>
+
 <nav class="nav">
-  <a href="index.html" class="nav-logo"><div class="nav-logo-icon">🛡</div><span class="nav-logo-text">CyberWall</span></a>
-  <div class="nav-links"><a href="#how" class="nav-link">How it works</a><a href="#features" class="nav-link">Features</a><a href="#pricing" class="nav-link">Pricing</a></div>
-  <div class="nav-right"><a href="auth.html" class="btn btn-ghost">Login</a><a href="auth.html" class="btn btn-primary">Start Free Trial →</a></div>
+  <a href="/" class="nav-logo">
+    <div class="nav-logo-icon">🛡</div>
+    <span class="nav-logo-text">CyberWall</span>
+  </a>
+  <div class="nav-links">
+    <a href="#how" class="nav-link">How it works</a>
+    <a href="#features" class="nav-link">Features</a>
+    <a href="#pricing" class="nav-link">Pricing</a>
+  </div>
+  <div class="nav-right">
+    <a href="auth.html" class="btn btn-ghost">Login</a>
+    <a href="auth.html" class="btn btn-primary">Start Free Trial →</a>
+  </div>
 </nav>
 
-<section style="background:var(--surface)">
-  <div class="hero animate-up">
-    <div class="hero-tag"><span class="live-dot" style="background:var(--green)"></span> 2,400+ attacks blocked today</div>
-    <h1>Your website is being<br/><span>attacked right now.</span></h1>
-    <p>CyberWall protects Indian small businesses with enterprise-grade WAF security — fully managed by us. No technical knowledge needed.</p>
-    <div class="hero-ctas"><a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a><a href="#how" class="btn btn-ghost btn-xl">See how it works</a></div>
-    <p style="font-size:13px;color:var(--muted-light);margin-top:14px">No credit card required · Setup in 24 hours · Cancel anytime</p>
+<!-- HERO -->
+<section class="hero-wrap">
+  <div class="hero-grid-bg"></div>
+  <div class="hero">
+    <div class="hero-tag">
+      <span class="live-dot"></span> 2,400+ attacks blocked today
+    </div>
+    <h1>Your website is being<br/>attacked right now.</h1>
+    <p>CyberWall gives your business enterprise-grade WAF protection — fully managed, no technical knowledge needed.</p>
+    <div class="hero-ctas">
+      <a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a>
+      <a href="#how" class="btn btn-ghost btn-xl">See how it works</a>
+    </div>
+    <p class="hero-sub">No credit card required &nbsp;·&nbsp; Setup in 24 hours &nbsp;·&nbsp; Cancel anytime</p>
+
+    <div class="hero-visual">
+      <div class="shield-card">
+        <div class="shield-icon-wrap">🛡</div>
+        <div class="shield-info">
+          <div class="shield-title">Active Protection</div>
+          <div class="shield-sub">All threats blocked · Last: 2 min ago</div>
+        </div>
+        <div class="shield-badge">● Live</div>
+      </div>
+    </div>
+
+    <div class="threat-badges">
+      <div class="threat-badge"><span class="dot" style="background:#ef4444"></span> SQL Injection blocked</div>
+      <div class="threat-badge"><span class="dot" style="background:#f97316"></span> DDoS mitigated</div>
+      <div class="threat-badge"><span class="dot" style="background:#8b5cf6"></span> XSS attempt stopped</div>
+      <div class="threat-badge"><span class="dot" style="background:#06b6d4"></span> Bot traffic filtered</div>
+    </div>
   </div>
 </section>
 
-<div class="social-proof">
-  <p>Trusted by Indian businesses</p>
-  <div class="logos"><span class="logo-item">Zomato</span><span class="logo-item">Meesho</span><span class="logo-item">Groww</span><span class="logo-item">Urban Company</span><span class="logo-item">Zepto</span><span class="logo-item">Razorpay</span></div>
+<!-- SOCIAL PROOF -->
+<div class="social-proof reveal">
+  <p>Trusted by businesses worldwide</p>
+  <div class="logos">
+    <span class="logo-item">Shopify Store</span>
+    <span class="logo-item">FinTech App</span>
+    <span class="logo-item">SaaS Startup</span>
+    <span class="logo-item">E-Commerce</span>
+    <span class="logo-item">Healthcare Tech</span>
+    <span class="logo-item">Legal Platform</span>
+  </div>
 </div>
 
+<!-- STATS -->
 <div class="stats-bar">
-  <div class="stat-item"><div class="stat-num">2,400+</div><div class="stat-lbl">Attacks blocked daily</div></div>
-  <div class="stat-item"><div class="stat-num">99.9%</div><div class="stat-lbl">Uptime guaranteed</div></div>
-  <div class="stat-item"><div class="stat-num">24hrs</div><div class="stat-lbl">Setup time</div></div>
-  <div class="stat-item"><div class="stat-num">₹35L</div><div class="stat-lbl">Avg breach cost saved</div></div>
+  <div class="stat-item reveal"><div class="stat-num" data-count="2400">0</div><div class="stat-lbl">Attacks blocked daily</div></div>
+  <div class="stat-item reveal reveal-delay-1"><div class="stat-num">99.9%</div><div class="stat-lbl">Uptime guaranteed</div></div>
+  <div class="stat-item reveal reveal-delay-2"><div class="stat-num">24hrs</div><div class="stat-lbl">Setup time</div></div>
+  <div class="stat-item reveal reveal-delay-3"><div class="stat-num" data-count="50000">0</div><div class="stat-lbl">Threats stopped this month</div></div>
 </div>
 
+<!-- PROBLEM -->
 <section class="section" style="background:var(--bg)">
-  <div class="section-center"><div class="section-tag">The problem</div><h2 class="section-title">Small businesses are the most targeted</h2><p class="section-sub">Hackers know small businesses don't have IT teams. They exploit that every single day.</p></div>
+  <div class="section-center reveal">
+    <div class="section-tag">The Problem</div>
+    <h2 class="section-title">Small businesses are the most targeted</h2>
+    <p class="section-sub">Hackers know small businesses don't have IT teams. They exploit that every single day.</p>
+  </div>
   <div class="problem-grid">
-    <div class="problem-card"><div style="font-size:32px">🎯</div><div class="problem-num">43%</div><div class="problem-text">of all cyberattacks target small businesses — not big enterprises.</div></div>
-    <div class="problem-card"><div style="font-size:32px">💸</div><div class="problem-num">₹35L</div><div class="problem-text">average cost of a data breach for an Indian SMB — enough to shut down a business.</div></div>
-    <div class="problem-card"><div style="font-size:32px">⏱</div><div class="problem-num">72hrs</div><div class="problem-text">average time to detect a breach — by then, the damage is already done.</div></div>
+    <div class="problem-card reveal"><div style="font-size:32px">🎯</div><div class="problem-num">43%</div><div class="problem-text">of all cyberattacks target small businesses — not big enterprises.</div></div>
+    <div class="problem-card reveal reveal-delay-1"><div style="font-size:32px">💸</div><div class="problem-num">$200K</div><div class="problem-text">average cost of a data breach for an SMB — enough to shut down a business.</div></div>
+    <div class="problem-card reveal reveal-delay-2"><div style="font-size:32px">⏱</div><div class="problem-num">72hrs</div><div class="problem-text">average time to detect a breach — by then, the damage is already done.</div></div>
   </div>
 </section>
 
-<section class="section" id="how" style="background:var(--surface)">
-  <div class="section-center"><div class="section-tag">How it works</div><h2 class="section-title">Protected in 4 simple steps</h2><p class="section-sub">We handle everything. You focus on your business.</p></div>
+<!-- HOW IT WORKS -->
+<section class="section" id="how" style="background:white">
+  <div class="section-center reveal">
+    <div class="section-tag">How It Works</div>
+    <h2 class="section-title">Protected in 4 simple steps</h2>
+    <p class="section-sub">We handle everything. You focus on your business.</p>
+  </div>
   <div class="steps-grid">
-    <div class="step-card"><div class="step-num">1</div><div class="step-icon">📝</div><div class="step-title">Sign Up</div><div class="step-desc">Create your account and share your website domain with us.</div></div>
-    <div class="step-card"><div class="step-num">2</div><div class="step-icon">⚙️</div><div class="step-title">We Configure</div><div class="step-desc">Our team sets up your Cloudflare WAF within 24 hours.</div></div>
-    <div class="step-card"><div class="step-num">3</div><div class="step-icon">🛡</div><div class="step-title">Stay Protected</div><div class="step-desc">We monitor 24/7 and WhatsApp you when threats are blocked.</div></div>
-    <div class="step-card"><div class="step-num">4</div><div class="step-icon">📄</div><div class="step-title">Monthly Reports</div><div class="step-desc">Plain-English security report every month. No jargon.</div></div>
+    <div class="step-card reveal"><div class="step-num">1</div><div class="step-icon">📝</div><div class="step-title">Sign Up</div><div class="step-desc">Create your account and share your website domain with us.</div></div>
+    <div class="step-card reveal reveal-delay-1"><div class="step-num">2</div><div class="step-icon">⚙️</div><div class="step-title">We Configure</div><div class="step-desc">Our team sets up your Cloudflare WAF within 24 hours.</div></div>
+    <div class="step-card reveal reveal-delay-2"><div class="step-num">3</div><div class="step-icon">🛡</div><div class="step-title">Stay Protected</div><div class="step-desc">We monitor 24/7 and WhatsApp you when threats are blocked.</div></div>
+    <div class="step-card reveal reveal-delay-3"><div class="step-num">4</div><div class="step-icon">📄</div><div class="step-title">Monthly Reports</div><div class="step-desc">Plain-English security report every month. No jargon.</div></div>
   </div>
 </section>
 
+<!-- FEATURES -->
 <section class="section" id="features" style="background:var(--bg)">
-  <div class="section-center"><div class="section-tag">Features</div><h2 class="section-title">Everything your website needs</h2><p class="section-sub">Enterprise-grade security, built for Indian SMBs.</p></div>
+  <div class="section-center reveal">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">Everything your website needs</h2>
+    <p class="section-sub">Enterprise-grade security, built for small businesses worldwide.</p>
+  </div>
   <div class="features-grid">
-    <div class="feature-card"><div class="feature-icon">🛡</div><div class="feature-title">Managed WAF</div><div class="feature-desc">We configure Cloudflare WAF rules to block SQL injection, XSS, DDoS and more.</div></div>
-    <div class="feature-card"><div class="feature-icon">📊</div><div class="feature-title">Live Dashboard</div><div class="feature-desc">See every blocked threat in real time. Watch your security score grow.</div></div>
-    <div class="feature-card"><div class="feature-icon">💬</div><div class="feature-title">WhatsApp Alerts</div><div class="feature-desc">Instant WhatsApp notifications when something serious happens. No app needed.</div></div>
-    <div class="feature-card"><div class="feature-icon">📄</div><div class="feature-title">Monthly Reports</div><div class="feature-desc">Plain-English PDF report every month. Show your clients you take security seriously.</div></div>
-    <div class="feature-card"><div class="feature-icon">🔐</div><div class="feature-title">SSL Monitoring</div><div class="feature-desc">We track SSL, SPF, DKIM, DMARC and alert you before anything expires.</div></div>
-    <div class="feature-card"><div class="feature-icon">🇮🇳</div><div class="feature-title">DPDP Compliant</div><div class="feature-desc">Fully compliant with India's Digital Personal Data Protection Act 2023.</div></div>
+    <div class="feature-card reveal"><div class="feature-icon">🛡</div><div class="feature-title">Managed WAF</div><div class="feature-desc">We configure Cloudflare WAF rules to block SQL injection, XSS, DDoS and more.</div></div>
+    <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">📊</div><div class="feature-title">Live Dashboard</div><div class="feature-desc">See every blocked threat in real time. Watch your security score grow.</div></div>
+    <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">💬</div><div class="feature-title">WhatsApp Alerts</div><div class="feature-desc">Instant WhatsApp notifications when something serious happens. No app needed.</div></div>
+    <div class="feature-card reveal"><div class="feature-icon">📄</div><div class="feature-title">Monthly Reports</div><div class="feature-desc">Plain-English PDF report every month. Show your clients you take security seriously.</div></div>
+    <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">🔐</div><div class="feature-title">SSL Monitoring</div><div class="feature-desc">We track SSL, SPF, DKIM, DMARC and alert you before anything expires.</div></div>
+    <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">🌍</div><div class="feature-title">GDPR & PCI Ready</div><div class="feature-desc">Fully aligned with GDPR, PCI-DSS and global data protection standards.</div></div>
   </div>
 </section>
 
-<section class="section" id="pricing" style="background:var(--surface)">
-  <div class="section-center"><div class="section-tag">Pricing</div><h2 class="section-title">Simple, honest pricing</h2><p class="section-sub">No setup fees. No hidden charges. Pay via UPI, card or net banking.</p></div>
+<!-- PRICING -->
+<section class="section" id="pricing" style="background:white">
+  <div class="section-center reveal">
+    <div class="section-tag">Pricing</div>
+    <h2 class="section-title">Simple, honest pricing</h2>
+    <p class="section-sub">No setup fees. No hidden charges. Cancel anytime.</p>
+  </div>
   <div class="pricing-grid">
-    <div class="pricing-card">
-      <div class="pricing-plan">Starter</div><div class="pricing-price">₹2,999</div><div class="pricing-period">per month + GST</div>
-      <ul class="pricing-features"><li>1 website protected</li><li>Managed Cloudflare WAF</li><li>SSL monitoring</li><li>Monthly report (PDF)</li><li>WhatsApp support</li><li>Setup in 24 hours</li></ul>
+    <div class="pricing-card reveal">
+      <div class="pricing-plan">Starter</div>
+      <div class="pricing-price" id="price-starter">$29</div>
+      <div class="pricing-period">per month</div>
+      <ul class="pricing-features">
+        <li>1 website protected</li>
+        <li>Managed Cloudflare WAF</li>
+        <li>SSL monitoring</li>
+        <li>Monthly report (PDF)</li>
+        <li>WhatsApp support</li>
+        <li>Setup in 24 hours</li>
+      </ul>
       <a href="auth.html" class="btn btn-ghost btn-full">Start Free Trial →</a>
     </div>
-    <div class="pricing-card popular">
+    <div class="pricing-card popular reveal reveal-delay-1">
       <div class="popular-tag">⭐ Most Popular</div>
-      <div class="pricing-plan">Pro</div><div class="pricing-price">₹5,999</div><div class="pricing-period">per month + GST</div>
-      <ul class="pricing-features"><li>Everything in Starter</li><li>Real-time threat dashboard</li><li>WhatsApp instant alerts</li><li>Email security (SPF/DKIM)</li><li>Priority support</li><li>Weekly threat summary</li></ul>
+      <div class="pricing-plan">Pro</div>
+      <div class="pricing-price" id="price-pro">$59</div>
+      <div class="pricing-period">per month</div>
+      <ul class="pricing-features">
+        <li>Everything in Starter</li>
+        <li>Real-time threat dashboard</li>
+        <li>WhatsApp instant alerts</li>
+        <li>Email security (SPF/DKIM)</li>
+        <li>Priority support</li>
+        <li>Weekly threat summary</li>
+      </ul>
       <a href="auth.html" class="btn btn-primary btn-full">Start Free Trial →</a>
     </div>
-    <div class="pricing-card">
-      <div class="pricing-plan">Business</div><div class="pricing-price">₹9,999</div><div class="pricing-period">per month + GST</div>
-      <ul class="pricing-features"><li>Up to 5 websites</li><li>Everything in Pro</li><li>Dark web monitoring</li><li>DMARC configuration</li><li>Custom WAF rules</li><li>Dedicated account manager</li></ul>
+    <div class="pricing-card reveal reveal-delay-2">
+      <div class="pricing-plan">Business</div>
+      <div class="pricing-price" id="price-business">$99</div>
+      <div class="pricing-period">per month</div>
+      <ul class="pricing-features">
+        <li>Up to 5 websites</li>
+        <li>Everything in Pro</li>
+        <li>Dark web monitoring</li>
+        <li>DMARC configuration</li>
+        <li>Custom WAF rules</li>
+        <li>Dedicated account manager</li>
+      </ul>
       <a href="auth.html" class="btn btn-ghost btn-full">Start Free Trial →</a>
     </div>
   </div>
-  <p style="text-align:center;font-size:13px;color:var(--muted-light);margin-top:20px">All plans include a 7-day free trial. No credit card required to start.</p>
+  <p style="text-align:center;font-size:13px;color:var(--muted-light);margin-top:24px">All plans include a 7-day free trial. No credit card required to start.</p>
+  <p id="currency-note" style="text-align:center;font-size:12px;color:var(--muted-light);margin-top:6px;display:none"></p>
 </section>
 
+<!-- TESTIMONIALS -->
 <section class="section" style="background:var(--bg)">
-  <div class="section-center"><div class="section-tag">Testimonials</div><h2 class="section-title">Trusted across India</h2></div>
+  <div class="section-center reveal">
+    <div class="section-tag">Testimonials</div>
+    <h2 class="section-title">Trusted by SMBs worldwide</h2>
+  </div>
   <div class="testimonials-grid">
-    <div class="testimonial-card"><div>⭐⭐⭐⭐⭐</div><div class="testimonial-text">"We were hacked twice before CyberWall. Since signing up 6 months ago — zero breaches. The monthly report is something I actually understand."</div><div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--accent)">RK</div><div><div class="testimonial-name">Rahul Khanna</div><div class="testimonial-role">Founder, ShopKaro.in · Delhi</div></div></div></div>
-    <div class="testimonial-card"><div>⭐⭐⭐⭐⭐</div><div class="testimonial-text">"I'm a CA, not an IT person. CyberWall set everything up in one day and WhatsApps me when something happens. Best ₹2,999 I spend every month."</div><div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--green)">PS</div><div><div class="testimonial-name">Priya Sharma</div><div class="testimonial-role">CA, PS Associates · Mumbai</div></div></div></div>
-    <div class="testimonial-card"><div>⭐⭐⭐⭐⭐</div><div class="testimonial-text">"Our store gets 800+ attacks blocked every week. I can see every one in the dashboard. My customers trust us more now."</div><div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--orange)">AV</div><div><div class="testimonial-name">Arjun Verma</div><div class="testimonial-role">Founder, FinanceFlow.in · Bangalore</div></div></div></div>
+    <div class="testimonial-card reveal">
+      <div class="stars">⭐⭐⭐⭐⭐</div>
+      <div class="testimonial-text">"We were hacked twice before CyberWall. Since signing up 6 months ago — zero breaches. The monthly report is something I actually understand."</div>
+      <div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--accent)">RK</div><div><div class="testimonial-name">Ryan K.</div><div class="testimonial-role">Founder, E-commerce Store · Austin, TX</div></div></div>
+    </div>
+    <div class="testimonial-card reveal reveal-delay-1">
+      <div class="stars">⭐⭐⭐⭐⭐</div>
+      <div class="testimonial-text">"I'm a consultant, not an IT person. CyberWall set everything up in one day and messages me when something happens. Best $59 I spend every month."</div>
+      <div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--green)">PS</div><div><div class="testimonial-name">Priya S.</div><div class="testimonial-role">Founder, SaaS Startup · London, UK</div></div></div>
+    </div>
+    <div class="testimonial-card reveal reveal-delay-2">
+      <div class="stars">⭐⭐⭐⭐⭐</div>
+      <div class="testimonial-text">"Our store gets 800+ attacks blocked every week. I can see every one in the dashboard. My customers trust us more now."</div>
+      <div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--orange)">AV</div><div><div class="testimonial-name">Alex V.</div><div class="testimonial-role">Founder, FinTech App · Toronto, CA</div></div></div>
+    </div>
   </div>
 </section>
 
+<!-- CTA -->
 <div class="cta-banner">
   <h2>Your website is being attacked right now.</h2>
   <p>Every minute without protection is a risk. Setup takes 24 hours. Start free today.</p>
@@ -185,10 +435,139 @@
 
 <footer class="footer">
   <div class="footer-logo"><div class="footer-logo-icon">🛡</div><span class="footer-logo-text">CyberWall</span></div>
-  <div class="footer-links"><a href="#" class="footer-link">Privacy Policy</a><a href="#" class="footer-link">Terms</a><a href="#" class="footer-link">DPDP Compliant</a><a href="auth.html" class="footer-link">Login</a></div>
-  <div class="footer-copy">© 2026 CyberWall · Made in India 🇮🇳</div>
+  <div class="footer-links">
+    <a href="#" class="footer-link">Privacy Policy</a>
+    <a href="#" class="footer-link">Terms</a>
+    <a href="#" class="footer-link">GDPR Compliant</a>
+    <a href="auth.html" class="footer-link">Login</a>
+  </div>
+  <div class="footer-copy">© 2026 CyberWall · Built for SMBs worldwide 🌍</div>
 </footer>
 
 <a href="https://wa.me/919999999999" class="wa-float" target="_blank">💬</a>
+<script src="JS/landing-chat.js"></script>
+<script>
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Animated number counter
+  function animateCount(el) {
+    const target = parseInt(el.dataset.count);
+    const duration = 1800;
+    const start = performance.now();
+    function update(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.floor(eased * target).toLocaleString() + '+';
+      if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+  }
+  const countObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && e.target.dataset.count) {
+        animateCount(e.target);
+        countObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-count]').forEach(el => countObserver.observe(el));
+
+  // ── LOCAL CURRENCY PRICING ──────────────────────────────────────────────
+  (async function() {
+    const USD_PRICES = [29, 59, 99];
+    const CURRENCY_MAP = {
+      // currency_code: { symbol, rate, decimals }
+      USD: { symbol: '$',    rate: 1,      dec: 0 },
+      EUR: { symbol: '€',    rate: 0.92,   dec: 0 },
+      GBP: { symbol: '£',    rate: 0.79,   dec: 0 },
+      INR: { symbol: '₹',    rate: 84,     dec: 0 },
+      CAD: { symbol: 'CA$',  rate: 1.38,   dec: 0 },
+      AUD: { symbol: 'A$',   rate: 1.56,   dec: 0 },
+      NZD: { symbol: 'NZ$',  rate: 1.64,   dec: 0 },
+      SGD: { symbol: 'S$',   rate: 1.34,   dec: 0 },
+      MYR: { symbol: 'RM',   rate: 4.72,   dec: 0 },
+      PHP: { symbol: '₱',    rate: 56,     dec: 0 },
+      IDR: { symbol: 'Rp',   rate: 15700,  dec: 0 },
+      THB: { symbol: '฿',    rate: 35,     dec: 0 },
+      VND: { symbol: '₫',    rate: 25000,  dec: 0 },
+      BDT: { symbol: '৳',    rate: 110,    dec: 0 },
+      PKR: { symbol: '₨',    rate: 278,    dec: 0 },
+      LKR: { symbol: 'Rs',   rate: 320,    dec: 0 },
+      NPR: { symbol: 'Rs',   rate: 133,    dec: 0 },
+      BRL: { symbol: 'R$',   rate: 5.7,    dec: 0 },
+      MXN: { symbol: 'MX$',  rate: 17.5,   dec: 0 },
+      ARS: { symbol: 'ARS',  rate: 990,    dec: 0 },
+      CLP: { symbol: 'CLP',  rate: 940,    dec: 0 },
+      COP: { symbol: 'COP',  rate: 3950,   dec: 0 },
+      PEN: { symbol: 'S/',   rate: 3.7,    dec: 0 },
+      ZAR: { symbol: 'R',    rate: 18.5,   dec: 0 },
+      NGN: { symbol: '₦',    rate: 1600,   dec: 0 },
+      KES: { symbol: 'KSh',  rate: 130,    dec: 0 },
+      GHS: { symbol: 'GH₵',  rate: 15,     dec: 0 },
+      EGP: { symbol: 'E£',   rate: 49,     dec: 0 },
+      AED: { symbol: 'AED',  rate: 3.67,   dec: 0 },
+      SAR: { symbol: 'SAR',  rate: 3.75,   dec: 0 },
+      QAR: { symbol: 'QAR',  rate: 3.64,   dec: 0 },
+      KWD: { symbol: 'KD',   rate: 0.31,   dec: 2 },
+      TRY: { symbol: '₺',    rate: 33,     dec: 0 },
+      PLN: { symbol: 'zł',   rate: 4.0,    dec: 0 },
+      CZK: { symbol: 'Kč',   rate: 23,     dec: 0 },
+      HUF: { symbol: 'Ft',   rate: 360,    dec: 0 },
+      RON: { symbol: 'lei',  rate: 4.6,    dec: 0 },
+      SEK: { symbol: 'kr',   rate: 10.4,   dec: 0 },
+      NOK: { symbol: 'kr',   rate: 10.6,   dec: 0 },
+      DKK: { symbol: 'kr',   rate: 6.9,    dec: 0 },
+      CHF: { symbol: 'CHF',  rate: 0.88,   dec: 2 },
+      JPY: { symbol: '¥',    rate: 149,    dec: 0 },
+      CNY: { symbol: '¥',    rate: 7.25,   dec: 0 },
+      KRW: { symbol: '₩',    rate: 1340,   dec: 0 },
+      TWD: { symbol: 'NT$',  rate: 32,     dec: 0 },
+      HKD: { symbol: 'HK$',  rate: 7.8,    dec: 0 },
+    };
+
+    try {
+      const geo = await fetch('https://ipapi.co/json/').then(r => r.json());
+      const currency = geo.currency || 'USD';
+      const countryCode = geo.country_code || '';
+      const cfg = CURRENCY_MAP[currency] || CURRENCY_MAP['USD'];
+
+      if (currency !== 'USD') {
+        const isIndia = countryCode === 'IN';
+        // For India, apply 18% GST on top of the converted price
+        const gstMultiplier = isIndia ? 1.18 : 1;
+
+        const ids = ['price-starter', 'price-pro', 'price-business'];
+        ids.forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (el) {
+            const raw = USD_PRICES[i] * cfg.rate * gstMultiplier;
+            let rounded;
+            if (cfg.rate >= 1000) rounded = Math.round(raw / 1000) * 1000;
+            else if (cfg.rate >= 100) rounded = Math.round(raw / 100) * 100;
+            else if (cfg.rate >= 10) rounded = Math.round(raw / 5) * 5;
+            else rounded = cfg.dec > 0 ? parseFloat(raw.toFixed(cfg.dec)) : Math.round(raw);
+            el.textContent = cfg.symbol + rounded.toLocaleString();
+          }
+        });
+
+        const note = document.getElementById('currency-note');
+        if (note) {
+          if (isIndia) {
+            note.innerHTML = `Prices in INR, inclusive of 18% GST &nbsp;·&nbsp; GST invoice provided &nbsp;·&nbsp; Billed in INR at checkout`;
+          } else {
+            note.textContent = `Prices shown in ${currency} (approx.) · Billed in USD at checkout`;
+          }
+          note.style.display = 'block';
+        }
+      }
+    } catch(e) {
+      // silently fall back to USD if geo lookup fails
+    }
+  })();
+</script>
 </body>
 </html>

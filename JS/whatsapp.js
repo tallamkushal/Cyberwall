@@ -18,7 +18,7 @@ const TWILIO_FROM  = "whatsapp:+14155238886"; // Twilio sandbox number
 // ---- SEND WHATSAPP MESSAGE ----
 async function sendWhatsApp(toPhone, message) {
   try {
-    const base = window.location.port === '3000' ? 'http://localhost:3001' : '';
+    const base = '';
     const response = await fetch(`${base}/.netlify/functions/send-whatsapp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

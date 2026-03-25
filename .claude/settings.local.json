@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(reg query:*)",
+      "Bash(mv CSS css_temp)",
+      "Bash(mv css_temp css)"
+    ]
+  }
+}
