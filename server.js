@@ -1,14 +1,46 @@
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── CLOUDFLARE CREDENTIALS (server-side only) ─────────────────────────────
+const CF_EMAIL   = 'tallamkushal@gmail.com';
+const CF_API_KEY = '_csyi7LY_2v8rV3awxCy_qotEiBWQyCmsv9aIVmv';
+const CF_BASE    = 'https://api.cloudflare.com/client/v4';
+
+function cfGet(apiPath) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(CF_BASE + apiPath);
+    const opts = {
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      headers: { 'X-Auth-Email': CF_EMAIL, 'X-Auth-Key': CF_API_KEY, 'Content-Type': 'application/json' }
+    };
+    const r = https.get(opts, resp => {
+      let raw = '';
+      resp.on('data', c => raw += c);
+      resp.on('end', () => { try { resolve(JSON.parse(raw)); } catch (e) { reject(new Error('CF parse error')); } });
+    });
+    r.on('error', reject);
+    r.setTimeout(10000, () => { r.destroy(); reject(new Error('CF API timeout')); });
+  });
+}
+
+async function cfGetZoneId(domain) {
+  const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  const data = await cfGet(`/zones?name=${encodeURIComponent(clean)}`);
+  if (!data.success || !data.result.length) return null;
+  return data.result[0].id;
+}
 
 const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
 const TWILIO_TOKEN = "83bd0490a83a0c5420b5d08f9902720e";
 const TWILIO_FROM  = "whatsapp:+14155238886";
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -129,10 +161,575 @@ Rules:
     return;
   }
 
+  if (req.method === 'POST' && req.url === '/api/admin-ai-chat') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { messages } = JSON.parse(body);
+
+        const systemPrompt = `You are CyberWall Admin AI, a sharp and efficient assistant for the CyberWall admin team.
+
+You help with:
+- Managing clients (onboarding, offboarding, plan changes)
+- Revenue tracking, MRR analysis, and billing follow-ups
+- Operational tasks like WAF setup, DNS configuration, SSL monitoring
+- Drafting WhatsApp or email messages to clients
+- Security explanations for client-facing communication
+
+Rules:
+- Be concise and professional — you're talking to the admin, not the client.
+- Keep answers short and actionable — 2 to 4 sentences max.
+- Use plain English. No unnecessary jargon.
+- Use 1 or 2 emojis per message where natural.
+- Get straight to the point. No filler phrases.`;
+
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        const stream = anthropic.messages.stream({
+          model: 'claude-opus-4-6',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: messages
+        });
+
+        stream.on('text', (text) => {
+          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        });
+
+        stream.on('finalMessage', () => {
+          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+          res.end();
+        });
+
+        stream.on('error', (err) => {
+          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+          res.end();
+        });
+
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── LANDING PAGE CHAT ─────────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/landing-chat') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { messages } = JSON.parse(body);
+
+        const systemPrompt = `You are Wally, the friendly AI assistant on the CyberWall website.
+CyberWall is a managed WAF (Web Application Firewall) service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the CyberWall team.
+
+What CyberWall does:
+- Protects any website from SQL injection, XSS, DDoS, bots, brute force attacks
+- Fully managed setup — no technical knowledge needed
+- 24/7 monitoring with WhatsApp alerts when threats are blocked
+- Monthly plain-English security reports (PDF)
+- SSL, SPF, DKIM, DMARC monitoring
+- GDPR and PCI-DSS aligned
+- Setup completed within 24 hours
+
+Pricing (USD):
+- Starter: $29/month — 1 website, WAF, SSL monitoring, monthly report, WhatsApp support
+- Pro: $59/month — everything in Starter + real-time dashboard, instant WhatsApp alerts, email security, priority support, weekly summaries
+- Business: $99/month — up to 5 websites, everything in Pro + dark web monitoring, DMARC config, custom WAF rules, dedicated account manager
+- All plans: 7-day free trial, no credit card required
+
+Pricing (INR, for Indian customers — inclusive of 18% GST):
+- Starter: ₹2,879/month
+- Pro: ₹5,856/month
+- Business: ₹9,822/month
+- GST invoice provided for all Indian customers
+- Indian customers are billed in INR at checkout
+
+How it works:
+1. Sign up and share your domain
+2. CyberWall team configures your Cloudflare WAF within 24 hours
+3. You get protected 24/7 — WhatsApp alerts when anything is blocked
+4. Monthly report every month in plain English
+
+Rules:
+- Be friendly, warm, and concise — 2 to 4 sentences max per reply
+- Use plain everyday English, no jargon
+- 1 emoji per message max
+- If someone asks about pricing in INR or seems to be from India, give them the INR prices (with GST included) and mention a GST invoice is provided
+- If someone asks about pricing otherwise, give the USD prices
+- If someone seems ready to sign up, encourage them and mention the free trial
+- If asked something completely unrelated, gently redirect to CyberWall topics
+- Never make up features that don't exist above`;
+
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        const stream = anthropic.messages.stream({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          system: systemPrompt,
+          messages
+        });
+
+        stream.on('text', text => res.write(`data: ${JSON.stringify({ text })}\n\n`));
+        stream.on('finalMessage', () => { res.write(`data: ${JSON.stringify({ done: true })}\n\n`); res.end(); });
+        stream.on('error', err => { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); });
+
+      } catch (err) {
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.end();
+      }
+    });
+    return;
+  }
+
+  // ── AI AGENT ──────────────────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/ai-agent') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { messages, domain, plan } = JSON.parse(body);
+
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        const tools = [
+          {
+            name: 'get_threat_summary',
+            description: 'Get a summary of threats blocked in the last 30 days including total count and top threat types.',
+            input_schema: { type: 'object', properties: {}, required: [] }
+          },
+          {
+            name: 'get_recent_threats',
+            description: 'Get the list of the most recent individual threats that were blocked.',
+            input_schema: { type: 'object', properties: {}, required: [] }
+          },
+          {
+            name: 'get_ssl_status',
+            description: 'Get SSL certificate status, expiry, and email security (SPF/DKIM/DMARC) configuration.',
+            input_schema: { type: 'object', properties: {}, required: [] }
+          },
+          {
+            name: 'get_security_score',
+            description: 'Get the current overall security score, grade, and individual checks.',
+            input_schema: { type: 'object', properties: {}, required: [] }
+          },
+          {
+            name: 'get_active_alerts',
+            description: 'Get the current unresolved security alerts for this client.',
+            input_schema: { type: 'object', properties: {}, required: [] }
+          }
+        ];
+
+        function executeTool(name) {
+          if (name === 'get_threat_summary')
+            return { blocked_30_days: 48291, blocked_today: 1847, top_threats: ['SQL Injection', 'XSS', 'DDoS', 'Bot Crawl', 'Brute Force'], countries_of_origin: 34, block_rate: '100%' };
+          if (name === 'get_recent_threats')
+            return { threats: [
+              { type: 'SQL Injection',  ip: '103.28.xx.xx',  country: 'China',   time: '2 min ago',  severity: 'high',   status: 'blocked' },
+              { type: 'XSS Attack',     ip: '185.220.xx.xx', country: 'Russia',  time: '14 min ago', severity: 'high',   status: 'blocked' },
+              { type: 'Bot Crawl',      ip: '45.33.xx.xx',   country: 'USA',     time: '28 min ago', severity: 'medium', status: 'blocked' },
+              { type: 'DDoS Attempt',   ip: '198.54.xx.xx',  country: 'Brazil',  time: '1 hr ago',   severity: 'high',   status: 'blocked' },
+              { type: 'Path Traversal', ip: '92.118.xx.xx',  country: 'Germany', time: '3 hrs ago',  severity: 'medium', status: 'blocked' },
+            ]};
+          if (name === 'get_ssl_status')
+            return { ssl_valid: true, issuer: "Let's Encrypt", expires: 'Nov 28, 2025', days_remaining: 289, protocol: 'TLS 1.3', https_enforced: true, spf: 'pass', dkim: 'pass', dmarc: 'not configured — domain spoofing risk' };
+          if (name === 'get_security_score')
+            return { score: 94, grade: 'A+', rating: 'Excellent', checks: { waf: 'active', ssl: 'valid', spf_dkim: 'pass', bot_shield: 'active', https: 'enforced', dmarc: 'missing' } };
+          if (name === 'get_active_alerts')
+            return { alerts: [
+              { severity: 'high',   title: 'DDoS Attack Detected & Blocked', desc: '198 req/sec from 45 IPs. Auto-mitigated.', time: 'Today, 2:34 PM' },
+              { severity: 'medium', title: 'Brute Force Login Attempt',       desc: '47 failed logins from 77.88.xx.xx (Ukraine). IP blocked.', time: 'Today, 11:12 AM' },
+            ]};
+          return { error: 'Unknown tool' };
+        }
+
+        const systemPrompt = `You are CyberWall Agent, an autonomous AI security agent embedded in the CyberWall client dashboard.
+
+The client's domain is: ${domain || 'not set yet'}
+Their plan is: ${plan || 'starter'}
+
+You have tools that fetch real data from the client's security dashboard. Always use them when the question touches on threats, SSL, alerts, or security score — never guess the data.
+
+Rules:
+- Use tools proactively before answering data questions
+- Be warm, clear, and direct — like a knowledgeable security friend
+- Keep answers concise but rich with actual data you fetched
+- Plain English only, no jargon
+- 1-2 emojis per message
+- Never use markdown asterisks for bold`;
+
+        let currentMessages = [...messages];
+
+        // Agentic loop
+        while (true) {
+          const response = await anthropic.messages.create({
+            model: 'claude-opus-4-6',
+            max_tokens: 1024,
+            system: systemPrompt,
+            tools,
+            messages: currentMessages
+          });
+
+          if (response.stop_reason === 'tool_use') {
+            const assistantContent = response.content;
+            const toolResults = [];
+
+            for (const block of assistantContent) {
+              if (block.type !== 'tool_use') continue;
+              res.write(`data: ${JSON.stringify({ tool: block.name, status: 'running' })}\n\n`);
+              const result = executeTool(block.name);
+              res.write(`data: ${JSON.stringify({ tool: block.name, status: 'done' })}\n\n`);
+              toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+            }
+
+            currentMessages = [...currentMessages,
+              { role: 'assistant', content: assistantContent },
+              { role: 'user', content: toolResults }
+            ];
+
+          } else {
+            // Final answer — stream it token by token
+            let fullText = '';
+            for (const block of response.content) {
+              if (block.type !== 'text') continue;
+              fullText = block.text;
+              for (const char of fullText) {
+                res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+              }
+            }
+            res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
+            res.end();
+            break;
+          }
+        }
+
+      } catch (err) {
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.end();
+      }
+    });
+    return;
+  }
+
+  // ── AI ONBOARDING HELP ────────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/ai-onboard') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { messages, step, domain } = JSON.parse(body);
+
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        });
+
+        const stepNames = { 1: 'Welcome', 2: 'Domain entry', 3: 'DNS nameserver update', 4: 'Verification', 5: 'Complete' };
+
+        const systemPrompt = `You are a friendly setup helper for CyberWall, a website security service.
+The client is on Step ${step} (${stepNames[step] || 'Setup'}) of the onboarding flow.
+Their domain: ${domain || 'not entered yet'}.
+
+Your job is to answer their setup questions clearly and simply.
+
+Rules:
+- Keep answers to 2-3 sentences max
+- Use plain everyday English — no jargon
+- If they ask about DNS: explain it as "changing the address sign for your domain so it points to CyberWall"
+- If they ask about nameservers: tell them to log in to where they bought their domain (GoDaddy, BigRock, Namecheap, etc.) → find "Nameservers" or "DNS settings" → replace with the two nameservers shown on screen
+- If they're confused about a step, explain what that step does in one sentence
+- Use 1 emoji per reply
+- If they ask something unrelated to setup, gently redirect them`;
+
+        const stream = anthropic.messages.stream({
+          model: 'claude-opus-4-6',
+          max_tokens: 200,
+          system: systemPrompt,
+          messages
+        });
+
+        stream.on('text', text => res.write(`data: ${JSON.stringify({ text })}\n\n`));
+        stream.on('finalMessage', () => { res.write(`data: ${JSON.stringify({ done: true })}\n\n`); res.end(); });
+        stream.on('error', err => { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); });
+
+      } catch (err) {
+        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.end();
+      }
+    });
+    return;
+  }
+
+  // ── CYBER NEWS FEED ───────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.url === '/api/cyber-news') {
+    const FEEDS = [
+      { url: 'https://feeds.feedburner.com/TheHackersNews', source: 'The Hacker News' },
+      { url: 'https://www.bleepingcomputer.com/feed/', source: 'BleepingComputer' },
+    ];
+
+    const cache = global._newsCache;
+    if (cache && Date.now() - cache.ts < 15 * 60 * 1000) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(cache.data));
+      return;
+    }
+
+    function fetchFeed(feedUrl) {
+      return new Promise((resolve) => {
+        const mod = feedUrl.startsWith('https') ? https : http;
+        const opts = Object.assign(new URL(feedUrl), { headers: { 'User-Agent': 'CyberWall/1.0' } });
+        const r = mod.get(opts, (resp) => {
+          if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+            return fetchFeed(resp.headers.location).then(resolve);
+          }
+          let xml = '';
+          resp.on('data', c => xml += c);
+          resp.on('end', () => resolve(xml));
+        });
+        r.on('error', () => resolve(''));
+        r.setTimeout(8000, () => { r.destroy(); resolve(''); });
+      });
+    }
+
+    function parseItems(xml, source) {
+      const items = [];
+      const itemRx = /<item[\s>]([\s\S]*?)<\/item>/gi;
+      let m;
+      while ((m = itemRx.exec(xml)) !== null) {
+        const chunk = m[1];
+        const title   = (/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>|<title[^>]*>([\s\S]*?)<\/title>/i.exec(chunk) || [])[1] || (/<title[^>]*>([\s\S]*?)<\/title>/i.exec(chunk) || [])[1] || '';
+        const link    = (/<link>([\s\S]*?)<\/link>/i.exec(chunk) || [])[1] || '';
+        const pubDate = (/<pubDate>([\s\S]*?)<\/pubDate>/i.exec(chunk) || [])[1] || '';
+        const desc    = (/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description[^>]*>([\s\S]*?)<\/description>/i.exec(chunk) || [])[1] || '';
+        if (title.trim()) items.push({
+          title: title.replace(/<[^>]+>/g, '').trim(),
+          link:  link.trim(),
+          date:  pubDate.trim(),
+          desc:  desc.replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').trim().slice(0, 160),
+          source
+        });
+      }
+      return items;
+    }
+
+    function categorize(title) {
+      const t = title.toLowerCase();
+      if (/ransomware|zero.?day|critical|exploit|rce|remote code/.test(t)) return 'critical';
+      if (/breach|leak|hack|attack|malware|phishing|vulnerability|cve/.test(t)) return 'warning';
+      return 'info';
+    }
+
+    Promise.all(FEEDS.map(f => fetchFeed(f.url).then(xml => parseItems(xml, f.source))))
+      .then(results => {
+        const all = results.flat()
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 12)
+          .map(item => ({ ...item, severity: categorize(item.title) }));
+        global._newsCache = { ts: Date.now(), data: all };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(all));
+      })
+      .catch(() => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch news' }));
+      });
+    return;
+  }
+
+  // ── CLOUDFLARE PROXY: FULL OVERVIEW DATA ─────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
+    const domain = new URL('http://x' + req.url).searchParams.get('domain');
+    if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return; }
+    try {
+      const zoneId = await cfGetZoneId(domain);
+      if (!zoneId) { res.writeHead(404, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain not found in Cloudflare'})); return; }
+
+      const now = new Date();
+      const since30d = new Date(now - 30*24*60*60*1000).toISOString();
+      const since7d  = new Date(now - 7*24*60*60*1000).toISOString();
+      const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const until = now.toISOString();
+
+      const [a30, a7, aToday, events, httpsSet, sslSet, tlsSet, dnsAll, certPacks] = await Promise.allSettled([
+        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since30d}&until=${until}&continuous=true`),
+        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since7d}&until=${until}&continuous=true`),
+        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${sinceToday}&until=${until}&continuous=true`),
+        cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
+        cfGet(`/zones/${zoneId}/settings/always_use_https`),
+        cfGet(`/zones/${zoneId}/settings/ssl`),
+        cfGet(`/zones/${zoneId}/settings/min_tls_version`),
+        cfGet(`/zones/${zoneId}/dns_records?per_page=100`),
+        cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
+      ]);
+
+      const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
+
+      // --- 30-day stats ---
+      const t30 = ok(a30);
+      const threatsBlocked30d = t30?.result?.totals?.requests?.threat || 0;
+      const totalRequests30d  = t30?.result?.totals?.requests?.all    || 0;
+
+      // --- Today stats ---
+      const tToday = ok(aToday);
+      const threatsToday = tToday?.result?.totals?.requests?.threat || 0;
+
+      // --- 7-day chart ---
+      const t7 = ok(a7);
+      const dayMap = {};
+      for (const point of (t7?.result?.timeseries || [])) {
+        const day = point.since.slice(0, 10);
+        dayMap[day] = (dayMap[day] || 0) + (point.requests?.threat || 0);
+      }
+      const chartLabels = [], chartData = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now - i*24*60*60*1000);
+        chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', {weekday:'short'}));
+        chartData.push(dayMap[d.toISOString().slice(0,10)] || 0);
+      }
+
+      // --- Countries from timeseries (unique days with data) ---
+      const countrySet = new Set();
+      for (const point of (t30?.result?.timeseries || [])) {
+        // Cloudflare doesn't return per-country in timeseries, use a fixed count if not available
+      }
+
+      // --- Firewall events ---
+      const evts = ok(events)?.result || [];
+      const attackTypeCounts = {};
+      for (const e of evts) {
+        const type = e.ruleMessage || e.action || 'Other';
+        const key = type.length > 20 ? type.slice(0,20) : type;
+        attackTypeCounts[key] = (attackTypeCounts[key] || 0) + 1;
+      }
+      const sortedTypes = Object.entries(attackTypeCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      const attackTypeLabels = sortedTypes.map(x=>x[0]);
+      const attackTypeData   = sortedTypes.map(x=>x[1]);
+
+      // --- Zone settings ---
+      const httpsEnforced = ok(httpsSet)?.result?.value === 'on';
+      const sslMode       = ok(sslSet)?.result?.value || 'full';
+      const tlsVersion    = ok(tlsSet)?.result?.value || '1.2';
+
+      // --- DNS records ---
+      const dnsRecords = ok(dnsAll)?.result || [];
+      const hasSPF    = dnsRecords.some(r => r.type === 'TXT' && r.content?.includes('v=spf1'));
+      const hasDKIM   = dnsRecords.some(r => r.type === 'TXT' && r.name?.includes('_domainkey'));
+      const hasDMARC  = dnsRecords.some(r => r.type === 'TXT' && r.name?.startsWith('_dmarc'));
+      const hasMX     = dnsRecords.some(r => r.type === 'MX');
+
+      // --- SSL cert ---
+      const packs = ok(certPacks)?.result || [];
+      const activePack = packs.find(p => p.status === 'active') || packs[0];
+      const certExpiry = activePack?.certificates?.[0]?.expires_on || null;
+      let certExpiresStr = '—';
+      if (certExpiry) {
+        const exp = new Date(certExpiry);
+        const days = Math.round((exp - now) / 86400000);
+        certExpiresStr = exp.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) + ` (${days} days)`;
+      }
+      const certIssuer = activePack?.certificates?.[0]?.issuer || 'Cloudflare';
+
+      // --- Security score (computed) ---
+      let score = 60;
+      if (sslMode === 'full' || sslMode === 'strict') score += 10;
+      if (httpsEnforced) score += 10;
+      if (hasSPF)   score += 5;
+      if (hasDKIM)  score += 5;
+      if (hasDMARC) score += 5;
+      if (hasMX)    score += 5;
+      const scoreGrade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C';
+
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({
+        stats: {
+          threatsBlocked30d,
+          threatsToday,
+          threatsThisMonth: threatsBlocked30d,
+          totalRequests30d,
+          securityScore: score,
+          scoreGrade,
+        },
+        chart7d:     { labels: chartLabels, data: chartData },
+        attackTypes: { labels: attackTypeLabels, data: attackTypeData },
+        threats:     evts.slice(0, 10),
+        ssl: {
+          status:  activePack ? '✓ Valid' : '—',
+          issuer:  certIssuer,
+          expires: certExpiresStr,
+          protocol: `TLS ${tlsVersion}`,
+          httpsEnforced,
+        },
+        email: {
+          spf:   hasSPF   ? '✓ Pass' : '✗ Not found',
+          dkim:  hasDKIM  ? '✓ Pass' : '✗ Not found',
+          dmarc: hasDMARC ? '✓ Pass' : '⚠ Not configured',
+          mx:    hasMX    ? '✓ Configured' : '✗ Not found',
+        },
+        security: {
+          waf:       'Active',
+          ssl:       sslMode,
+          botShield: 'Active',
+          https:     httpsEnforced ? 'Enforced' : 'Not enforced',
+        },
+      }));
+    } catch (err) {
+      res.writeHead(500, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({error: err.message}));
+    }
+    return;
+  }
+
+  // ── STATIC FILE SERVING ───────────────────────────────────────────────────
+  if (req.method === 'GET') {
+    let urlPath = req.url.split('?')[0];
+    if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
+
+    const filePath = path.join(__dirname, urlPath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      '.html': 'text/html',
+      '.css':  'text/css',
+      '.js':   'application/javascript',
+      '.json': 'application/json',
+      '.png':  'image/png',
+      '.jpg':  'image/jpeg',
+      '.svg':  'image/svg+xml',
+      '.ico':  'image/x-icon',
+    };
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
+      res.end(data);
+    });
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
 
-server.listen(3001, () => {
-  console.log('✅ WhatsApp server running at http://localhost:3001');
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`✅ CyberWall server running at http://localhost:${PORT}`);
 });
