@@ -199,6 +199,62 @@ async function viewClient(id) {
 
 function closeClientModal() {
   document.getElementById('cv-modal').classList.add('hidden');
+  document.getElementById('cv-cf-result').classList.add('hidden');
+}
+
+// ---- ACTIVATE CLOUDFLARE ----
+async function activateCloudflare() {
+  const domain = document.getElementById('cv-domain').textContent.trim();
+  if (!domain || domain === '—') { showToast('No domain on file for this client', 'error'); return; }
+
+  const btn = document.getElementById('cv-cf-btn');
+  btn.textContent = 'Adding to Cloudflare...';
+  btn.disabled = true;
+
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+  const res = await fetch(`${SERVER}/api/cf/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ domain })
+  });
+  const data = await res.json();
+
+  btn.textContent = '☁️ Activate Cloudflare';
+  btn.disabled = false;
+
+  if (data.error) {
+    showToast('Cloudflare error: ' + data.error, 'error');
+    return;
+  }
+
+  // Store nameservers for copy/WhatsApp
+  window._cfNameservers = data.nameservers;
+  window._cfDomain = domain;
+
+  document.getElementById('cv-cf-ns').innerHTML = data.nameservers.map(ns => `<div>🔹 ${ns}</div>`).join('');
+  document.getElementById('cv-cf-result').classList.remove('hidden');
+  showToast('Domain added to Cloudflare!', 'success');
+}
+
+function copyCFNameservers() {
+  const text = (window._cfNameservers || []).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('Nameservers copied!', 'success'));
+}
+
+async function sendCFWhatsApp() {
+  const id = document.getElementById('cv-modal').dataset.clientId;
+  const { data: client } = await supabaseClient.from('profiles').select('phone, full_name').eq('id', id).single();
+  if (!client?.phone) { showToast('No phone number on file', 'error'); return; }
+
+  const ns = (window._cfNameservers || []).join('\n');
+  const message = `Hi ${client.full_name}! 👋\n\nYour website *${window._cfDomain}* is being connected to CyberWall protection.\n\nPlease update your domain nameservers at your registrar (GoDaddy, Namecheap, etc.) to:\n\n${ns}\n\nOnce updated, protection goes live within 24 hours. Reply if you need help! 🛡\n\n— CyberWall Team`;
+
+  const result = await sendWhatsApp(client.phone, message);
+  if (result.success) {
+    showToast('Nameservers sent via WhatsApp ✅', 'success');
+  } else {
+    showToast('WhatsApp failed: ' + (result.error || 'unknown'), 'error');
+  }
 }
 
 async function saveClientChanges(id) {

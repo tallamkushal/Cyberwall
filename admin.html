@@ -770,9 +770,19 @@
       </div>
 
       <!-- Actions -->
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="cv-whatsapp-btn" class="btn btn-ghost" style="gap:6px">💬 WhatsApp</button>
+        <button id="cv-cf-btn" class="btn btn-ghost" style="gap:6px;border-color:#f6821f;color:#f6821f" onclick="activateCloudflare()">☁️ Activate Cloudflare</button>
         <button id="cv-save-btn" class="btn btn-primary" style="margin-left:auto">Save Changes →</button>
+      </div>
+
+      <!-- Cloudflare nameservers result -->
+      <div id="cv-cf-result" class="hidden" style="margin-top:14px;background:#fff7ed;border:1px solid #f6821f33;border-radius:10px;padding:14px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">☁️ Domain added to Cloudflare!</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Send these nameservers to the client — they must update them at their domain registrar:</div>
+        <div id="cv-cf-ns" style="font-family:monospace;font-size:13px;background:white;border:1px solid var(--border);border-radius:7px;padding:10px;line-height:2"></div>
+        <button onclick="copyCFNameservers()" class="btn btn-ghost" style="margin-top:10px;font-size:12px;padding:6px 14px">📋 Copy Nameservers</button>
+        <button onclick="sendCFWhatsApp()" class="btn btn-ghost" style="margin-top:10px;margin-left:6px;font-size:12px;padding:6px 14px">💬 Send via WhatsApp</button>
       </div>
     </div>
   </div>

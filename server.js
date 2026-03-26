@@ -552,6 +552,70 @@ Rules:
     return;
   }
 
+  // ── CLOUDFLARE: ADD DOMAIN (ACTIVATE) ────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/cf/activate') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { domain } = JSON.parse(body);
+        if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return; }
+
+        const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+
+        // Add zone to Cloudflare
+        const result = await new Promise((resolve, reject) => {
+          const payload = JSON.stringify({ name: clean, jump_start: true });
+          const opts = {
+            hostname: 'api.cloudflare.com',
+            path: '/client/v4/zones',
+            method: 'POST',
+            headers: {
+              'X-Auth-Email': CF_EMAIL,
+              'X-Auth-Key': CF_API_KEY,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          };
+          const r = https.request(opts, resp => {
+            let raw = '';
+            resp.on('data', c => raw += c);
+            resp.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('CF parse error')); } });
+          });
+          r.on('error', reject);
+          r.setTimeout(15000, () => { r.destroy(); reject(new Error('CF timeout')); });
+          r.write(payload);
+          r.end();
+        });
+
+        if (!result.success) {
+          const msg = result.errors?.[0]?.message || 'Cloudflare error';
+          // Zone already exists — fetch existing nameservers
+          if (result.errors?.[0]?.code === 1061) {
+            const existing = await cfGet(`/zones?name=${encodeURIComponent(clean)}`);
+            if (existing.success && existing.result?.length) {
+              const ns = existing.result[0].name_servers || [];
+              res.writeHead(200, {'Content-Type':'application/json'});
+              res.end(JSON.stringify({ nameservers: ns, alreadyExists: true }));
+              return;
+            }
+          }
+          res.writeHead(400, {'Content-Type':'application/json'});
+          res.end(JSON.stringify({ error: msg }));
+          return;
+        }
+
+        const nameservers = result.result?.name_servers || [];
+        res.writeHead(200, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ nameservers, zoneId: result.result?.id }));
+      } catch(err) {
+        res.writeHead(500, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // ── CLOUDFLARE PROXY: FULL OVERVIEW DATA ─────────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
     const domain = new URL('http://x' + req.url).searchParams.get('domain');
