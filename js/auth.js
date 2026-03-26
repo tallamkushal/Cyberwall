@@ -19,11 +19,12 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     const userId = data?.user?.id || data?.session?.user?.id;
     if (!userId) throw new Error('User creation failed. Please try again.');
 
-    // Retry profile insert to handle auth propagation delay
-    let profileError;
-    for (let attempt = 1; attempt <= 5; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, attempt * 500));
-      const { error } = await supabaseClient.from('profiles').insert({
+    // Create profile via server (bypasses RLS using service key)
+    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+    const profileRes = await fetch(`${SERVER}/api/create-profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         id: userId,
         full_name: fullName,
         email, phone,
@@ -32,11 +33,10 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
         status: 'trial',
         role: 'client',
         created_at: new Date()
-      });
-      if (!error) { profileError = null; break; }
-      profileError = error;
-    }
-    if (profileError) throw profileError;
+      })
+    });
+    const profileData = await profileRes.json();
+    if (!profileData.success) throw new Error(profileData.error || 'Profile creation failed');
 
     // Notify admin on WhatsApp (non-blocking)
     try { await notifyAdminNewSignup(fullName, email, plan, domain); } catch (e) { console.error('WhatsApp notify failed:', e); }

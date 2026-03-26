@@ -40,6 +40,36 @@ const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
 const TWILIO_TOKEN = "83bd0490a83a0c5420b5d08f9902720e";
 const TWILIO_FROM  = "whatsapp:+14155238886";
 
+const SUPABASE_URL        = 'https://fwbclrdzctszwbfxywgi.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+function supabaseRequest(method, path, body) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const opts = {
+      hostname: 'fwbclrdzctszwbfxywgi.supabase.co',
+      path: '/rest/v1/' + path,
+      method,
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+        ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
+      }
+    };
+    const r = https.request(opts, resp => {
+      let raw = '';
+      resp.on('data', c => raw += c);
+      resp.on('end', () => resolve({ status: resp.statusCode, body: raw }));
+    });
+    r.on('error', reject);
+    r.setTimeout(10000, () => { r.destroy(); reject(new Error('Supabase timeout')); });
+    if (payload) r.write(payload);
+    r.end();
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -549,6 +579,34 @@ Rules:
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Failed to fetch news' }));
       });
+    return;
+  }
+
+  // ── CREATE PROFILE (bypasses RLS using service key) ──────────────────────
+  if (req.method === 'POST' && req.url === '/api/create-profile') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const profile = JSON.parse(body);
+        if (!profile.id || !profile.email) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'id and email are required' }));
+          return;
+        }
+        const result = await supabaseRequest('POST', 'profiles', profile);
+        if (result.status >= 400) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: result.body }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        }
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
     return;
   }
 
