@@ -8,7 +8,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── CLOUDFLARE CREDENTIALS (server-side only) ─────────────────────────────
 const CF_EMAIL   = 'tallamkushal@gmail.com';
-const CF_API_KEY = '_csyi7LY_2v8rV3awxCy_qotEiBWQyCmsv9aIVmv';
+const CF_API_KEY = 'cfk_KHq0dLqVZDt3OALFCuXdOi2MMvD8yUK6tBf0V61Kec306483';
 const CF_BASE    = 'https://api.cloudflare.com/client/v4';
 
 function cfGet(apiPath) {
