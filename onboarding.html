@@ -674,9 +674,10 @@
     const user = await requireAuth();
     if (!user) return;
     const profile = await getCurrentProfile();
+    // If client already completed onboarding (has a domain), send to dashboard
     if (profile?.domain) {
-      document.getElementById('domain-input').value = profile.domain;
-      clientDomain = profile.domain;
+      window.location.href = 'dashboard.html';
+      return;
     }
   });
 
