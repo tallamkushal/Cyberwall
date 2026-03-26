@@ -738,6 +738,7 @@
   async function saveDomainAndContinue() {
     const domain = document.getElementById('domain-input').value.trim();
     const err = document.getElementById('domain-error');
+    const btn = document.querySelector('#step-2 .btn-primary');
 
     if (!domain || !isValidDomain(domain)) {
       err.classList.remove('hidden');
@@ -746,14 +747,37 @@
     err.classList.add('hidden');
     clientDomain = domain;
 
-    // Save to Supabase
+    btn.textContent = 'Connecting to Cloudflare...';
+    btn.disabled = true;
+
+    // Save domain to Supabase
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-      await supabaseClient
-        .from('profiles')
-        .update({ domain: domain })
-        .eq('id', session.user.id);
+      await supabaseClient.from('profiles').update({ domain }).eq('id', session.user.id);
     }
+
+    // Add domain to Cloudflare and get real nameservers
+    try {
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+      const res  = await fetch(`${SERVER}/api/cf/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain })
+      });
+      const data = await res.json();
+      if (data.nameservers && data.nameservers.length >= 2) {
+        document.getElementById('ns1').textContent = data.nameservers[0];
+        document.getElementById('ns2').textContent = data.nameservers[1];
+        // Update copy buttons
+        document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(data.nameservers[0], document.querySelectorAll('.copy-btn')[0]);
+        document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(data.nameservers[1], document.querySelectorAll('.copy-btn')[1]);
+      }
+    } catch(e) {
+      console.error('Cloudflare activation error:', e);
+    }
+
+    btn.textContent = 'Confirm Domain →';
+    btn.disabled = false;
 
     goTo(3);
   }
