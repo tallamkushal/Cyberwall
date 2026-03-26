@@ -498,12 +498,21 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title">Monthly Security Reports</span>
-          <span class="card-action">Request custom report →</span>
         </div>
         <div class="card-body">
-          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">February 2025 Security Report</div><div class="report-date">Generated Mar 1, 2025 · 2.4 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
-          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">January 2025 Security Report</div><div class="report-date">Generated Feb 1, 2025 · 2.1 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
-          <div class="report-row"><div class="report-icon">📄</div><div><div class="report-name">December 2024 Security Report</div><div class="report-date">Generated Jan 1, 2025 · 1.9 MB</div></div><span class="report-dl">↓ Download PDF</span></div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="font-size:32px">📄</div>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:14px" id="report-current-title">Loading...</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:3px">Live data from your Cloudflare WAF</div>
+              </div>
+              <button onclick="generateReport()" class="btn btn-primary" style="padding:10px 20px;font-size:13px" id="report-download-btn">↓ Download PDF</button>
+            </div>
+          </div>
+          <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;border:1px dashed var(--border);border-radius:10px">
+            📅 Previous monthly reports will appear here as they are generated each month.
+          </div>
         </div>
       </div>
     </div>
@@ -667,6 +676,8 @@
 <!-- end main -->
 
 <!-- Scripts — ORDER MATTERS -->
+<!-- jsPDF for report generation -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <!-- 1. Supabase SDK (must load first) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- 2. Our connection file -->
@@ -765,6 +776,174 @@
   function askSuggestion(text) {
     document.getElementById('ai-input').value = text;
     sendAiMessage();
+  }
+
+  // ── Set report title on load ──────────────────────────────────────────────
+  (function() {
+    const now = new Date();
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const el = document.getElementById('report-current-title');
+    if (el) el.textContent = `${monthName} Security Report`;
+  })();
+
+  // ── Generate PDF Report ───────────────────────────────────────────────────
+  async function generateReport() {
+    const btn = document.getElementById('report-download-btn');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+      const profile = await getCurrentProfile();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const now = new Date();
+      const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const domain = profile?.domain || document.getElementById('user-domain')?.textContent || '—';
+      const clientName = profile?.full_name || '—';
+
+      // Pull live data from dashboard DOM
+      const threatsBlocked = document.getElementById('stat-blocked')?.textContent || '0';
+      const securityScore  = document.getElementById('stat-score')?.textContent  || '—';
+      const uptime         = document.getElementById('stat-uptime')?.textContent  || '99.9%';
+      const sslStatus      = document.getElementById('ssl-status')?.textContent   || '—';
+      const sslExpires     = document.getElementById('ssl-expires')?.textContent  || '—';
+      const sslIssuer      = document.getElementById('ssl-issuer')?.textContent   || '—';
+      const wafStatus      = document.getElementById('score-waf')?.textContent    || '—';
+      const httpsEnforced  = document.getElementById('score-https')?.textContent  || '—';
+      const spf            = document.getElementById('score-spf')?.textContent    || '—';
+      const botShield      = document.getElementById('score-bot')?.textContent    || '—';
+
+      const W = 210, margin = 18;
+      let y = 0;
+
+      // ── Header bar ──
+      doc.setFillColor(26, 71, 232);
+      doc.rect(0, 0, W, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('CyberWall', margin, 16);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Monthly Security Report', margin, 24);
+      doc.text(`Generated: ${now.toLocaleDateString('en-US', { day:'numeric', month:'long', year:'numeric' })}`, margin, 31);
+
+      // ── Client info ──
+      y = 50;
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${monthName} Report`, margin, y);
+      y += 7;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Client: ${clientName}   |   Domain: ${domain}`, margin, y);
+
+      // ── Divider ──
+      y += 8;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, W - margin, y);
+
+      // ── Stats ──
+      y += 10;
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Security Overview', margin, y);
+      y += 8;
+
+      const stats = [
+        ['Threats Blocked (30 days)', threatsBlocked],
+        ['Security Score', securityScore],
+        ['Uptime', uptime],
+        ['WAF Status', wafStatus],
+        ['HTTPS Enforced', httpsEnforced],
+        ['Bot Shield', botShield],
+      ];
+
+      doc.setFontSize(10);
+      stats.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(label, margin, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 71, 232);
+        doc.text(String(value), 120, y);
+        y += 8;
+      });
+
+      // ── SSL Section ──
+      y += 4;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, W - margin, y);
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(30, 30, 30);
+      doc.text('SSL Certificate', margin, y);
+      y += 8;
+
+      const sslStats = [
+        ['Status', sslStatus],
+        ['Issuer', sslIssuer],
+        ['Expires', sslExpires],
+        ['SPF Record', spf],
+      ];
+
+      doc.setFontSize(10);
+      sslStats.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(label, margin, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 30, 30);
+        doc.text(String(value), 120, y);
+        y += 8;
+      });
+
+      // ── Recommendations ──
+      y += 4;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, W - margin, y);
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(30, 30, 30);
+      doc.text('Recommendations', margin, y);
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      const recs = [
+        '• Keep your CMS and plugins updated to reduce attack surface.',
+        '• Enable 2FA on all admin accounts.',
+        '• Review firewall rules monthly with your CyberWall dashboard.',
+        '• Contact CyberWall support if threats blocked exceeds 500/month.',
+      ];
+      recs.forEach(r => { doc.text(r, margin, y); y += 7; });
+
+      // ── Footer ──
+      doc.setFillColor(245, 247, 250);
+      doc.rect(0, 275, W, 22, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(130, 130, 130);
+      doc.setFont('helvetica', 'normal');
+      doc.text('CyberWall — Managed WAF Service  |  cyberwall.onrender.com', margin, 284);
+      doc.text(`Confidential report for ${clientName}`, W - margin - 60, 284);
+
+      // Save
+      const filename = `CyberWall_Report_${now.toLocaleDateString('en-US',{month:'short',year:'numeric'}).replace(' ','_')}_${domain}.pdf`;
+      doc.save(filename);
+
+    } catch(e) {
+      console.error('Report error:', e);
+      alert('Could not generate report. Please try again.');
+    }
+
+    btn.textContent = '↓ Download PDF';
+    btn.disabled = false;
   }
 </script>
 
