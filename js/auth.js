@@ -49,6 +49,8 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
 
 async function logIn(email, password) {
   try {
+    // Clear any stale session before logging in to prevent SDK deadlock
+    await supabaseClient.auth.signOut().catch(() => {});
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
