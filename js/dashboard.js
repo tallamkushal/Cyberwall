@@ -4,7 +4,16 @@ async function loadDashboard() {
   const user = await requireAuth();
   if (!user) return;
   const profile = await getCurrentProfile();
-  if (!profile) { window.location.href = 'onboarding.html'; return; }
+  if (!profile) {
+    // Only redirect to onboarding if genuinely no profile — not on network failures
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) return; // requireAuth already handles this
+    const { data, error } = await supabaseClient.from('profiles').select('id').eq('id', session.user.id).single();
+    if (!data && error?.code === 'PGRST116') {
+      window.location.href = 'onboarding.html';
+    }
+    return;
+  }
 
   document.getElementById('user-name').textContent     = profile.full_name || 'User';
   document.getElementById('user-plan').textContent     = capitalize(profile.plan || 'starter') + ' Plan';

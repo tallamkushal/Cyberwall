@@ -76,9 +76,16 @@ async function requireAuth() {
 async function getCurrentProfile() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return null;
-  const { data: profile } = await supabaseClient
-    .from('profiles').select('*').eq('id', session.user.id).single();
-  return profile;
+  // Retry up to 3 times to handle slow Supabase responses
+  for (let i = 0; i < 3; i++) {
+    const { data: profile, error } = await supabaseClient
+      .from('profiles').select('*').eq('id', session.user.id).single();
+    if (profile) return profile;
+    // Only retry on network errors, not "no rows found"
+    if (error?.code === 'PGRST116') return null; // genuinely no profile
+    await new Promise(r => setTimeout(r, 500));
+  }
+  return null;
 }
 
 async function resetPassword(email) {
