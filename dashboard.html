@@ -426,7 +426,9 @@
         <div class="card">
           <div class="card-header"><span class="card-title">Attack Types</span></div>
           <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <canvas id="chart-attack-types" height="80"></canvas>
+            <div style="width:220px;height:220px;position:relative">
+              <canvas id="chart-attack-types"></canvas>
+            </div>
           </div>
         </div>
 
@@ -962,6 +964,7 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#888', boxWidth: 12, padding: 10 } },
           tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + '%' } },
