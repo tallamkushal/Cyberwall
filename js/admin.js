@@ -52,11 +52,11 @@ async function loadAllClients() {
   safeSet('total-overdue', overdue);
 
   // Calculate MRR
-  const planPrices = { starter: 2999, pro: 5999, business: 9999 };
+  const planPrices = { starter: 29, pro: 59, business: 99 };
   const mrr = list
     .filter(c => c.status === 'active')
     .reduce((sum, c) => sum + (planPrices[c.plan] || 0), 0);
-  safeSet('total-mrr', '₹' + mrr.toLocaleString('en-IN'));
+  safeSet('total-mrr', '$' + mrr.toLocaleString());
 
   // Render client table
   renderClientTable(list);
@@ -105,7 +105,8 @@ async function addClient() {
   const fname    = document.getElementById('ac-fname').value.trim();
   const lname    = document.getElementById('ac-lname').value.trim();
   const email    = document.getElementById('ac-email').value.trim();
-  const phone    = document.getElementById('ac-phone').value.trim();
+  const dialcode = document.getElementById('ac-dialcode').value;
+  const phone    = dialcode + document.getElementById('ac-phone').value.trim();
   const domain   = document.getElementById('ac-domain').value.trim();
   const bizname  = document.getElementById('ac-biz').value.trim();
   const plan     = document.getElementById('ac-plan').value;

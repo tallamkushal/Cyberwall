@@ -247,8 +247,8 @@
         <div class="form-group">
           <label class="form-label">Phone (WhatsApp)</label>
           <div style="display:flex;gap:8px">
-            <select class="form-input" style="width:88px;padding:11px 8px"><option>🇮🇳 +91</option></select>
-            <input type="tel" class="form-input" id="s-phone" placeholder="98765 43210" style="flex:1"/>
+            <select class="form-input" id="s-dialcode" style="width:130px;padding:11px 8px"></select>
+            <input type="tel" class="form-input" id="s-phone" placeholder="Phone number" style="flex:1"/>
           </div>
           <div class="form-hint">We send setup updates on WhatsApp</div>
         </div>
@@ -277,12 +277,9 @@
             <option>Education / Coaching</option><option>Restaurant / Food</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">City</label>
-          <select class="form-input" id="s-city">
-            <option value="">Select city...</option>
-            <option>Bangalore</option><option>Mumbai</option><option>Delhi / NCR</option>
-            <option>Hyderabad</option><option>Chennai</option><option>Pune</option>
-            <option>Kolkata</option><option>Ahmedabad</option><option>Other</option>
+        <div class="form-group"><label class="form-label">Country</label>
+          <select class="form-input" id="s-country">
+            <option value="">Select country...</option>
           </select>
         </div>
         <div id="s2-error" class="form-error hidden"></div>
@@ -299,17 +296,17 @@
         <label class="plan-opt selected" id="plan-starter" onclick="selectPlan('starter', this)">
           <input type="radio" name="plan" checked/>
           <div style="flex:1"><div class="plan-opt-name">Starter</div><div class="plan-opt-desc">WAF + SSL + monthly report</div></div>
-          <div class="plan-opt-price">₹2,999/mo</div>
+          <div class="plan-opt-price" id="signup-price-starter">$29/mo</div>
         </label>
         <label class="plan-opt" id="plan-pro" onclick="selectPlan('pro', this)">
           <input type="radio" name="plan"/>
           <div style="flex:1"><div class="plan-opt-name">Pro ⭐</div><div class="plan-opt-desc">+ Dashboard + WhatsApp alerts</div></div>
-          <div class="plan-opt-price">₹5,999/mo</div>
+          <div class="plan-opt-price" id="signup-price-pro">$59/mo</div>
         </label>
         <label class="plan-opt" id="plan-business" onclick="selectPlan('business', this)">
           <input type="radio" name="plan"/>
           <div style="flex:1"><div class="plan-opt-name">Business</div><div class="plan-opt-desc">5 domains + dark web monitoring</div></div>
-          <div class="plan-opt-price">₹9,999/mo</div>
+          <div class="plan-opt-price" id="signup-price-business">$99/mo</div>
         </label>
         <div class="trial-banner">🎉 <div><strong>7-day free trial included</strong><br/><span style="font-size:12px">No charge until trial ends. Cancel anytime.</span></div></div>
         <div id="s3-error" class="form-error hidden"></div>
@@ -496,7 +493,7 @@
       document.getElementById('s-email').value.trim(),
       document.getElementById('s-pass').value,
       document.getElementById('s-fname').value.trim() + ' ' + document.getElementById('s-lname').value.trim(),
-      '+91' + document.getElementById('s-phone').value.trim(),
+      document.getElementById('s-dialcode').value + document.getElementById('s-phone').value.trim(),
       document.getElementById('s-biz').value.trim(),
       document.getElementById('s-domain').value.trim(),
       selectedPlan
@@ -522,6 +519,86 @@
     const logo = document.getElementById('logo-link');
     if (!data.session) logo.href = 'index.html';
   });
+
+  // ── Country codes + pricing ───────────────────────────────────────────────
+  const COUNTRIES = [
+    {name:'Afghanistan',code:'AF',dial:'+93'},{name:'Albania',code:'AL',dial:'+355'},{name:'Algeria',code:'DZ',dial:'+213'},
+    {name:'Argentina',code:'AR',dial:'+54'},{name:'Australia',code:'AU',dial:'+61'},{name:'Austria',code:'AT',dial:'+43'},
+    {name:'Bangladesh',code:'BD',dial:'+880'},{name:'Belgium',code:'BE',dial:'+32'},{name:'Brazil',code:'BR',dial:'+55'},
+    {name:'Canada',code:'CA',dial:'+1'},{name:'Chile',code:'CL',dial:'+56'},{name:'China',code:'CN',dial:'+86'},
+    {name:'Colombia',code:'CO',dial:'+57'},{name:'Denmark',code:'DK',dial:'+45'},{name:'Egypt',code:'EG',dial:'+20'},
+    {name:'Ethiopia',code:'ET',dial:'+251'},{name:'Finland',code:'FI',dial:'+358'},{name:'France',code:'FR',dial:'+33'},
+    {name:'Germany',code:'DE',dial:'+49'},{name:'Ghana',code:'GH',dial:'+233'},{name:'Greece',code:'GR',dial:'+30'},
+    {name:'Hong Kong',code:'HK',dial:'+852'},{name:'Hungary',code:'HU',dial:'+36'},{name:'India',code:'IN',dial:'+91'},
+    {name:'Indonesia',code:'ID',dial:'+62'},{name:'Iran',code:'IR',dial:'+98'},{name:'Iraq',code:'IQ',dial:'+964'},
+    {name:'Ireland',code:'IE',dial:'+353'},{name:'Israel',code:'IL',dial:'+972'},{name:'Italy',code:'IT',dial:'+39'},
+    {name:'Japan',code:'JP',dial:'+81'},{name:'Jordan',code:'JO',dial:'+962'},{name:'Kenya',code:'KE',dial:'+254'},
+    {name:'Kuwait',code:'KW',dial:'+965'},{name:'Malaysia',code:'MY',dial:'+60'},{name:'Mexico',code:'MX',dial:'+52'},
+    {name:'Morocco',code:'MA',dial:'+212'},{name:'Nepal',code:'NP',dial:'+977'},{name:'Netherlands',code:'NL',dial:'+31'},
+    {name:'New Zealand',code:'NZ',dial:'+64'},{name:'Nigeria',code:'NG',dial:'+234'},{name:'Norway',code:'NO',dial:'+47'},
+    {name:'Pakistan',code:'PK',dial:'+92'},{name:'Peru',code:'PE',dial:'+51'},{name:'Philippines',code:'PH',dial:'+63'},
+    {name:'Poland',code:'PL',dial:'+48'},{name:'Portugal',code:'PT',dial:'+351'},{name:'Qatar',code:'QA',dial:'+974'},
+    {name:'Romania',code:'RO',dial:'+40'},{name:'Russia',code:'RU',dial:'+7'},{name:'Saudi Arabia',code:'SA',dial:'+966'},
+    {name:'Singapore',code:'SG',dial:'+65'},{name:'South Africa',code:'ZA',dial:'+27'},{name:'South Korea',code:'KR',dial:'+82'},
+    {name:'Spain',code:'ES',dial:'+34'},{name:'Sri Lanka',code:'LK',dial:'+94'},{name:'Sweden',code:'SE',dial:'+46'},
+    {name:'Switzerland',code:'CH',dial:'+41'},{name:'Taiwan',code:'TW',dial:'+886'},{name:'Tanzania',code:'TZ',dial:'+255'},
+    {name:'Thailand',code:'TH',dial:'+66'},{name:'Turkey',code:'TR',dial:'+90'},{name:'UAE',code:'AE',dial:'+971'},
+    {name:'Uganda',code:'UG',dial:'+256'},{name:'Ukraine',code:'UA',dial:'+380'},{name:'United Kingdom',code:'GB',dial:'+44'},
+    {name:'United States',code:'US',dial:'+1'},{name:'Vietnam',code:'VN',dial:'+84'},{name:'Zimbabwe',code:'ZW',dial:'+263'},
+  ];
+
+  const CURRENCY_MAP = {
+    USD:{symbol:'$',rate:1},EUR:{symbol:'€',rate:0.92},GBP:{symbol:'£',rate:0.79},
+    INR:{symbol:'₹',rate:84},CAD:{symbol:'CA$',rate:1.38},AUD:{symbol:'A$',rate:1.56},
+    SGD:{symbol:'S$',rate:1.34},MYR:{symbol:'RM',rate:4.72},PHP:{symbol:'₱',rate:56},
+    IDR:{symbol:'Rp',rate:15700},THB:{symbol:'฿',rate:35},BDT:{symbol:'৳',rate:110},
+    PKR:{symbol:'₨',rate:278},NPR:{symbol:'Rs',rate:133},BRL:{symbol:'R$',rate:5.7},
+    MXN:{symbol:'MX$',rate:17.5},ARS:{symbol:'ARS',rate:990},ZAR:{symbol:'R',rate:18.5},
+    NGN:{symbol:'₦',rate:1600},KES:{symbol:'KSh',rate:130},EGP:{symbol:'E£',rate:49},
+    AED:{symbol:'AED',rate:3.67},SAR:{symbol:'SAR',rate:3.75},QAR:{symbol:'QAR',rate:3.64},
+    KWD:{symbol:'KD',rate:0.31},TRY:{symbol:'₺',rate:33},JPY:{symbol:'¥',rate:149},
+    KRW:{symbol:'₩',rate:1340},TWD:{symbol:'NT$',rate:32},HKD:{symbol:'HK$',rate:7.8},
+    SEK:{symbol:'kr',rate:10.4},NOK:{symbol:'kr',rate:10.6},DKK:{symbol:'kr',rate:6.9},
+    CHF:{symbol:'CHF',rate:0.88},PLN:{symbol:'zł',rate:4.0},
+  };
+  const USD_PRICES = [29, 59, 99];
+  const PRICE_IDS  = ['signup-price-starter','signup-price-pro','signup-price-business'];
+
+  // Populate country dropdown (dial codes)
+  const dialSel = document.getElementById('s-dialcode');
+  COUNTRIES.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.dial;
+    o.textContent = `${c.dial} ${c.name}`;
+    dialSel.appendChild(o);
+  });
+
+  // Populate country dropdown (step 2)
+  const countrySel = document.getElementById('s-country');
+  COUNTRIES.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.code;
+    o.textContent = c.name;
+    countrySel.appendChild(o);
+  });
+
+  // Detect country via IP and set defaults
+  (async () => {
+    try {
+      const geo = await fetch('https://ipapi.co/json/').then(r => r.json());
+      // Set dial code
+      const match = COUNTRIES.find(c => c.code === geo.country_code);
+      if (match) dialSel.value = match.dial;
+      // Set country in step 2
+      if (geo.country_code) countrySel.value = geo.country_code;
+      // Set pricing
+      const cur = CURRENCY_MAP[geo.currency] || CURRENCY_MAP['USD'];
+      PRICE_IDS.forEach((id, i) => {
+        const price = Math.round(USD_PRICES[i] * cur.rate);
+        document.getElementById(id).textContent = `${cur.symbol}${price.toLocaleString()}/mo`;
+      });
+    } catch(e) { /* fallback to USD */ }
+  })();
 
   // ── Google OAuth ─────────────────────────────────────────────────────────
   async function handleGoogleLogin() {
