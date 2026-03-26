@@ -49,10 +49,6 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
 
 async function logIn(email, password) {
   try {
-    // Clear stale Supabase session from localStorage to prevent SDK deadlock
-    Object.keys(localStorage)
-      .filter(k => k.startsWith('sb-'))
-      .forEach(k => localStorage.removeItem(k));
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
