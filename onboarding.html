@@ -412,7 +412,10 @@
     </div>
     <div class="card-footer">
       <span class="step-counter">Step 1 of 4</span>
-      <button class="btn btn-primary" onclick="goTo(2)">Let's Get Started →</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <button class="btn btn-primary" onclick="goTo(2)">Let's Get Started →</button>
+      </div>
     </div>
   </div>
 
@@ -447,7 +450,10 @@
     </div>
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
-      <button class="btn btn-primary" onclick="saveDomainAndContinue()">Confirm Domain →</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <button class="btn btn-primary" onclick="saveDomainAndContinue()">Confirm Domain →</button>
+      </div>
     </div>
   </div>
 
@@ -503,7 +509,10 @@
     </div>
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
-      <button class="btn btn-primary" onclick="goTo(4)">I've Updated DNS →</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <button class="btn btn-primary" onclick="goTo(4)">I've Updated DNS →</button>
+      </div>
     </div>
   </div>
 
@@ -550,7 +559,7 @@
     </div>
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
-      <button class="btn btn-primary" id="verify-skip-btn" onclick="goTo(5)" style="display:none">Go to Dashboard →</button>
+      <button class="btn btn-primary" id="verify-skip-btn" onclick="goTo(5)">Go to Dashboard →</button>
     </div>
   </div>
 
