@@ -7,8 +7,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── CLOUDFLARE CREDENTIALS (server-side only) ─────────────────────────────
-const CF_EMAIL   = 'tallamkushal@gmail.com';
-const CF_API_KEY = 'cfk_KHq0dLqVZDt3OALFCuXdOi2MMvD8yUK6tBf0V61Kec306483';
+const CF_EMAIL   = process.env.CF_EMAIL   || 'tallamkushal@gmail.com';
+const CF_API_KEY = process.env.CF_API_KEY || '';
 const CF_BASE    = 'https://api.cloudflare.com/client/v4';
 
 function cfGet(apiPath) {
