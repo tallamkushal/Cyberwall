@@ -126,7 +126,7 @@ async function addClient() {
     id: crypto.randomUUID(),
     full_name: fname + ' ' + lname,
     email, phone,
-    company: bizname,
+    business_name: bizname,
     domain, plan,
     status: 'trial',
     role: 'client',
@@ -168,7 +168,7 @@ async function viewClient(id) {
   document.getElementById('cv-domain').textContent  = client.domain || '—';
   document.getElementById('cv-email').textContent   = client.email || '—';
   document.getElementById('cv-phone').textContent   = client.phone || '—';
-  document.getElementById('cv-biz').textContent     = client.company || '—';
+  document.getElementById('cv-biz').textContent     = client.business_name || '—';
   document.getElementById('cv-joined').textContent  = formatDate(client.created_at);
   document.getElementById('cv-plan').textContent    = capitalize(client.plan || 'starter');
   document.getElementById('cv-status').innerHTML    = getStatusBadge(client.status);

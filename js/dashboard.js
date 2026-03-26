@@ -27,7 +27,7 @@ async function loadDashboard() {
   const setPhone   = document.getElementById('set-phone');
   const setEmail   = document.getElementById('set-email');
   if (setName)    setName.value    = profile.full_name || '';
-  if (setCompany) setCompany.value = profile.company   || '';
+  if (setCompany) setCompany.value = profile.business_name   || '';
   if (setDomain)  setDomain.value  = profile.domain    || '';
   if (setPhone)   setPhone.value   = profile.phone     || '';
   if (setEmail)   setEmail.value   = profile.email     || '';
@@ -118,7 +118,7 @@ async function saveBizName() {
   const session = await supabaseClient.auth.getSession();
   const userId = session?.data?.session?.user?.id;
   if (!userId) return;
-  const { error } = await supabaseClient.from('profiles').update({ company: newName }).eq('id', userId);
+  const { error } = await supabaseClient.from('profiles').update({ business_name: newName }).eq('id', userId);
   if (error) { showToast('Failed to update: ' + error.message, 'error'); return; }
   document.getElementById('user-biz').textContent = newName;
   closeModal('modal-biz');
@@ -173,7 +173,7 @@ async function saveProfileSettings() {
   if (!userId) return;
 
   const { error } = await supabaseClient.from('profiles').update({
-    full_name: name, company, domain, phone
+    full_name: name, business_name: company, domain, phone
   }).eq('id', userId);
 
   if (error) {

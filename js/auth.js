@@ -28,7 +28,7 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
         id: userId,
         full_name: fullName,
         email, phone,
-        company: businessName,
+        business_name: businessName,
         domain, plan,
         status: 'trial',
         role: 'client',
