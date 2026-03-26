@@ -10,7 +10,18 @@ async function loadDashboard() {
   document.getElementById('user-plan').textContent     = capitalize(profile.plan || 'starter') + ' Plan';
   document.getElementById('user-domain').textContent   = profile.domain || 'Not configured';
   document.getElementById('user-initials').textContent = getInitials(profile.full_name);
-  document.getElementById('user-biz').textContent      = profile.company || 'Not set';
+
+  // Populate settings fields
+  const setName    = document.getElementById('set-name');
+  const setCompany = document.getElementById('set-company');
+  const setDomain  = document.getElementById('set-domain');
+  const setPhone   = document.getElementById('set-phone');
+  const setEmail   = document.getElementById('set-email');
+  if (setName)    setName.value    = profile.full_name || '';
+  if (setCompany) setCompany.value = profile.company   || '';
+  if (setDomain)  setDomain.value  = profile.domain    || '';
+  if (setPhone)   setPhone.value   = profile.phone     || '';
+  if (setEmail)   setEmail.value   = profile.email     || '';
   const planBadge = document.getElementById('plan-badge');
   if (planBadge) planBadge.textContent = capitalize(profile.plan || 'starter') + ' Plan';
 
@@ -124,9 +135,83 @@ async function savePassword() {
 }
 
 // ---- LOAD CLOUDFLARE DATA ----
-// Called after profile is loaded
 async function loadCloudflareForProfile(profile) {
   if (profile && profile.domain) {
     await loadCloudflareData(profile.domain);
   }
+}
+
+// ---- SAVE PROFILE SETTINGS ----
+async function saveProfileSettings() {
+  const name    = document.getElementById('set-name').value.trim();
+  const company = document.getElementById('set-company').value.trim();
+  const domain  = document.getElementById('set-domain').value.trim();
+  const phone   = document.getElementById('set-phone').value.trim();
+  const errEl   = document.getElementById('set-profile-error');
+  const sucEl   = document.getElementById('set-profile-success');
+
+  errEl.classList.add('hidden');
+  sucEl.classList.add('hidden');
+
+  if (!name || !company || !domain) {
+    errEl.textContent = 'Name, business name and domain are required.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const session = await supabaseClient.auth.getSession();
+  const userId = session?.data?.session?.user?.id;
+  if (!userId) return;
+
+  const { error } = await supabaseClient.from('profiles').update({
+    full_name: name, company, domain, phone
+  }).eq('id', userId);
+
+  if (error) {
+    errEl.textContent = 'Failed to save: ' + error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // Update topbar display
+  document.getElementById('user-name').textContent   = name;
+  document.getElementById('user-domain').textContent = domain;
+  document.getElementById('user-initials').textContent = getInitials(name);
+
+  sucEl.classList.remove('hidden');
+  setTimeout(() => sucEl.classList.add('hidden'), 3000);
+}
+
+// ---- SAVE PASSWORD SETTINGS ----
+async function savePasswordSettings() {
+  const newPass = document.getElementById('set-pass').value;
+  const confirm = document.getElementById('set-pass-confirm').value;
+  const errEl   = document.getElementById('set-pass-error');
+  const sucEl   = document.getElementById('set-pass-success');
+
+  errEl.classList.add('hidden');
+  sucEl.classList.add('hidden');
+
+  if (newPass.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (newPass !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+  if (error) {
+    errEl.textContent = 'Error: ' + error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('set-pass').value = '';
+  document.getElementById('set-pass-confirm').value = '';
+  sucEl.classList.remove('hidden');
+  setTimeout(() => sucEl.classList.add('hidden'), 3000);
 }

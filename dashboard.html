@@ -612,15 +612,52 @@
           </div>
 
           <div class="settings-section">
-            <div class="settings-title">Account Details</div>
-            <div class="settings-row">
-              <div><div class="settings-label">Business Name</div><div class="settings-desc" id="user-biz">Loading...</div></div>
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px">Edit</button>
+            <div class="settings-title">Profile & Business Details</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Full Name</label>
+                <input class="form-input" id="set-name" placeholder="Your name" style="font-size:13px;padding:9px 12px"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Business Name</label>
+                <input class="form-input" id="set-company" placeholder="Your company" style="font-size:13px;padding:9px 12px"/>
+              </div>
             </div>
-            <div class="settings-row">
-              <div><div class="settings-label">Password</div><div class="settings-desc">Last changed recently</div></div>
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px">Change</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Website Domain</label>
+                <input class="form-input" id="set-domain" placeholder="https://yoursite.com" style="font-size:13px;padding:9px 12px"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">WhatsApp Number</label>
+                <input class="form-input" id="set-phone" placeholder="+91 98765 43210" style="font-size:13px;padding:9px 12px"/>
+              </div>
             </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Email Address</label>
+              <input class="form-input" id="set-email" placeholder="you@company.com" disabled style="font-size:13px;padding:9px 12px;opacity:0.6;cursor:not-allowed"/>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">Email cannot be changed. Contact support if needed.</div>
+            </div>
+            <div id="set-profile-error" class="form-error hidden"></div>
+            <div id="set-profile-success" class="hidden" style="font-size:13px;color:var(--green);font-weight:600;margin-bottom:8px">✓ Profile updated successfully!</div>
+            <button class="btn btn-primary" style="font-size:13px;padding:9px 22px" onclick="saveProfileSettings()">Save Changes →</button>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Change Password</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">New Password</label>
+                <input type="password" class="form-input" id="set-pass" placeholder="Min 8 characters" style="font-size:13px;padding:9px 12px"/>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px">Confirm Password</label>
+                <input type="password" class="form-input" id="set-pass-confirm" placeholder="Repeat password" style="font-size:13px;padding:9px 12px"/>
+              </div>
+            </div>
+            <div id="set-pass-error" class="form-error hidden"></div>
+            <div id="set-pass-success" class="hidden" style="font-size:13px;color:var(--green);font-weight:600;margin-bottom:8px">✓ Password updated!</div>
+            <button class="btn btn-ghost" style="font-size:13px;padding:9px 22px" onclick="savePasswordSettings()">Update Password →</button>
           </div>
 
           <div class="settings-section">
