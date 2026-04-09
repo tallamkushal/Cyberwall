@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CyberWall — Managed WAF for SMBs</title>
+    <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a47e8"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
+  <link rel="apple-touch-icon" href="/icons/icon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>ProCyberWall — Managed WAF for SMBs</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
     /* ── ANIMATIONS ── */
@@ -22,7 +29,7 @@
     .reveal-delay-3 { transition-delay:0.3s; }
 
     /* ── NAV ── */
-    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:0 5%;display:flex;align-items:center;height:64px;gap:32px; }
+    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:0 5%;padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;height:64px;gap:32px; }
     .nav-logo { display:flex;align-items:center;gap:10px;text-decoration:none; }
     .nav-logo-icon { width:34px;height:34px;border-radius:9px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(26,71,232,0.3); }
     .nav-logo-text { font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:19px;color:var(--text);letter-spacing:-0.5px; }
@@ -216,12 +223,116 @@
     .wa-float { position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;border-radius:50%;background:#25D366;color:white;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(37,211,102,0.5);transition:all 0.2s;text-decoration:none; }
     .wa-float:hover { transform:scale(1.1);box-shadow:0 8px 28px rgba(37,211,102,0.6); }
 
+    /* ── NAV SCORE BADGE ── */
+    .nav-link-score{
+      color:var(--accent)!important;font-weight:700!important;
+      background:rgba(26,71,232,0.08);border:1.5px solid rgba(26,71,232,0.2);
+      border-radius:20px;padding:5px 13px!important;
+      position:relative;transition:all 0.2s!important;
+    }
+    .nav-link-score:hover{background:rgba(26,71,232,0.14)!important;color:var(--accent)!important;}
+    .nav-link-score::after{
+      content:'NEW';position:absolute;top:-8px;right:-4px;
+      background:#ef4444;color:white;font-size:8px;font-weight:800;
+      padding:1px 5px;border-radius:4px;letter-spacing:0.5px;
+    }
+
+    /* ── SCANNER ── */
+    .scanner-section{
+      background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 55%,#1a1a2e 100%);
+      position:relative;overflow:hidden;
+    }
+    .scanner-section::before{
+      content:'';position:absolute;inset:0;
+      background:radial-gradient(ellipse 60% 70% at 70% 50%,rgba(26,71,232,0.25) 0%,transparent 70%),
+                 radial-gradient(ellipse 40% 50% at 20% 80%,rgba(124,58,237,0.15) 0%,transparent 60%);
+      pointer-events:none;
+    }
+    .scanner-section .section-tag{
+      background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.9);border:none;
+    }
+    .scanner-section .section-title{color:white;}
+    .scanner-section .section-sub{color:rgba(255,255,255,0.65);}
+    .scanner-widget{max-width:700px;margin:0 auto;position:relative;z-index:1;}
+    .scanner-trust{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:28px;}
+    .scanner-trust-item{font-size:12px;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:5px;}
+    .scanner-trust-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.3);}
+    .scanner-input-row{display:flex;gap:10px;}
+    .scanner-input-wrap{
+      flex:1;display:flex;align-items:center;
+      background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);
+      border-radius:14px;padding:0 18px;backdrop-filter:blur(8px);
+      transition:border-color 0.2s,background 0.2s;
+    }
+    .scanner-input-wrap:focus-within{border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.14);}
+    .scanner-input-icon{font-size:18px;margin-right:10px;flex-shrink:0;}
+    .scanner-input{flex:1;border:none;background:transparent;font-size:17px;font-family:'DM Sans',sans-serif;color:white;outline:none;padding:16px 0;}
+    .scanner-input::placeholder{color:rgba(255,255,255,0.4);}
+    .scanner-btn{
+      padding:16px 32px;font-size:15px;font-weight:700;white-space:nowrap;flex-shrink:0;
+      background:white!important;color:var(--accent)!important;border:none!important;
+      border-radius:14px!important;box-shadow:0 4px 20px rgba(0,0,0,0.25)!important;
+      transition:all 0.2s!important;
+    }
+    .scanner-btn:hover{transform:translateY(-2px)!important;box-shadow:0 8px 28px rgba(0,0,0,0.3)!important;}
+    .scanner-samples{font-size:13px;color:rgba(255,255,255,0.45);margin-top:12px;text-align:center;}
+    .scanner-sample{color:rgba(255,255,255,0.7);cursor:pointer;margin:0 6px;text-decoration:underline;text-underline-offset:2px;}
+    .scanner-sample:hover{color:white;}
+    .scan-result-card{background:white;border:2px solid rgba(255,255,255,0.15);border-radius:20px;padding:28px;animation:fadeUp 0.4s ease both;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+    .scan-result-header{display:flex;align-items:center;gap:20px;margin-bottom:24px;flex-wrap:wrap;}
+    .scan-grade-circle{width:80px;height:80px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;color:white;}
+    .scan-result-info{flex:1;min-width:200px;}
+    .scan-result-domain{font-size:18px;font-weight:700;margin-bottom:4px;}
+    .scan-result-score-line{font-size:13px;color:var(--muted);}
+    .scan-score-bar{height:8px;background:var(--bg);border-radius:4px;margin:8px 0;overflow:hidden;}
+    .scan-score-bar-fill{height:100%;border-radius:4px;transition:width 0.9s cubic-bezier(0.34,1.56,0.64,1);}
+    .scan-breakdown{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+    .scan-breakdown-item{background:var(--bg);border-radius:10px;padding:10px;text-align:center;}
+    .scan-breakdown-score{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;}
+    .scan-breakdown-max{font-size:11px;color:var(--muted-light);}
+    .scan-breakdown-label{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.3;}
+    .scan-issues-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);}
+    .scan-issue-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+    .scan-issue-item:last-child{border-bottom:none;}
+    .scan-issue-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+    .scan-passed-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+    .scan-passed-tag{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#16a34a;font-size:12px;font-weight:500;padding:5px 10px;border-radius:8px;}
+    .scan-cta-strip{background:linear-gradient(135deg,#1a47e8,#7c3aed);border-radius:14px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:20px;}
+    .scan-cta-text{color:white;font-size:14px;font-weight:600;}
+    .scan-cta-sub{color:rgba(255,255,255,0.75);font-size:12px;margin-top:3px;}
+    .scan-loading{text-align:center;padding:40px;background:white;border-radius:20px;}
+    .scan-spinner{width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
     @media(max-width:768px){
-      .hero h1{font-size:38px;letter-spacing:-1.5px;}
+      .hero h1{font-size:36px;letter-spacing:-1px;}
+      .hero p{font-size:15px;}
+      .hero{padding:60px 5% 40px;}
       .problem-grid,.steps-grid,.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr;}
       .step-card::after{display:none;}
       .nav-links{display:none;}
       .pricing-card.popular{transform:none;}
+      .shield-card{padding:18px 20px;gap:12px;}
+      .threat-badges{gap:7px;}
+      .threat-badge{font-size:11px;padding:5px 10px;}
+      .section{padding:60px 5%;}
+      .section-center h2{font-size:26px;}
+    }
+    @media(max-width:600px){
+      .scanner-input-row{flex-direction:column;}
+      .scan-breakdown{grid-template-columns:repeat(3,1fr);}
+      .scan-result-header{gap:14px;}
+    }
+    @media(max-width:480px){
+      .hero h1{font-size:28px;}
+      .hero p{font-size:14px;}
+      .hero{padding:44px 4% 32px;}
+      .hero-ctas{flex-direction:column;align-items:stretch;}
+      .hero-ctas .btn{text-align:center;justify-content:center;}
+      .nav{padding:0 4% env(safe-area-inset-bottom,0px);height:56px;}
+      .nav-logo-text{font-size:16px;}
+      .nav-login{padding:6px 10px;font-size:13px;}
+      .btn-primary{padding:8px 14px;font-size:13px;}
     }
   </style>
 </head>
@@ -229,16 +340,18 @@
 
 <nav class="nav">
   <a href="/" class="nav-logo">
-    <div class="nav-logo-icon">🛡</div>
-    <span class="nav-logo-text">CyberWall</span>
+    <img src="/icons/icon.svg" class="nav-logo-icon" style="width:34px;height:34px;border-radius:9px;display:block;">
+    <span class="nav-logo-text">ProCyberWall</span>
   </a>
   <div class="nav-links">
+    <a href="#scanner" class="nav-link nav-link-score">🎯 Free Score Check</a>
     <a href="#how" class="nav-link">How it works</a>
     <a href="#features" class="nav-link">Features</a>
     <a href="#pricing" class="nav-link">Pricing</a>
+    <a href="https://wa.me/919844482193" target="_blank" class="nav-link">Contact</a>
   </div>
   <div class="nav-right">
-    <a href="auth.html" class="btn btn-ghost">Login</a>
+    <a href="auth.html" class="btn btn-ghost nav-login">Login</a>
     <a href="auth.html" class="btn btn-primary">Start Free Trial →</a>
   </div>
 </nav>
@@ -251,10 +364,10 @@
       <span class="live-dot"></span> 2,400+ attacks blocked today
     </div>
     <h1>Your website is being<br/>attacked right now.</h1>
-    <p>CyberWall gives your business enterprise-grade WAF protection — fully managed, no technical knowledge needed.</p>
+    <p>ProCyberWall gives your business enterprise-grade WAF protection — fully managed, no technical knowledge needed.</p>
     <div class="hero-ctas">
       <a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a>
-      <a href="#how" class="btn btn-ghost btn-xl">See how it works</a>
+      <a href="#scanner" class="btn btn-ghost btn-xl" style="display:flex;align-items:center;gap:7px">🎯 Check your score free</a>
     </div>
     <p class="hero-sub">No credit card required &nbsp;·&nbsp; Setup in 24 hours &nbsp;·&nbsp; Cancel anytime</p>
 
@@ -299,6 +412,33 @@
   <div class="stat-item reveal reveal-delay-3"><div class="stat-num" data-count="50000">0</div><div class="stat-lbl">Threats stopped this month</div></div>
 </div>
 
+<!-- SECURITY SCANNER -->
+<section class="section scanner-section" id="scanner">
+  <div class="section-center reveal">
+    <div class="section-tag">Free Security Check · No Signup Needed</div>
+    <h2 class="section-title" style="color:white">Find out your website's<br/>security score in 10 seconds.</h2>
+    <p class="section-sub">Most small business sites score C or below. See where yours stands — free, instant, no credit card.</p>
+  </div>
+  <div class="scanner-widget reveal">
+    <div class="scanner-trust">
+      <span class="scanner-trust-item">⚡ Results in under 10 seconds</span>
+      <span class="scanner-trust-dot"></span>
+      <span class="scanner-trust-item">🔒 No data stored</span>
+      <span class="scanner-trust-dot"></span>
+      <span class="scanner-trust-item">✅ Works on any public website</span>
+    </div>
+    <div class="scanner-input-row">
+      <div class="scanner-input-wrap">
+        <span class="scanner-input-icon">🌐</span>
+        <input type="text" id="scanner-domain" class="scanner-input" placeholder="yourwebsite.com" autocomplete="off" spellcheck="false"/>
+      </div>
+      <button class="scanner-btn" id="scanner-btn" onclick="runLandingScan()">Check My Score →</button>
+    </div>
+    <div class="scanner-samples">Try a demo: <span class="scanner-sample" onclick="runLandingScanFor('github.com')">github.com</span><span class="scanner-sample" onclick="runLandingScanFor('shopify.com')">shopify.com</span></div>
+    <div id="scanner-result" style="display:none;margin-top:28px"></div>
+  </div>
+</section>
+
 <!-- PROBLEM -->
 <section class="section" style="background:var(--bg)">
   <div class="section-center reveal">
@@ -322,7 +462,7 @@
   </div>
   <div class="steps-grid">
     <div class="step-card reveal"><div class="step-num">1</div><div class="step-icon">📝</div><div class="step-title">Sign Up</div><div class="step-desc">Create your account and share your website domain with us.</div></div>
-    <div class="step-card reveal reveal-delay-1"><div class="step-num">2</div><div class="step-icon">⚙️</div><div class="step-title">We Configure</div><div class="step-desc">Our team sets up your Cloudflare WAF within 24 hours.</div></div>
+    <div class="step-card reveal reveal-delay-1"><div class="step-num">2</div><div class="step-icon">⚙️</div><div class="step-title">We Configure</div><div class="step-desc">Our team sets up your security firewall within 24 hours.</div></div>
     <div class="step-card reveal reveal-delay-2"><div class="step-num">3</div><div class="step-icon">🛡</div><div class="step-title">Stay Protected</div><div class="step-desc">We monitor 24/7 and WhatsApp you when threats are blocked.</div></div>
     <div class="step-card reveal reveal-delay-3"><div class="step-num">4</div><div class="step-icon">📄</div><div class="step-title">Monthly Reports</div><div class="step-desc">Plain-English security report every month. No jargon.</div></div>
   </div>
@@ -336,7 +476,7 @@
     <p class="section-sub">Enterprise-grade security, built for small businesses worldwide.</p>
   </div>
   <div class="features-grid">
-    <div class="feature-card reveal"><div class="feature-icon">🛡</div><div class="feature-title">Managed WAF</div><div class="feature-desc">We configure Cloudflare WAF rules to block SQL injection, XSS, DDoS and more.</div></div>
+    <div class="feature-card reveal"><div class="feature-icon">🛡</div><div class="feature-title">Managed WAF</div><div class="feature-desc">We configure enterprise WAF rules to block SQL injection, XSS, DDoS and more.</div></div>
     <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">📊</div><div class="feature-title">Live Dashboard</div><div class="feature-desc">See every blocked threat in real time. Watch your security score grow.</div></div>
     <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">💬</div><div class="feature-title">WhatsApp Alerts</div><div class="feature-desc">Instant WhatsApp notifications when something serious happens. No app needed.</div></div>
     <div class="feature-card reveal"><div class="feature-icon">📄</div><div class="feature-title">Monthly Reports</div><div class="feature-desc">Plain-English PDF report every month. Show your clients you take security seriously.</div></div>
@@ -359,7 +499,7 @@
       <div class="pricing-period">per month</div>
       <ul class="pricing-features">
         <li>1 website protected</li>
-        <li>Managed Cloudflare WAF</li>
+        <li>Managed Web Application Firewall</li>
         <li>SSL monitoring</li>
         <li>Monthly report (PDF)</li>
         <li>WhatsApp support</li>
@@ -410,12 +550,12 @@
   <div class="testimonials-grid">
     <div class="testimonial-card reveal">
       <div class="stars">⭐⭐⭐⭐⭐</div>
-      <div class="testimonial-text">"We were hacked twice before CyberWall. Since signing up 6 months ago — zero breaches. The monthly report is something I actually understand."</div>
+      <div class="testimonial-text">"We were hacked twice before ProCyberWall. Since signing up 6 months ago — zero breaches. The monthly report is something I actually understand."</div>
       <div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--accent)">RK</div><div><div class="testimonial-name">Ryan K.</div><div class="testimonial-role">Founder, E-commerce Store · Austin, TX</div></div></div>
     </div>
     <div class="testimonial-card reveal reveal-delay-1">
       <div class="stars">⭐⭐⭐⭐⭐</div>
-      <div class="testimonial-text">"I'm a consultant, not an IT person. CyberWall set everything up in one day and messages me when something happens. Best $59 I spend every month."</div>
+      <div class="testimonial-text">"I'm a consultant, not an IT person. ProCyberWall set everything up in one day and messages me when something happens. Best $59 I spend every month."</div>
       <div class="testimonial-author"><div class="testimonial-avatar" style="background:var(--green)">PS</div><div><div class="testimonial-name">Priya S.</div><div class="testimonial-role">Founder, SaaS Startup · London, UK</div></div></div>
     </div>
     <div class="testimonial-card reveal reveal-delay-2">
@@ -434,18 +574,143 @@
 </div>
 
 <footer class="footer">
-  <div class="footer-logo"><div class="footer-logo-icon">🛡</div><span class="footer-logo-text">CyberWall</span></div>
+  <div class="footer-logo"><div class="footer-logo-icon">🛡</div><span class="footer-logo-text">ProCyberWall</span></div>
   <div class="footer-links">
     <a href="#" class="footer-link">Privacy Policy</a>
     <a href="#" class="footer-link">Terms</a>
     <a href="#" class="footer-link">GDPR Compliant</a>
     <a href="auth.html" class="footer-link">Login</a>
   </div>
-  <div class="footer-copy">© 2026 CyberWall · Built for SMBs worldwide 🌍</div>
+  <div class="footer-copy">© 2026 ProCyberWall · Built for SMBs worldwide 🌍</div>
 </footer>
 
 <a href="https://wa.me/919999999999" class="wa-float" target="_blank">💬</a>
 <script src="js/landing-chat.js"></script>
+<script>
+  // ── SECURITY SCANNER ──────────────────────────────────────────────────────
+  const SCAN_SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('scanner-domain');
+    if (inp) inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') runLandingScan(); });
+  });
+
+  async function runLandingScan() {
+    const domain = (document.getElementById('scanner-domain').value || '').trim();
+    if (!domain) { document.getElementById('scanner-domain').focus(); return; }
+    runLandingScanFor(domain);
+  }
+
+  async function runLandingScanFor(domain) {
+    document.getElementById('scanner-domain').value = domain;
+    const resultEl = document.getElementById('scanner-result');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div class="scan-loading"><div class="scan-spinner"></div><div style="color:#374151;font-size:14px;font-weight:600">Scanning ${domain}…</div><div style="color:#6b7280;font-size:12px;margin-top:6px">Checking HTTPS, SSL certificate, security headers, CDN protection…</div></div>`;
+    const btn = document.getElementById('scanner-btn');
+    btn.disabled = true; btn.textContent = 'Scanning…';
+
+    try {
+      const res = await fetch(`${SCAN_SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`);
+      const data = await res.json();
+      if (data.error) {
+        resultEl.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:14px;padding:20px;color:#dc2626;font-size:14px">⚠️ ${data.error}</div>`;
+        return;
+      }
+      renderScanResult(data, resultEl);
+    } catch(e) {
+      resultEl.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:14px;padding:20px;color:#dc2626;font-size:14px">⚠️ Scan failed. Please check the domain and try again.</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Check Score →';
+    }
+  }
+
+  function renderScanResult(data, container) {
+    const GRADE_COLORS = { 'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b' };
+    const SEV_COLORS   = { critical:'#dc2626', high:'#ea580c', medium:'#d97706', low:'#9ca3af' };
+    const SEV_LABELS   = { critical:'Critical', high:'High', medium:'Medium', low:'Low' };
+    const color   = GRADE_COLORS[data.grade] || '#dc2626';
+    const barColor= data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#d97706' : '#dc2626';
+
+    const breakdownHtml = Object.values(data.breakdown).map(b => {
+      const pct = b.score / b.max;
+      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#d97706' : '#dc2626';
+      return `<div class="scan-breakdown-item">
+        <div class="scan-breakdown-score" style="color:${c}">${b.score}<span class="scan-breakdown-max">/${b.max}</span></div>
+        <div class="scan-breakdown-label">${b.label}</div>
+      </div>`;
+    }).join('');
+
+    const issuesHtml = data.issues.length ? `
+      <div style="margin-bottom:20px">
+        <div class="scan-issues-title">⚠️ Issues Found (${data.issues.length})</div>
+        ${data.issues.slice(0,6).map(i => `
+          <div class="scan-issue-item">
+            <div class="scan-issue-dot" style="background:${SEV_COLORS[i.severity]||'#9ca3af'}"></div>
+            <div>
+              <div style="font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px">
+                ${i.label}
+                <span style="font-size:11px;font-weight:600;color:${SEV_COLORS[i.severity]};background:${SEV_COLORS[i.severity]}18;padding:2px 7px;border-radius:4px">${SEV_LABELS[i.severity]||''}</span>
+              </div>
+              <div style="color:var(--muted);font-size:12px;margin-top:3px">${i.detail}</div>
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+
+    const passedHtml = data.passedChecks.length ? `
+      <div class="scan-passed-list">
+        ${data.passedChecks.slice(0,8).map(c => `<div class="scan-passed-tag">${c.icon||'✓'} ${c.label}</div>`).join('')}
+      </div>` : '';
+
+    const ctaMsg = data.numericScore >= 85
+      ? 'Strong score! CyberWall keeps it that way — 24/7 monitoring, WAF, and instant alerts.'
+      : `CyberWall can fix all ${data.issues.length} issue${data.issues.length>1?'s':''} and bring your score to A+.`;
+
+    const beforeGrade = data.grade;
+    const afterScore  = Math.min(100, data.numericScore + 35);
+    const afterGrade  = data.numericScore >= 85 ? data.grade : getGradeClient(afterScore);
+
+    container.innerHTML = `
+      <div class="scan-result-card">
+        <div class="scan-result-header">
+          <div class="scan-grade-circle" style="background:${color}">${data.grade}</div>
+          <div class="scan-result-info">
+            <div class="scan-result-domain">${data.domain}</div>
+            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.grade} Security Grade</div>
+            <div class="scan-score-bar"><div class="scan-score-bar-fill" id="scan-bar-fill" style="width:0%;background:${barColor}"></div></div>
+            <div style="font-size:12px;color:var(--muted-light)">${data.passedChecks.length} checks passed · ${data.issues.length} issues found · Confidence: ${data.confidence}</div>
+          </div>
+          ${data.numericScore < 85 ? `<div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:12px 20px;flex-shrink:0">
+            <div style="font-size:11px;color:var(--muted-light);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">With CyberWall</div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#16a34a">${afterGrade}</div>
+            <div style="font-size:11px;color:var(--muted)">${afterScore}/100</div>
+          </div>` : ''}
+        </div>
+        <div class="scan-breakdown">${breakdownHtml}</div>
+        ${issuesHtml}
+        ${passedHtml}
+        <div class="scan-cta-strip">
+          <div>
+            <div class="scan-cta-text">${ctaMsg}</div>
+            <div class="scan-cta-sub">Setup in 24 hours · No credit card · WAF + SSL + Monitoring included</div>
+          </div>
+          <a href="auth.html" class="btn-white" style="white-space:nowrap;flex-shrink:0;font-size:14px">Fix with CyberWall →</a>
+        </div>
+      </div>`;
+
+    // Animate score bar
+    setTimeout(() => {
+      const bar = document.getElementById('scan-bar-fill');
+      if (bar) bar.style.width = data.numericScore + '%';
+    }, 50);
+  }
+
+  function getGradeClient(score) {
+    if (score >= 95) return 'A+'; if (score >= 90) return 'A'; if (score >= 85) return 'A-';
+    if (score >= 80) return 'B+'; if (score >= 75) return 'B'; if (score >= 70) return 'B-';
+    if (score >= 65) return 'C+'; if (score >= 55) return 'C'; if (score >= 40) return 'D';
+    return 'F';
+  }
+</script>
 <script>
   // Scroll reveal
   const observer = new IntersectionObserver((entries) => {
@@ -569,5 +834,10 @@
     }
   })();
 </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    }
+  </script>
 </body>
 </html>

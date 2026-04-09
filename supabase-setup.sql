@@ -51,3 +51,44 @@ CREATE POLICY "Admins can view all profiles"
 -- After you sign up, run this with YOUR email:
 -- UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
 -- ============================================
+
+-- TASKS TABLE
+-- Admin-created manual tasks + action items
+CREATE TABLE tasks (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title       TEXT NOT NULL,
+  description TEXT,
+  priority    TEXT DEFAULT 'med',      -- high, med, low
+  due_date    DATE,
+  completed   BOOLEAN DEFAULT FALSE,
+  client_id   UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Only the server (service key) touches tasks — no RLS needed for clients
+ALTER TABLE tasks DISABLE ROW LEVEL SECURITY;
+
+-- SUPPORT TICKETS TABLE
+-- Clients submit tickets; admin resolves them
+CREATE TABLE support_tickets (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  subject     TEXT NOT NULL,
+  message     TEXT NOT NULL,
+  status      TEXT DEFAULT 'open',     -- open, resolved
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+
+-- Clients can only see their own tickets
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Clients view own tickets"
+  ON support_tickets FOR SELECT
+  USING (auth.uid() = client_id);
+
+CREATE POLICY "Clients insert own tickets"
+  ON support_tickets FOR INSERT
+  WITH CHECK (auth.uid() = client_id);
+
+-- Admin can see/update all tickets (via service key — bypasses RLS)

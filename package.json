@@ -21,5 +21,8 @@
   "homepage": "https://github.com/tallamkushal/Cyberwall#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0"
+  },
+  "devDependencies": {
+    "pptxgenjs": "^4.0.1"
   }
 }
