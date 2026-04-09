@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
+    <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a47e8"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
+  <link rel="apple-touch-icon" href="/icons/icon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CyberWall — Getting Started</title>
+  <title>ProCyberWall — Getting Started</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
     body {
@@ -245,9 +252,17 @@
 
     @media (max-width: 600px) {
       .p-label { display: none; }
-      .card-top { padding: 24px; }
-      .card-body { padding: 24px; }
-      .card-footer { padding: 16px 24px; }
+      .card-top { padding: 20px 18px; }
+      .card-body { padding: 20px 18px; }
+      .card-footer { padding: 14px 18px; }
+      .progress-bar { margin: 20px 18px 0; }
+      .onboarding-wrap { padding: 16px; }
+      .card-top h2 { font-size: 20px; }
+      .card-top p { font-size: 13px; }
+    }
+    @media (max-width: 400px) {
+      .card-footer { flex-direction: column; gap: 10px; }
+      .card-footer .btn { width: 100%; justify-content: center; }
     }
 
     /* ---- AI HELP WIDGET ---- */
@@ -362,7 +377,7 @@
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
   <a href="index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit">
     <div style="width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:15px">🛡</div>
-    <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px">CyberWall</span>
+    <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px">ProCyberWall</span>
   </a>
   <a href="index.html" style="font-size:13px;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:5px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">← Home</a>
 </div>
@@ -387,14 +402,14 @@
     <div class="card-top">
       <span class="card-top-step">Step 1 of 4</span>
       <span class="card-top-icon">👋</span>
-      <h2>Welcome to CyberWall!</h2>
+      <h2>Welcome to ProCyberWall!</h2>
       <p>Let's get your website protected in the next 24 hours. This setup takes 5 minutes.</p>
     </div>
     <div class="card-body">
       <div class="checklist">
         <div class="check-item">
           <div class="check-icon done">✓</div>
-          <div><div class="check-title">Account created</div><div class="check-desc">Your CyberWall account is ready</div></div>
+          <div><div class="check-title">Account created</div><div class="check-desc">Your ProCyberWall account is ready</div></div>
         </div>
         <div class="check-item">
           <div class="check-icon pending">2</div>
@@ -402,7 +417,7 @@
         </div>
         <div class="check-item">
           <div class="check-icon pending">3</div>
-          <div><div class="check-title">Update DNS settings</div><div class="check-desc">Point your domain to CyberWall (takes 2 mins)</div></div>
+          <div><div class="check-title">Update DNS settings</div><div class="check-desc">Point your domain to ProCyberWall (takes 2 mins)</div></div>
         </div>
         <div class="check-item">
           <div class="check-icon pending">4</div>
@@ -416,7 +431,7 @@
     <div class="card-footer">
       <span class="step-counter">Step 1 of 4</span>
       <div style="display:flex;align-items:center;gap:12px">
-        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <a href="#" onclick="setupLater()" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
         <button class="btn btn-primary" onclick="goTo(2)">Let's Get Started →</button>
       </div>
     </div>
@@ -448,13 +463,13 @@
       </div>
 
       <div class="info-box">
-        🔒 We'll configure Cloudflare WAF to protect this domain from SQL injection, XSS, DDoS attacks and more.
+        🔒 We'll configure ProCyberWall's security firewall to protect this domain from SQL injection, XSS, DDoS attacks and more.
       </div>
     </div>
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
       <div style="display:flex;align-items:center;gap:12px">
-        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <a href="#" onclick="setupLater()" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
         <button class="btn btn-primary" onclick="saveDomainAndContinue()">Confirm Domain →</button>
       </div>
     </div>
@@ -466,7 +481,7 @@
       <span class="card-top-step">Step 3 of 4</span>
       <span class="card-top-icon">⚙️</span>
       <h2>Update your DNS settings</h2>
-      <p>This tells your domain to route through CyberWall. Takes 2 minutes.</p>
+      <p>This tells your domain to route through ProCyberWall. Takes 2 minutes.</p>
     </div>
     <div class="card-body">
 
@@ -500,11 +515,11 @@
         <strong>Don't know how?</strong> WhatsApp us and we'll walk you through it step by step:
       </p>
 
-      <a href="https://wa.me/919844482193?text=Hi%20CyberWall!%20I%20need%20help%20updating%20my%20DNS%20settings." 
+      <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20I%20need%20help%20updating%20my%20DNS%20settings." 
          class="wa-box" target="_blank">
         <div class="wa-icon">💬</div>
         <div>
-          <div class="wa-title">WhatsApp CyberWall Support</div>
+          <div class="wa-title">WhatsApp ProCyberWall Support</div>
           <div class="wa-desc">We'll help you update DNS in 5 minutes. Available 9am–9pm IST.</div>
         </div>
       </a>
@@ -513,7 +528,7 @@
     <div class="card-footer">
       <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
       <div style="display:flex;align-items:center;gap:12px">
-        <a href="dashboard.html" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
+        <a href="#" onclick="setupLater()" style="font-size:13px;color:var(--muted);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Set up later</a>
         <button class="btn btn-primary" onclick="goTo(4)">I've Updated DNS →</button>
       </div>
     </div>
@@ -579,7 +594,7 @@
         <div class="success-ring">🛡</div>
         <h3 style="font-size:20px;font-weight:800;margin-bottom:10px">What happens next?</h3>
         <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:24px">
-          Our team will configure your Cloudflare WAF within <strong>24 hours</strong>. 
+          Our team will configure your security firewall within <strong>24 hours</strong>.
           You'll get a WhatsApp message when your protection is active.
         </p>
       </div>
@@ -603,7 +618,7 @@
         </div>
       </div>
 
-      <a href="https://wa.me/919844482193?text=Hi%20CyberWall!%20I%20just%20completed%20my%20setup.%20My%20domain%20is%20ready%20for%20WAF%20configuration."
+      <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20I%20just%20completed%20my%20setup.%20My%20domain%20is%20ready%20for%20WAF%20configuration."
          class="wa-box" target="_blank">
         <div class="wa-icon">💬</div>
         <div>
@@ -638,7 +653,7 @@
   <div class="ai-popup-header">
     <div class="ai-popup-avatar">🤖</div>
     <div>
-      <div class="ai-popup-title">CyberWall AI Guide</div>
+      <div class="ai-popup-title">ProCyberWall AI Guide</div>
       <div class="ai-popup-sub">Ask me anything about setup</div>
     </div>
     <button class="ai-popup-close" onclick="toggleAiPopup()">✕</button>
@@ -683,6 +698,31 @@
       return;
     }
   });
+
+  // Set up later — create a minimal profile if one doesn't exist yet (e.g. Google signup)
+  async function setupLater() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { window.location.href = 'auth.html'; return; }
+    const profile = await getCurrentProfile();
+    if (!profile) {
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+      const user = session.user;
+      await fetch(`${SERVER}/api/create-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          full_name: user.user_metadata?.full_name || user.email.split('@')[0],
+          email: user.email,
+          plan: 'starter',
+          status: 'trial',
+          role: 'client',
+          created_at: new Date()
+        })
+      });
+    }
+    window.location.href = 'dashboard.html';
+  }
 
   // ---- NAVIGATE BETWEEN STEPS ----
   function goTo(step) {
@@ -750,10 +790,19 @@
     btn.textContent = 'Connecting to Cloudflare...';
     btn.disabled = true;
 
-    // Save domain to Supabase
+    // Save domain to Supabase — upsert handles both new (Google) and existing users
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-      await supabaseClient.from('profiles').update({ domain }).eq('id', session.user.id);
+      const u = session.user;
+      await supabaseClient.from('profiles').upsert({
+        id: u.id,
+        email: u.email,
+        full_name: u.user_metadata?.full_name || u.email.split('@')[0],
+        domain,
+        plan: 'starter',
+        status: 'trial',
+        role: 'client'
+      }, { onConflict: 'id' });
     }
 
     // Add domain to Cloudflare and get real nameservers
@@ -906,5 +955,10 @@
     return div;
   }
 </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    }
+  </script>
 </body>
 </html>

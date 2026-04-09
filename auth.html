@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
+    <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a47e8"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
+  <link rel="apple-touch-icon" href="/icons/icon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CyberWall — Login / Sign Up</title>
+  <title>ProCyberWall — Login / Sign Up</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
     body { display: flex; min-height: 100vh; }
@@ -55,6 +62,11 @@
     .step-item.done .step-dot { border-color: var(--accent); background: var(--accent); color: white; }
     .step-lbl { font-size: 10px; color: var(--muted); font-weight: 500; }
     .step-item.active .step-lbl { color: var(--accent); font-weight: 600; }
+    .otp-wrap { display: flex; gap: 8px; align-items: center; }
+    .otp-input { letter-spacing: 6px; font-size: 20px; font-weight: 700; text-align: center; flex: 1; }
+    .btn-resend { white-space: nowrap; padding: 0 14px; height: 46px; border: 1px solid var(--border); background: var(--surface); border-radius: 9px; font-size: 13px; cursor: pointer; color: var(--accent); font-weight: 600; transition: opacity 0.2s; }
+    .btn-resend:disabled { opacity: 0.45; cursor: default; }
+    .otp-hint { font-size: 12px; margin-top: 6px; }
 
     /* SOCIAL */
     .social { display: flex; gap: 10px; margin-bottom: 18px; }
@@ -99,17 +111,152 @@
     .trust { display: flex; justify-content: center; gap: 16px; margin-top: 20px; flex-wrap: wrap; }
     .trust span { font-size: 11px; color: var(--muted-light); }
 
-    @media (max-width: 768px) { .left { display: none; } }
+    /* ── AUTH-PAGE SCANNER ── */
+    .auth-scanner {
+      margin: 20px 0 0;
+      background: rgba(255,255,255,0.07);
+      border: 1.5px solid rgba(255,255,255,0.18);
+      border-radius: 14px;
+      padding: 14px 16px;
+      position: relative;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
+    }
+    /* pulsing glow to draw the eye */
+    @keyframes authScannerPulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(255,255,255,0.04); }
+      50%       { box-shadow: 0 0 0 6px rgba(255,255,255,0.10), 0 0 20px rgba(255,255,255,0.06); }
+    }
+    .auth-scanner { animation: authScannerPulse 3s ease-in-out infinite; }
+    .auth-scanner-new-badge {
+      display: inline-block;
+      background: #ef4444; color: white;
+      font-size: 9px; font-weight: 800; letter-spacing: 0.8px;
+      padding: 2px 6px; border-radius: 4px;
+      margin-right: 5px; vertical-align: middle;
+      animation: newBadgePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes newBadgePop { from { transform: scale(0); } to { transform: scale(1); } }
+    .auth-scanner-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.75); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 2px;
+    }
+    .auth-scanner-row {
+      display: flex; gap: 8px;
+    }
+    .auth-scanner-input-wrap {
+      flex: 1; display: flex; align-items: center;
+      background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 10px; padding: 0 12px; transition: border-color 0.2s;
+    }
+    .auth-scanner-input-wrap:focus-within { border-color: rgba(255,255,255,0.5); }
+    .auth-scanner-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 13px; font-family: 'DM Sans', sans-serif;
+      color: white; outline: none; padding: 10px 0;
+    }
+    .auth-scanner-input::placeholder { color: rgba(255,255,255,0.35); }
+    .auth-scanner-btn {
+      padding: 10px 14px; font-size: 12px; font-weight: 700; white-space: nowrap;
+      background: white; color: var(--accent); border: none; border-radius: 9px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2); transition: opacity 0.2s;
+    }
+    .auth-scanner-btn:hover { opacity: 0.9; }
+    .auth-scanner-btn:disabled { opacity: 0.6; cursor: default; }
+    .auth-scan-result {
+      margin-top: 12px; background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 14px;
+      animation: fadeUp 0.3s ease both;
+    }
+    .auth-scan-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .auth-scan-grade {
+      width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px; font-weight: 800; color: white;
+    }
+    .auth-scan-meta { flex: 1; min-width: 0; }
+    .auth-scan-domain { font-size: 13px; font-weight: 700; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .auth-scan-score { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .auth-scan-bar-track { height: 5px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+    .auth-scan-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+    .auth-scan-issue {
+      display: flex; align-items: flex-start; gap: 7px;
+      font-size: 11px; color: rgba(255,255,255,0.75); padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .auth-scan-issue:last-of-type { border-bottom: none; }
+    .auth-scan-issue-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .auth-scan-cta {
+      margin-top: 10px; width: 100%; padding: 9px; font-size: 12px; font-weight: 700;
+      background: white; color: var(--accent); border: none; border-radius: 8px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s;
+    }
+    .auth-scan-cta:hover { opacity: 0.9; }
+    .auth-scan-spinner {
+      width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white; border-radius: 50%;
+      animation: authSpin 0.7s linear infinite; margin: 0 auto;
+    }
+    @keyframes authSpin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    @media (max-width: 768px) {
+      .left { display: none; }
+      .right { padding: 24px 20px; align-items: flex-start; padding-top: 36px; }
+      .auth-box { max-width: 100%; }
+      .auth-title { font-size: 20px; }
+      .plan-opt { padding: 10px 12px; }
+      .plan-opt-name { font-size: 13px; }
+      .social { flex-direction: column; }
+    }
+    @media (max-width: 480px) {
+      .right { padding: 20px 16px; }
+      .tabs .tab { font-size: 13px; padding: 8px 4px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
+  <!-- OAuth loading overlay — shown instantly if returning from Google -->
+  <div id="oauth-loading" style="display:none;position:fixed;inset:0;background:#0f1117;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+    <svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" stroke="#1a47e8" stroke-width="4" fill="none" stroke-dasharray="80" stroke-dashoffset="60" style="animation:spin 1s linear infinite"/></svg>
+    <div style="color:#fff;font-size:15px;font-family:sans-serif">Signing you in...</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+  <script>
+    // Hide login form and show spinner if returning from Google OAuth
+    if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) {
+      document.getElementById('oauth-loading').style.display = 'flex';
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('body > *:not(#oauth-loading)').forEach(el => el.style.display = 'none');
+        document.getElementById('oauth-loading').style.display = 'flex';
+      });
+    }
+  </script>
 
 <!-- LEFT PANEL -->
 <div class="left">
   <a href="#" id="logo-link" class="left-logo" style="text-decoration:none;">
     <div class="left-logo-icon">🛡</div>
-    <span class="left-logo-text">CyberWall</span>
+    <span class="left-logo-text">ProCyberWall</span>
   </a>
+
+  <!-- SECURITY SCANNER — right below logo -->
+  <div class="auth-scanner">
+    <div class="auth-scanner-label">
+      <span class="auth-scanner-new-badge">NEW</span>
+      🎯 Free Website Security Score
+    </div>
+    <div class="auth-scanner-row">
+      <div class="auth-scanner-input-wrap">
+        <input type="text" class="auth-scanner-input" id="auth-scan-input" placeholder="yourwebsite.com" autocomplete="off" spellcheck="false"/>
+      </div>
+      <button class="auth-scanner-btn" id="auth-scan-btn" onclick="runAuthScan()">Scan →</button>
+    </div>
+    <div id="auth-scan-result"></div>
+  </div>
+
   <div class="left-content">
     <h2>Protect your business from cyber threats</h2>
     <p>Enterprise WAF protection for Indian businesses — without the enterprise price tag.</p>
@@ -117,17 +264,176 @@
       <div class="left-stat-icon">⚡</div>
       <div><strong>Setup in 24 hours</strong><span>We handle everything from start to finish</span></div>
     </div>
-    <div class="left-stat">
-      <div class="left-stat-icon">🛡</div>
-      <div><strong>2,400+ attacks blocked daily</strong><span>Across all protected websites</span></div>
+    <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px 14px;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:#f87171;text-transform:uppercase">⚠ Cyber Threats Today</div>
+        <div id="news-date" style="font-size:10px;color:rgba(255,255,255,0.4)"></div>
+      </div>
+      <div id="news-ticker" style="min-height:72px;position:relative;overflow:hidden">
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);padding:8px 0">Loading latest news...</div>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:10px" id="news-dots"></div>
     </div>
-    <div class="left-stat">
-      <div class="left-stat-icon">🇮🇳</div>
-      <div><strong>DPDP Act compliant</strong><span>Your data stays on Indian servers</span></div>
-    </div>
+    <script>
+    (function(){
+      // ── Date display ────────────────────────────────────────────────────
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      function tzToCountry(t) {
+        if (!t) return '';
+        if (t.startsWith('Asia/Kolkata') || t.startsWith('Asia/Calcutta')) return 'India';
+        if (t.startsWith('America/')) return 'United States';
+        if (t.startsWith('Europe/London')) return 'United Kingdom';
+        if (t.startsWith('Asia/Dubai')) return 'UAE';
+        if (t.startsWith('Asia/Singapore')) return 'Singapore';
+        if (t.startsWith('Asia/Tokyo')) return 'Japan';
+        if (t.startsWith('Asia/Shanghai') || t.startsWith('Asia/Hong_Kong')) return 'China';
+        if (t.startsWith('Australia/')) return 'Australia';
+        if (t.startsWith('Europe/')) return 'Europe';
+        return '';
+      }
+      const country = tzToCountry(tz);
+      const locale  = navigator.language || 'en-IN';
+      const dateStr = new Date().toLocaleDateString(locale, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const dateEl  = document.getElementById('news-date');
+      if (dateEl) dateEl.textContent = (country ? country + ' · ' : '') + dateStr;
+
+      // ── Fetch & render news ─────────────────────────────────────────────
+      const ticker  = document.getElementById('news-ticker');
+      const dotsEl  = document.getElementById('news-dots');
+      let slides = [], cur = 0, timer = null;
+
+      function dot(active) {
+        const s = document.createElement('span');
+        s.style.cssText = `width:${active?'16px':'4px'};height:4px;border-radius:2px;background:${active?'#f87171':'rgba(255,255,255,0.2)'};display:inline-block;transition:all 0.3s`;
+        return s;
+      }
+
+      function show(n) {
+        if (!slides.length) return;
+        slides[cur].style.opacity = '0';
+        dotsEl.children[cur].style.width = '4px';
+        dotsEl.children[cur].style.background = 'rgba(255,255,255,0.2)';
+        cur = (n + slides.length) % slides.length;
+        slides[cur].style.opacity = '1';
+        dotsEl.children[cur].style.width = '16px';
+        dotsEl.children[cur].style.background = '#f87171';
+      }
+
+      function render(items) {
+        ticker.innerHTML = '';
+        dotsEl.innerHTML = '';
+        slides = [];
+        items.forEach((item, i) => {
+          const d = document.createElement('div');
+          d.style.cssText = `opacity:${i===0?1:0};${i>0?'position:absolute;top:0;left:0;width:100%;':''}transition:opacity 0.5s`;
+          const pub = item.ts ? new Date(item.ts).toLocaleDateString(locale, { day:'numeric', month:'short' }) : '';
+          d.innerHTML = `<div style="font-size:13px;font-weight:600;color:white;line-height:1.5">${item.title}</div>`
+                      + `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:5px">${item.source}${pub?' · '+pub:''}</div>`;
+          ticker.appendChild(d);
+          slides.push(d);
+          dotsEl.appendChild(dot(i === 0));
+        });
+        if (timer) clearInterval(timer);
+        timer = setInterval(() => show(cur + 1), 4500);
+      }
+
+      const FALLBACK = [
+        { title: 'Bybit lost $1.5 billion in the largest crypto hack ever recorded — attackers bypassed multi-sig wallets', source: 'Bleeping Computer', ts: new Date('2025-02-21').getTime() },
+        { title: 'Oracle Cloud denies breach after hacker claims 6 million records stolen from production SSO servers', source: 'The Hacker News', ts: new Date('2025-03-25').getTime() },
+        { title: 'PowerSchool breach exposed data of 62 million students and 9.5 million teachers across North America', source: 'The Hacker News', ts: new Date('2025-01-07').getTime() },
+        { title: 'Salt Typhoon hackers still inside US telecom networks months after discovery — senators demand action', source: 'Bleeping Computer', ts: new Date('2025-02-05').getTime() },
+        { title: 'DeepSeek AI exposed a database with chat histories and secret keys — publicly accessible with no auth', source: 'The Hacker News', ts: new Date('2025-01-29').getTime() },
+      ];
+
+      function prioritise(items) {
+        if (!country || country === 'Global') return items;
+        const kw = country.toLowerCase();
+        const local = items.filter(i => (i.title||'').toLowerCase().includes(kw) || (i.desc||'').toLowerCase().includes(kw));
+        const rest  = items.filter(i => !local.includes(i));
+        return [...local, ...rest];
+      }
+
+      fetch('/api/auth-news').then(r => r.json()).then(data => {
+        const items = prioritise(data.items || []);
+        render(items.length ? items.slice(0, 5) : FALLBACK);
+      }).catch(() => {
+        render(prioritise(FALLBACK));
+      });
+    })();
+    </script>
   </div>
-  <div class="left-footer">© 2025 CyberWall · Made in India 🇮🇳</div>
+  <div class="left-footer">© 2025 ProCyberWall · Made in India 🇮🇳</div>
 </div>
+
+<script>
+// ── AUTH PAGE SECURITY SCANNER ────────────────────────────────────────────────
+(function() {
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+  const GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b'};
+  const SEV_COLORS   = {critical:'#ef4444',high:'#f97316',medium:'#fbbf24',low:'#9ca3af'};
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const inp = document.getElementById('auth-scan-input');
+    if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') runAuthScan(); });
+  });
+
+  window.runAuthScan = async function() {
+    const inp = document.getElementById('auth-scan-input');
+    const domain = (inp ? inp.value : '').trim();
+    if (!domain) { if (inp) inp.focus(); return; }
+
+    const btn    = document.getElementById('auth-scan-btn');
+    const result = document.getElementById('auth-scan-result');
+    btn.disabled = true; btn.textContent = '…';
+    result.innerHTML = '<div style="text-align:center;padding:14px 0"><div class="auth-scan-spinner"></div></div>';
+
+    try {
+      const res  = await fetch(`${SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`);
+      const data = await res.json();
+      if (data.error) {
+        result.innerHTML = `<div style="font-size:11px;color:rgba(255,100,100,0.9);margin-top:8px;padding:8px;background:rgba(255,0,0,0.1);border-radius:8px">⚠️ ${data.error}</div>`;
+        return;
+      }
+      renderAuthResult(data, result);
+    } catch(e) {
+      result.innerHTML = `<div style="font-size:11px;color:rgba(255,100,100,0.9);margin-top:8px">Scan failed. Check the domain and try again.</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Scan →';
+    }
+  };
+
+  function renderAuthResult(data, container) {
+    const color    = GRADE_COLORS[data.grade] || '#dc2626';
+    const barColor = data.numericScore >= 80 ? '#22c55e' : data.numericScore >= 55 ? '#fbbf24' : '#ef4444';
+    const topIssues = data.issues.slice(0, 3);
+
+    container.innerHTML = `
+      <div class="auth-scan-result">
+        <div class="auth-scan-header">
+          <div class="auth-scan-grade" style="background:${color}">${data.grade}</div>
+          <div class="auth-scan-meta">
+            <div class="auth-scan-domain">${data.domain}</div>
+            <div class="auth-scan-score">${data.numericScore}/100 · ${data.passedChecks.length} passed · ${data.issues.length} issues</div>
+            <div class="auth-scan-bar-track">
+              <div class="auth-scan-bar-fill" id="auth-bar-fill" style="width:0%;background:${barColor}"></div>
+            </div>
+          </div>
+        </div>
+        ${topIssues.length ? topIssues.map(i => `
+          <div class="auth-scan-issue">
+            <div class="auth-scan-issue-dot" style="background:${SEV_COLORS[i.severity]||'#9ca3af'}"></div>
+            <span>${i.label}</span>
+          </div>`).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0">✅ No critical issues found</div>'}
+        ${data.issues.length > 0 ? `<button class="auth-scan-cta" onclick="document.getElementById('tab-signup').click();document.getElementById('tab-signup').scrollIntoView({behavior:'smooth'})">Fix all ${data.issues.length} issues with CyberWall →</button>` : ''}
+      </div>`;
+
+    setTimeout(() => {
+      const bar = document.getElementById('auth-bar-fill');
+      if (bar) bar.style.width = data.numericScore + '%';
+    }, 50);
+  }
+})();
+</script>
 
 <!-- RIGHT PANEL -->
 <div class="right">
@@ -142,7 +448,7 @@
     <!-- ===== LOGIN FORM ===== -->
     <div id="login-form">
       <h2 class="auth-title">Welcome back 👋</h2>
-      <p class="auth-sub">Login to your CyberWall dashboard.</p>
+      <p class="auth-sub">Login to your ProCyberWall dashboard.</p>
 
       <div class="form-group">
         <label class="form-label">Email Address</label>
@@ -197,7 +503,7 @@
       </div>
 
       <p class="switch-txt">No account? <span class="switch-lnk" onclick="switchTab('signup')">Create one free →</span></p>
-      <div class="trust"><span>🔒 SSL Encrypted</span><span>🇮🇳 India Servers</span><span>✅ DPDP Compliant</span></div>
+      <div class="trust"><span>🔒 SSL Encrypted</span><span>⚡ 99.9% Uptime SLA</span><span>🤖 AI Threat Protection</span></div>
     </div>
 
     <!-- ===== FORGOT PASSWORD ===== -->
@@ -230,6 +536,7 @@
         <div class="step-item active" id="si-1"><div class="step-dot">1</div><span class="step-lbl">Account</span></div>
         <div class="step-item" id="si-2"><div class="step-dot">2</div><span class="step-lbl">Business</span></div>
         <div class="step-item" id="si-3"><div class="step-dot">3</div><span class="step-lbl">Plan</span></div>
+        <div class="step-item" id="si-4" style="display:none"><div class="step-dot">4</div><span class="step-lbl">Verify</span></div>
       </div>
 
       <!-- STEP 1 -->
@@ -317,11 +624,44 @@
         <p style="text-align:center;font-size:11px;color:var(--muted-light);margin-top:10px">🔒 Secure payment via Razorpay · UPI, Cards accepted</p>
       </div>
 
+      <!-- STEP 4: Verify -->
+      <div id="s4" class="hidden">
+        <h2 class="auth-title">Verify your identity</h2>
+        <p class="auth-sub">We've sent codes to your email and WhatsApp.</p>
+
+        <div class="form-group">
+          <label class="form-label">Email verification code</label>
+          <p class="form-hint">Sent to <strong id="verify-email-display"></strong></p>
+          <div class="otp-wrap">
+            <input class="form-input otp-input" id="otp-email" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code"/>
+            <button type="button" class="btn-resend" id="resend-email-btn" onclick="resendEmailOtp()">Resend</button>
+          </div>
+          <p class="otp-hint" id="email-otp-hint" style="display:none"></p>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+          <label class="form-label">WhatsApp verification code</label>
+          <p class="form-hint">Sent via WhatsApp to <strong id="verify-phone-display"></strong></p>
+          <div class="otp-wrap">
+            <input class="form-input otp-input" id="otp-phone" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code"/>
+            <button type="button" class="btn-resend" id="resend-phone-btn" onclick="resendPhoneOtp()">Resend</button>
+          </div>
+          <p class="otp-hint" id="phone-otp-hint" style="display:none"></p>
+        </div>
+
+        <div id="s4-error" class="form-error hidden" style="margin-top:12px"></div>
+
+        <button class="btn btn-primary btn-full btn-large" id="verify-btn" style="margin-top:20px" onclick="handleVerification()">
+          Verify &amp; Activate Account →
+        </button>
+        <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px">Codes expire in 10 minutes · Check spam if email not received</p>
+      </div>
+
       <!-- SUCCESS -->
       <div id="s-success" class="success-box hidden">
         <div class="success-icon">🎉</div>
         <h3 style="font-size:20px;margin-bottom:8px">You're all set!</h3>
-        <p style="font-size:13px;color:var(--muted);line-height:1.7">Welcome to CyberWall! Check your email to verify your account.<br/><br/>Our team will set up your WAF within <strong>24 hours</strong> and WhatsApp you when it's live.</p>
+        <p style="font-size:13px;color:var(--muted);line-height:1.7">Welcome to ProCyberWall! Check your email to verify your account.<br/><br/>Our team will set up your WAF within <strong>24 hours</strong> and WhatsApp you when it's live.</p>
         <br/>
         <button class="btn btn-primary btn-full btn-large" onclick="window.location.href='onboarding.html'">Go to Dashboard →</button>
       </div>
@@ -389,6 +729,7 @@
     if (!email || !email.includes('@')) { showErr(err, 'Please enter a valid email'); return false; }
     if (!phone || phone.length < 10) { showErr(err, 'Please enter a valid phone number'); return false; }
     if (pass.length < 8) { showErr(err, 'Password must be at least 8 characters'); return false; }
+    if (_pwScore(pass) < 2) { showErr(err, 'Password is too weak — add uppercase letters, numbers, or symbols'); return false; }
 
     err.classList.add('hidden');
     return true;
@@ -438,6 +779,87 @@
     document.getElementById('strength-lbl').style.color = colors[score];
   }
 
+  // ── Rate limiting helpers ────────────────────────────────────────────────
+  const _RL_KEY = 'pcw_login_rl';
+  const _RL_MAX = 5;
+  const _RL_MS  = 15 * 60 * 1000;
+
+  function _getRateLimit() {
+    const s = JSON.parse(localStorage.getItem(_RL_KEY) || 'null');
+    if (!s) return { blocked: false };
+    const elapsed = Date.now() - s.since;
+    if (elapsed > _RL_MS) { localStorage.removeItem(_RL_KEY); return { blocked: false }; }
+    if (s.count >= _RL_MAX) {
+      const msLeft = _RL_MS - elapsed;
+      return { blocked: true, minutesLeft: Math.ceil(msLeft / 60000), msLeft };
+    }
+    return { blocked: false };
+  }
+
+  function _recordFailure() {
+    const s = JSON.parse(localStorage.getItem(_RL_KEY) || 'null');
+    const now = Date.now();
+    if (!s || (now - s.since) > _RL_MS) {
+      localStorage.setItem(_RL_KEY, JSON.stringify({ count: 1, since: now }));
+    } else {
+      localStorage.setItem(_RL_KEY, JSON.stringify({ count: s.count + 1, since: s.since }));
+    }
+  }
+
+  let _lockoutTimer = null;
+  function _startCountdown(errEl) {
+    if (_lockoutTimer) clearInterval(_lockoutTimer);
+    _lockoutTimer = setInterval(() => {
+      const rl = _getRateLimit();
+      if (!rl.blocked) { clearInterval(_lockoutTimer); errEl.classList.add('hidden'); return; }
+      errEl.textContent = `Too many failed attempts. Try again in ${rl.minutesLeft} minute${rl.minutesLeft !== 1 ? 's' : ''}.`;
+    }, 30000);
+  }
+
+  // ── Error sanitizer ──────────────────────────────────────────────────────
+  function _sanitizeLoginErr(msg) {
+    if (!msg) return 'Login failed. Please try again.';
+    const m = msg.toLowerCase();
+    if (m.includes('invalid') || m.includes('credentials') || m.includes('wrong') || m.includes('not found') || m.includes('not confirmed')) {
+      return 'Incorrect email or password.';
+    }
+    if (m.includes('too many') || m.includes('rate limit') || m.includes('exceeded')) {
+      return 'Too many attempts. Please wait a few minutes and try again.';
+    }
+    if (m.includes('network') || m.includes('fetch') || m.includes('failed to fetch')) {
+      return 'Connection error. Check your internet and try again.';
+    }
+    return 'Login failed. Please try again.';
+  }
+
+  function _sanitizeSignupErr(msg) {
+    if (!msg) return 'Sign up failed. Please try again.';
+    const m = msg.toLowerCase();
+    if (m.includes('already registered') || m.includes('already exists') || m.includes('duplicate')) {
+      return 'An account with this email already exists. Try logging in.';
+    }
+    if (m.includes('password') && m.includes('weak')) {
+      return 'Please choose a stronger password.';
+    }
+    if (m.includes('invalid email') || m.includes('unable to validate')) {
+      return 'Please enter a valid email address.';
+    }
+    if (m.includes('network') || m.includes('fetch')) {
+      return 'Connection error. Check your internet and try again.';
+    }
+    return 'Sign up failed. Please try again.';
+  }
+
+  // ── Password score helper ────────────────────────────────────────────────
+  function _pwScore(val) {
+    let s = 0;
+    if (val.length >= 8)          s++;
+    if (/[A-Z]/.test(val))        s++;
+    if (/[0-9]/.test(val))        s++;
+    if (/[^A-Za-z0-9]/.test(val)) s++;
+    return s;
+  }
+
   // ---- LOGIN HANDLER ----
   async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
@@ -447,17 +869,32 @@
 
     if (!email || !pass) { showErr(err, 'Please fill in all fields'); return; }
 
+    // Rate limit check
+    const rl = _getRateLimit();
+    if (rl.blocked) {
+      showErr(err, `Too many failed attempts. Try again in ${rl.minutesLeft} minute${rl.minutesLeft !== 1 ? 's' : ''}.`);
+      _startCountdown(err);
+      return;
+    }
+
+    btn.disabled = true;
     btn.classList.add('loading');
     btn.innerHTML = '<span class="spinner"></span> Logging in...';
 
     const result = await logIn(email, pass);
 
     if (!result.success) {
+      _recordFailure();
+      btn.disabled = false;
       btn.classList.remove('loading');
       btn.innerHTML = 'Login to Dashboard →';
-      showErr(err, result.error === 'Invalid login credentials'
-        ? 'Wrong email or password. Please try again.'
-        : result.error);
+      const rlAfter = _getRateLimit();
+      if (rlAfter.blocked) {
+        showErr(err, `Too many failed attempts. Try again in ${rlAfter.minutesLeft} minute${rlAfter.minutesLeft !== 1 ? 's' : ''}.`);
+        _startCountdown(err);
+      } else {
+        showErr(err, _sanitizeLoginErr(result.error));
+      }
     }
     // On success, logIn() auto-redirects
   }
@@ -485,43 +922,144 @@
     }
   }
 
+  const _OTP_SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+
   // ---- SIGNUP HANDLER ----
   async function handleSignup() {
     const btn = document.getElementById('signup-btn');
     const err = document.getElementById('s3-error');
 
+    btn.disabled = true;
     btn.classList.add('loading');
     btn.innerHTML = '<span class="spinner"></span> Creating account...';
 
+    const email = document.getElementById('s-email').value.trim();
+    const phone = document.getElementById('s-dialcode').value + document.getElementById('s-phone').value.trim();
+
     const result = await signUp(
-      document.getElementById('s-email').value.trim(),
+      email,
       document.getElementById('s-pass').value,
       document.getElementById('s-fname').value.trim() + ' ' + document.getElementById('s-lname').value.trim(),
-      document.getElementById('s-dialcode').value + document.getElementById('s-phone').value.trim(),
+      phone,
       document.getElementById('s-biz').value.trim(),
       document.getElementById('s-domain').value.trim(),
       selectedPlan
     );
 
     if (result.success) {
+      // OTP verification disabled — go straight to success
       document.getElementById('s3').classList.add('hidden');
-      document.getElementById('s-success').classList.remove('hidden');
-      // Mark last step done
       document.getElementById('si-3').className = 'step-item done';
       document.getElementById('si-3').querySelector('.step-dot').textContent = '✓';
-    } else {
+      document.getElementById('s-success').classList.remove('hidden');
+      btn.disabled = false;
       btn.classList.remove('loading');
       btn.textContent = 'Start Free Trial →';
-      showErr(err, result.error);
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.textContent = 'Start Free Trial →';
+      console.error('Signup error:', result.error);
+      showErr(err, result.error || 'Sign up failed. Please try again.');
     }
+  }
+
+  // ---- VERIFICATION HANDLER ----
+  async function handleVerification() {
+    const emailOtp = document.getElementById('otp-email').value.trim();
+    const phoneOtp = document.getElementById('otp-phone').value.trim();
+    const err      = document.getElementById('s4-error');
+    const btn      = document.getElementById('verify-btn');
+    const email    = document.getElementById('verify-email-display').textContent;
+    const phone    = document.getElementById('verify-phone-display').textContent;
+
+    if (!emailOtp || emailOtp.length < 6) { showErr(err, 'Please enter the 6-digit email code'); return; }
+    if (!phoneOtp || phoneOtp.length < 6) { showErr(err, 'Please enter the 6-digit WhatsApp code'); return; }
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+    // Verify email OTP via Supabase
+    const emailResult = await verifyEmailOtp(email, emailOtp);
+    if (!emailResult.success) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.innerHTML = 'Verify &amp; Activate Account →';
+      showErr(err, 'Invalid email code — check your inbox and try again.');
+      return;
+    }
+
+    // Verify phone OTP via server
+    const phoneRes  = await fetch(`${_OTP_SERVER}/api/verify-phone-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp: phoneOtp })
+    });
+    const phoneData = await phoneRes.json();
+    if (!phoneData.success) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.innerHTML = 'Verify &amp; Activate Account →';
+      showErr(err, phoneData.error || 'Invalid WhatsApp code. Please try again.');
+      return;
+    }
+
+    // Both verified — show success
+    document.getElementById('s4').classList.add('hidden');
+    document.getElementById('si-4').className = 'step-item done';
+    document.getElementById('si-4').querySelector('.step-dot').textContent = '✓';
+    document.getElementById('s-success').classList.remove('hidden');
+  }
+
+  // ---- RESEND HELPERS ----
+  async function resendEmailOtp() {
+    const btn = document.getElementById('resend-email-btn');
+    const hint = document.getElementById('email-otp-hint');
+    const email = document.getElementById('verify-email-display').textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    const result = await resendEmailConfirmation(email);
+    hint.textContent = result.success ? 'Code resent! Check your inbox.' : 'Failed to resend. Try again shortly.';
+    hint.style.color = result.success ? 'var(--green)' : 'var(--red)';
+    hint.style.display = 'block';
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend'; hint.style.display = 'none'; }, 30000);
+  }
+
+  async function resendPhoneOtp() {
+    const btn = document.getElementById('resend-phone-btn');
+    const hint = document.getElementById('phone-otp-hint');
+    const phone = document.getElementById('verify-phone-display').textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    try {
+      await fetch(`${_OTP_SERVER}/api/send-phone-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      hint.textContent = 'Code resent via WhatsApp!';
+      hint.style.color = 'var(--green)';
+    } catch (e) {
+      hint.textContent = 'Failed to resend. Try again shortly.';
+      hint.style.color = 'var(--red)';
+    }
+    hint.style.display = 'block';
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend'; hint.style.display = 'none'; }, 30000);
   }
 </script>
 <script src="js/landing-chat.js"></script>
 <script>
-  // ── Logo link ────────────────────────────────────────────────────────────
-  supabaseClient.auth.getSession().then(({ data }) => {
+  // ── Skip auth page if already logged in ──────────────────────────────────
+  supabaseClient.auth.getSession().then(async ({ data }) => {
     const logo = document.getElementById('logo-link');
-    if (!data.session) logo.href = 'index.html';
+    if (!data.session) {
+      logo.href = 'index.html';
+    } else if (!window.location.search.includes('code=') && !window.location.hash.includes('access_token')) {
+      // Already logged in and not an OAuth callback — go straight to dashboard
+      const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', data.session.user.id).single();
+      window.location.href = profile?.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    }
   });
 
   // ── Country codes + pricing ───────────────────────────────────────────────
@@ -604,6 +1142,15 @@
     } catch(e) { /* fallback to USD */ }
   })();
 
+  // Reset Google button if user navigates back from Google
+  window.addEventListener('pageshow', function() {
+    const btn = document.getElementById('google-btn');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Continue with Google';
+    }
+  });
+
   // ── Google OAuth ─────────────────────────────────────────────────────────
   async function handleGoogleLogin() {
     const btn = document.getElementById('google-btn');
@@ -642,9 +1189,12 @@
   }
 
   // ── Post-OAuth / magic-link redirect ─────────────────────────────────────
-  // Fires when Supabase exchanges the code from the URL after Google/magic-link redirect
+  // Only fires when returning from Google or a magic-link (URL contains code= or access_token).
+  // Regular email/password login is handled by logIn() in auth.js.
+  // Already-logged-in redirects are handled by the getSession() block above.
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if ((event === 'SIGNED_IN') && session) {
+    const isOAuthCallback = window.location.search.includes('code=') || window.location.hash.includes('access_token');
+    if (event === 'SIGNED_IN' && session && isOAuthCallback) {
       const { data: profile } = await supabaseClient
         .from('profiles').select('role').eq('id', session.user.id).single();
       if (!profile) {
@@ -655,5 +1205,10 @@
     }
   });
 </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    }
+  </script>
 </body>
 </html>

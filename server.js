@@ -2,13 +2,15 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── CLOUDFLARE CREDENTIALS (server-side only) ─────────────────────────────
-const CF_EMAIL   = process.env.CF_EMAIL   || 'tallamkushal@gmail.com';
+const CF_EMAIL   = process.env.CF_EMAIL   || '';
 const CF_API_KEY = process.env.CF_API_KEY || '';
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
 const CF_BASE    = 'https://api.cloudflare.com/client/v4';
 
 function cfGet(apiPath) {
@@ -36,9 +38,9 @@ async function cfGetZoneId(domain) {
   return data.result[0].id;
 }
 
-const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
-const TWILIO_TOKEN = "83bd0490a83a0c5420b5d08f9902720e";
-const TWILIO_FROM  = "whatsapp:+14155238886";
+const TWILIO_SID   = process.env.TWILIO_SID   || '';
+const TWILIO_TOKEN = process.env.TWILIO_TOKEN || '';
+const TWILIO_FROM  = process.env.TWILIO_FROM  || "whatsapp:+14155238886";
 
 const SUPABASE_URL        = 'https://fwbclrdzctszwbfxywgi.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -70,10 +72,394 @@ function supabaseRequest(method, path, body) {
   });
 }
 
+// ── ADMIN AUTH GUARD ──────────────────────────────────────────────────────────
+// Verifies the Bearer token from the request, checks the caller is an admin.
+// Returns the Supabase user object on success, null on failure.
+async function requireAdminAuth(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
+
+  const userResult = await new Promise((resolve) => {
+    const opts = {
+      hostname: 'fwbclrdzctszwbfxywgi.supabase.co',
+      path: '/auth/v1/user',
+      method: 'GET',
+      headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + token }
+    };
+    const r = https.request(opts, resp => {
+      let raw = '';
+      resp.on('data', c => raw += c);
+      resp.on('end', () => {
+        try { resolve({ status: resp.statusCode, body: JSON.parse(raw) }); }
+        catch (e) { resolve({ status: 500, body: {} }); }
+      });
+    });
+    r.on('error', () => resolve({ status: 500, body: {} }));
+    r.setTimeout(8000, () => { r.destroy(); resolve({ status: 500, body: {} }); });
+    r.end();
+  });
+
+  if (userResult.status !== 200 || !userResult.body.id) return null;
+
+  const profileResult = await supabaseRequest(
+    'GET',
+    `profiles?id=eq.${encodeURIComponent(userResult.body.id)}&select=role`,
+    null
+  );
+  try {
+    const profiles = JSON.parse(profileResult.body);
+    if (Array.isArray(profiles) && profiles[0]?.role === 'admin') return userResult.body;
+  } catch (e) {}
+  return null;
+}
+
+// Verifies any valid Supabase JWT — does not check role.
+async function requireAuth(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
+  const result = await new Promise((resolve) => {
+    const opts = {
+      hostname: 'fwbclrdzctszwbfxywgi.supabase.co',
+      path: '/auth/v1/user',
+      method: 'GET',
+      headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': 'Bearer ' + token }
+    };
+    const r = https.request(opts, resp => {
+      let raw = '';
+      resp.on('data', c => raw += c);
+      resp.on('end', () => {
+        try { resolve({ status: resp.statusCode, body: JSON.parse(raw) }); }
+        catch (e) { resolve({ status: 500, body: {} }); }
+      });
+    });
+    r.on('error', () => resolve({ status: 500, body: {} }));
+    r.setTimeout(8000, () => { r.destroy(); resolve({ status: 500, body: {} }); });
+    r.end();
+  });
+  return result.status === 200 && result.body.id ? result.body : null;
+}
+
+// ── RATE LIMITER ──────────────────────────────────────────────────────────────
+const _rateLimits = new Map();
+function checkRateLimit(ip, endpoint, maxReqs, windowMs) {
+  const key = `${ip}:${endpoint}`;
+  const now = Date.now();
+  let entry = _rateLimits.get(key);
+  if (!entry || now > entry.reset) entry = { count: 0, reset: now + windowMs };
+  entry.count++;
+  _rateLimits.set(key, entry);
+  return entry.count <= maxReqs;
+}
+
+// ── TWILIO HELPER ─────────────────────────────────────────────────────────────
+function sendTwilioMessage(to, message) {
+  return new Promise((resolve, reject) => {
+    const toFormatted = to.startsWith('whatsapp:') ? to : `whatsapp:+91${to.replace(/\D/g, '').slice(-10)}`;
+    const params = new URLSearchParams({ From: TWILIO_FROM, To: toFormatted, Body: message }).toString();
+    const opts = {
+      hostname: 'api.twilio.com',
+      path: `/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(params)
+      }
+    };
+    const r = https.request(opts, resp => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+    });
+    r.on('error', reject);
+    r.write(params);
+    r.end();
+  });
+}
+
+// ── SECURITY SCANNER ──────────────────────────────────────────────────────────
+const _secScanCache = new Map();
+
+function normalizeScanDomain(input) {
+  return (input || '').trim().toLowerCase()
+    .replace(/^https?:\/\//i, '').replace(/^www\./i, '')
+    .replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+}
+
+function getSecurityGrade(score) {
+  if (score >= 95) return 'A+'; if (score >= 90) return 'A'; if (score >= 85) return 'A-';
+  if (score >= 80) return 'B+'; if (score >= 75) return 'B'; if (score >= 70) return 'B-';
+  if (score >= 65) return 'C+'; if (score >= 55) return 'C'; if (score >= 40) return 'D';
+  return 'F';
+}
+
+function probeDomain(hostname, useHttps, _redirectCount) {
+  const maxRedirects = 3;
+  const hop = _redirectCount || 0;
+  return new Promise((resolve) => {
+    let resolved = false;
+    const done = (r) => { if (!resolved) { resolved = true; resolve(r); } };
+    const t0 = Date.now();
+
+    if (useHttps) {
+      const opts = { hostname, port: 443, path: '/', method: 'GET', timeout: 8000,
+        rejectUnauthorized: false,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProCyberWall-Scanner/1.0)', 'Accept': 'text/html,*/*', 'Connection': 'close' } };
+      const req = https.request(opts, (res) => {
+        // Read cert from res.socket — reliable regardless of socket pool reuse
+        let certInfo = null;
+        try {
+          const sock = res.socket;
+          if (sock && typeof sock.getPeerCertificate === 'function') {
+            const cert = sock.getPeerCertificate();
+            certInfo = { authorized: sock.authorized, authError: sock.authorizationError || null,
+              subject: cert?.subject?.CN || null, issuer: cert?.issuer?.O || cert?.issuer?.CN || 'Unknown',
+              validTo: cert?.valid_to || null };
+          }
+        } catch(e) {}
+
+        // Follow redirects up to maxRedirects hops
+        const isRedirect = res.statusCode >= 300 && res.statusCode < 400;
+        const location = res.headers?.location || '';
+        if (isRedirect && location && hop < maxRedirects) {
+          res.on('data', () => {}); res.on('end', () => {});
+          try {
+            const u = new URL(location, `https://${hostname}/`);
+            const nextHost = u.hostname;
+            const nextHttps = u.protocol === 'https:';
+            probeDomain(nextHost, nextHttps, hop + 1).then(r => {
+              // Preserve cert from the original hop if the redirect target has none
+              if (r.success && !r.certInfo) r.certInfo = certInfo;
+              done({ ...r, ms: Date.now() - t0 });
+            }).catch(() => done({ success: false, error: 'redirect-error', certInfo }));
+          } catch(e) {
+            res.destroy();
+            done({ success: true, statusCode: res.statusCode, headers: res.headers, certInfo, ms: Date.now() - t0 });
+          }
+          return;
+        }
+
+        res.on('data', () => {}); res.on('end', () => {}); res.destroy();
+        done({ success: true, statusCode: res.statusCode, headers: res.headers, certInfo, ms: Date.now() - t0 });
+      });
+      req.on('error', (e) => done({ success: false, error: e.message, code: e.code, certInfo: null }));
+      req.on('timeout', () => { req.destroy(); done({ success: false, error: 'timeout', code: 'TIMEOUT' }); });
+      req.end();
+    } else {
+      const opts = { hostname, port: 80, path: '/', method: 'GET', timeout: 8000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProCyberWall-Scanner/1.0)', 'Connection': 'close' } };
+      const req = http.request(opts, (res) => {
+        // Follow HTTP redirects to HTTPS
+        const isRedirect = res.statusCode >= 300 && res.statusCode < 400;
+        const location = res.headers?.location || '';
+        if (isRedirect && location && hop < maxRedirects) {
+          res.on('data', () => {}); res.on('end', () => {});
+          try {
+            const u = new URL(location, `http://${hostname}/`);
+            const nextHttps = u.protocol === 'https:';
+            if (nextHttps) {
+              // Return the HTTP response as-is so redirect detection works
+              done({ success: true, statusCode: res.statusCode, headers: res.headers });
+              return;
+            }
+          } catch(e) {}
+        }
+        res.on('data', () => {}); res.on('end', () => {}); res.destroy();
+        done({ success: true, statusCode: res.statusCode, headers: res.headers });
+      });
+      req.on('error', (e) => done({ success: false, error: e.message }));
+      req.on('timeout', () => { req.destroy(); done({ success: false, error: 'timeout' }); });
+      req.end();
+    }
+  });
+}
+
+async function runSecurityScan(domainInput) {
+  const hostname = normalizeScanDomain(domainInput);
+  if (!hostname || !hostname.includes('.') || hostname.length < 4) {
+    return { error: 'Invalid domain. Please enter a valid domain like example.com' };
+  }
+
+  const cached = _secScanCache.get(hostname);
+  if (cached && Date.now() - cached.ts < 5 * 60 * 1000) return { ...cached.result, cached: true };
+
+  const [httpsApex, httpsWww] = await Promise.all([probeDomain(hostname, true), probeDomain('www.' + hostname, true)]);
+  const httpsResult = httpsApex.success ? httpsApex : (httpsWww.success ? httpsWww : httpsApex);
+  const httpResult  = await probeDomain(hostname, false);
+
+  const certInfo     = httpsResult.certInfo;
+  const httpsEnabled = httpsResult.success;
+  const certValid    = certInfo?.authorized === true;
+  let certExpiresInDays = null;
+  if (certInfo?.validTo) {
+    try { certExpiresInDays = Math.floor((new Date(certInfo.validTo) - Date.now()) / 86400000); } catch(e) {}
+  }
+
+  const headers = httpsResult.headers || {};
+  const HEADER_CHECKS = [
+    { key: 'content-security-policy',   label: 'Content Security Policy', pts: 10 },
+    { key: 'strict-transport-security', label: 'HSTS',                     pts: 8  },
+    { key: 'x-frame-options',           label: 'Clickjacking Protection',  pts: 5  },
+    { key: 'x-content-type-options',    label: 'MIME Sniff Protection',    pts: 4  },
+    { key: 'referrer-policy',           label: 'Referrer Policy',          pts: 4  },
+    { key: 'permissions-policy',        label: 'Permissions Policy',       pts: 4  },
+  ];
+  let headersScore = 0;
+  const headersFound = [], headersMissing = [];
+  for (const c of HEADER_CHECKS) {
+    if (headers[c.key]) { headersScore += c.pts; headersFound.push(c.label); }
+    else headersMissing.push(c.label);
+  }
+
+  let httpToHttps = false;
+  if (httpResult.success) {
+    const loc = (httpResult.headers?.location || '').toLowerCase();
+    if (httpResult.statusCode >= 300 && httpResult.statusCode < 400 && loc.startsWith('https://')) httpToHttps = true;
+  }
+
+  const allH = { ...headers, ...(httpResult.headers || {}) };
+  const CDN_SIGS = [
+    { name: 'Cloudflare',     test: h => h['cf-ray'] || h['cf-cache-status'] || (h.server||'').toLowerCase()==='cloudflare' },
+    { name: 'AWS CloudFront', test: h => h['x-amz-cf-id'] || (h.via||'').toLowerCase().includes('cloudfront') },
+    { name: 'Fastly',         test: h => !!h['x-fastly-request-id'] },
+    { name: 'Akamai',         test: h => !!(h['x-akamai-transformed'] || h['x-check-cacheable']) },
+    { name: 'Sucuri WAF',     test: h => !!h['x-sucuri-id'] },
+    { name: 'Imperva',        test: h => !!h['x-iinfo'] },
+  ];
+  let cdnDetected = false, cdnProvider = null;
+  for (const s of CDN_SIGS) { if (s.test(allH)) { cdnDetected = true; cdnProvider = s.name; break; } }
+
+  const serverHdr = allH.server || '';
+  const serverLeaksVersion = /\d+\.\d+/.test(serverHdr);
+
+  // Scoring
+  let httpsScore = 0;
+  if (httpsEnabled) httpsScore += 10;
+  if (certValid) httpsScore += 10;
+  if (certExpiresInDays !== null && certExpiresInDays > 30) httpsScore += 5;
+  else if (certExpiresInDays === null && httpsEnabled) httpsScore += 3;
+
+  let redirectScore = 0;
+  if (httpToHttps) redirectScore += 10;
+  else if (!httpResult.success) redirectScore += 5;
+  redirectScore += 5;
+
+  let protectionScore = 0;
+  if (cdnDetected) protectionScore += 10;
+  if (!serverLeaksVersion) protectionScore += 5;
+
+  let reliabilityScore = 0;
+  if (httpsEnabled || httpResult.success) reliabilityScore += 7;
+  if ((httpsResult.ms || 9999) < 2000) reliabilityScore += 3;
+
+  const totalScore = httpsScore + headersScore + redirectScore + protectionScore + reliabilityScore;
+
+  const issues = [], passedChecks = [], unknownChecks = [];
+
+  if (httpsEnabled)  passedChecks.push({ label: 'HTTPS enabled', icon: '🔒' });
+  else issues.push({ severity: 'critical', label: 'HTTPS not enabled', detail: 'Your site sends data in plain text. Visitor passwords and data are exposed.' });
+
+  if (certValid) passedChecks.push({ label: 'SSL certificate valid', icon: '✅' });
+  else if (httpsEnabled) issues.push({ severity: 'critical', label: 'Invalid SSL certificate', detail: 'Visitors see a browser security warning before reaching your site.' });
+  else unknownChecks.push('SSL certificate');
+
+  if (certExpiresInDays !== null) {
+    if (certExpiresInDays > 30) passedChecks.push({ label: `SSL cert expires in ${certExpiresInDays} days`, icon: '📅' });
+    else if (certExpiresInDays > 0) issues.push({ severity: 'high', label: `SSL cert expires in ${certExpiresInDays} days`, detail: 'Renew before it expires or visitors will see security errors.' });
+    else issues.push({ severity: 'critical', label: 'SSL certificate expired', detail: 'Your site is showing security errors to every visitor right now.' });
+  } else if (httpsEnabled) unknownChecks.push('SSL expiry date');
+
+  if (headers['strict-transport-security']) passedChecks.push({ label: 'HSTS header present', icon: '🔐' });
+  else issues.push({ severity: 'medium', label: 'Missing HSTS header', detail: 'Browsers can still be downgraded to HTTP by attackers.' });
+
+  if (headers['content-security-policy']) passedChecks.push({ label: 'Content Security Policy set', icon: '🛡️' });
+  else issues.push({ severity: 'medium', label: 'No Content Security Policy', detail: 'XSS attacks can inject malicious scripts into your pages.' });
+
+  if (headers['x-frame-options']) passedChecks.push({ label: 'Clickjacking protection on', icon: '🖼️' });
+  else issues.push({ severity: 'low', label: 'No clickjacking protection', detail: 'Your site can be embedded in a malicious iframe to trick users.' });
+
+  if (headers['x-content-type-options']) passedChecks.push({ label: 'MIME sniff protection on', icon: '📄' });
+  else issues.push({ severity: 'low', label: 'MIME sniffing not blocked', detail: 'Browsers may execute files as scripts when they should not.' });
+
+  if (headers['referrer-policy']) passedChecks.push({ label: 'Referrer policy configured', icon: '🔗' });
+  else unknownChecks.push('Referrer Policy');
+
+  if (headers['permissions-policy']) passedChecks.push({ label: 'Permissions policy set', icon: '🎛️' });
+  else unknownChecks.push('Permissions Policy');
+
+  if (httpToHttps) passedChecks.push({ label: 'HTTP redirects to HTTPS', icon: '↪️' });
+  else if (httpResult.success) issues.push({ severity: 'medium', label: 'No HTTP→HTTPS redirect', detail: 'Users who type your URL without https:// land on an insecure version.' });
+  else unknownChecks.push('HTTP redirect behavior');
+
+  if (cdnDetected) passedChecks.push({ label: `Protected by ${cdnProvider}`, icon: '🛡️' });
+  else issues.push({ severity: 'high', label: 'No CDN or WAF detected', detail: 'Your site is directly exposed. A WAF blocks attacks before they reach your server.' });
+
+  if (!serverLeaksVersion) passedChecks.push({ label: 'Server info not exposed', icon: '👁️' });
+  else issues.push({ severity: 'low', label: `Server version exposed (${serverHdr})`, detail: 'Attackers can look up known vulnerabilities in your server software.' });
+
+  const SEV = { critical: 0, high: 1, medium: 2, low: 3 };
+  issues.sort((a, b) => (SEV[a.severity] || 9) - (SEV[b.severity] || 9));
+
+  const result = {
+    domain: hostname, scannedAt: new Date().toISOString(),
+    numericScore: totalScore, grade: getSecurityGrade(totalScore),
+    confidence: httpsEnabled ? 'high' : (httpResult.success ? 'medium' : 'low'),
+    breakdown: {
+      https:       { score: httpsScore,        max: 25, label: 'HTTPS & SSL' },
+      headers:     { score: headersScore,      max: 35, label: 'Security Headers' },
+      redirects:   { score: redirectScore,     max: 15, label: 'Redirect Hygiene' },
+      protection:  { score: protectionScore,   max: 15, label: 'Basic Protection' },
+      reliability: { score: reliabilityScore,  max: 10, label: 'Reliability' },
+    },
+    issues, passedChecks, unknownChecks, headersFound, headersMissing,
+    responseTime: httpsResult.ms || null,
+  };
+
+  _secScanCache.set(hostname, { ts: Date.now(), result });
+  return result;
+}
+
+async function enhanceScanWithCloudflare(scan) {
+  try {
+    const zoneId = await cfGetZoneId(scan.domain);
+    if (!zoneId) return scan;
+
+    const [httpsSet, sslSet, wafPkgs] = await Promise.allSettled([
+      cfGet(`/zones/${zoneId}/settings/always_use_https`),
+      cfGet(`/zones/${zoneId}/settings/ssl`),
+      cfGet(`/zones/${zoneId}/firewall/waf/packages`),
+    ]);
+    const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
+
+    const httpsEnforced = ok(httpsSet)?.result?.value === 'on';
+    const sslMode       = ok(sslSet)?.result?.value;
+    const wafActive     = (ok(wafPkgs)?.result?.length || 0) > 0;
+
+    const managedChecks = [];
+    let managedBonus = 5; // baseline CyberWall managed bonus
+    managedChecks.push({ label: 'Managed by CyberWall', icon: '🛡️' });
+
+    if (httpsEnforced)          { managedBonus += 3; managedChecks.push({ label: 'HTTPS enforced via Cloudflare', icon: '🔒' }); }
+    if (sslMode === 'strict')   { managedBonus += 3; managedChecks.push({ label: 'SSL mode: Full Strict', icon: '🔐' }); }
+    else if (sslMode === 'full') { managedBonus += 2; managedChecks.push({ label: 'SSL mode: Full', icon: '🔐' }); }
+    if (wafActive)               { managedBonus += 8; managedChecks.push({ label: 'OWASP WAF rules active', icon: '⚔️' }); }
+
+    const enhancedScore = Math.min(100, scan.numericScore + managedBonus);
+    return { ...scan, managed: true, numericScore: enhancedScore, grade: getSecurityGrade(enhancedScore), managedBonus, managedChecks };
+  } catch(e) { return scan; }
+}
+
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const allowedOrigins = ['https://cyberwall.onrender.com', 'http://localhost:3001'];
+  const origin = req.headers['origin'] || '';
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'HEAD') {
     res.writeHead(200);
@@ -89,78 +475,61 @@ const server = http.createServer(async (req, res) => {
 
   console.log(`→ ${req.method} ${req.url}`);
 
-  if (req.method === 'POST' && req.url === '/.netlify/functions/send-whatsapp') {
+  if (req.method === 'POST' && (req.url === '/api/whatsapp' || req.url === '/.netlify/functions/send-whatsapp')) {
+    const authUser = await requireAuth(req);
+    if (!authUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    const ip = req.socket.remoteAddress;
+    if (!checkRateLimit(ip, '/api/whatsapp', 10, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      const { to, message } = JSON.parse(body);
-
-      const toFormatted = to.startsWith('whatsapp:')
-        ? to
-        : `whatsapp:+91${to.replace(/\D/g, '').slice(-10)}`;
-
-      const params = new URLSearchParams({
-        From: TWILIO_FROM,
-        To: toFormatted,
-        Body: message
-      }).toString();
-
-      const options = {
-        hostname: 'api.twilio.com',
-        path: `/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(params)
-        }
-      };
-
-      const twilioReq = https.request(options, twilioRes => {
-        let data = '';
-        twilioRes.on('data', chunk => data += chunk);
-        twilioRes.on('end', () => {
-          const result = JSON.parse(data);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          if (result.sid) {
-            res.end(JSON.stringify({ success: true, sid: result.sid }));
-          } else {
-            res.end(JSON.stringify({ success: false, error: result.message }));
-          }
-        });
-      });
-
-      twilioReq.on('error', err => {
+    req.on('end', async () => {
+      try {
+        const { to, message } = JSON.parse(body);
+        const result = await sendTwilioMessage(to, message);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.sid ? { success: true, sid: result.sid } : { success: false, error: 'Message not sent' }));
+      } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: err.message }));
-      });
-
-      twilioReq.write(params);
-      twilioReq.end();
+        res.end(JSON.stringify({ success: false, error: 'Failed to send message' }));
+      }
     });
     return;
   }
 
   if (req.method === 'POST' && req.url === '/api/ai-chat') {
+    if (!checkRateLimit(req.socket.remoteAddress, '/api/ai-chat', 20, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
         const { messages, domain, plan } = JSON.parse(body);
 
-        const systemPrompt = `You are CyberWall AI, a friendly and fun security assistant inside the CyberWall dashboard.
+        const systemPrompt = `You are ProCyberWall AI, a friendly security assistant inside the ProCyberWall dashboard.
 
 The client's domain is: ${domain || 'not set yet'}
 Their plan is: ${plan || 'starter'}
 
 Rules:
-- Be jovial, warm, and encouraging — like a helpful friend who knows security.
-- Keep answers short and punchy — 2 to 4 sentences max.
-- Use relevant emojis naturally (not excessively — 1 or 2 per message is fine).
-- Use simple everyday English. No jargon.
-- Never use markdown asterisks for bold or bullet points — write in plain sentences.
-- Get straight to the point. Skip filler phrases like "Great question!".
-- If asked something unrelated to security or their website, redirect warmly in one sentence.`;
+- Talk like you are explaining to a small business owner who knows nothing about tech or cybersecurity. Use the simplest words possible.
+- Never use technical terms. If you must mention one, immediately explain it in one plain sentence — like "SSL means your website has a padlock, which makes it safe for visitors."
+- Keep answers short — 2 to 4 sentences max.
+- Be warm and reassuring. Many SMB owners are worried or confused about security.
+- Use 1 emoji per message where it fits naturally.
+- Never use bullet points, asterisks, or markdown formatting — write in plain sentences only.
+- Give real, practical takeaways. Not vague advice.
+- If asked something unrelated to their website or security, politely redirect in one sentence.`;
 
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
@@ -198,13 +567,18 @@ Rules:
   }
 
   if (req.method === 'POST' && req.url === '/api/admin-ai-chat') {
+    if (!checkRateLimit(req.socket.remoteAddress, '/api/admin-ai-chat', 20, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
         const { messages } = JSON.parse(body);
 
-        const systemPrompt = `You are CyberWall Admin AI, a sharp and efficient assistant for the CyberWall admin team.
+      const systemPrompt = `You are ProCyberWall Admin AI, a sharp and efficient assistant for the ProCyberWall admin team.
 
 You help with:
 - Managing clients (onboarding, offboarding, plan changes)
@@ -257,16 +631,21 @@ Rules:
 
   // ── LANDING PAGE CHAT ─────────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/landing-chat') {
+    if (!checkRateLimit(req.socket.remoteAddress, '/api/landing-chat', 15, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many requests' }));
+      return;
+    }
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
         const { messages } = JSON.parse(body);
 
-        const systemPrompt = `You are Wally, the friendly AI assistant on the CyberWall website.
-CyberWall is a managed WAF (Web Application Firewall) service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the CyberWall team.
+        const systemPrompt = `You are Wally, the friendly AI assistant on the ProCyberWall website.
+ProCyberWall is a managed WAF (Web Application Firewall) service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the ProCyberWall team.
 
-What CyberWall does:
+What ProCyberWall does:
 - Protects any website from SQL injection, XSS, DDoS, bots, brute force attacks
 - Fully managed setup — no technical knowledge needed
 - 24/7 monitoring with WhatsApp alerts when threats are blocked
@@ -290,7 +669,7 @@ Pricing (INR, for Indian customers — inclusive of 18% GST):
 
 How it works:
 1. Sign up and share your domain
-2. CyberWall team configures your Cloudflare WAF within 24 hours
+2. ProCyberWall team configures your Cloudflare WAF within 24 hours
 3. You get protected 24/7 — WhatsApp alerts when anything is blocked
 4. Monthly report every month in plain English
 
@@ -301,7 +680,7 @@ Rules:
 - If someone asks about pricing in INR or seems to be from India, give them the INR prices (with GST included) and mention a GST invoice is provided
 - If someone asks about pricing otherwise, give the USD prices
 - If someone seems ready to sign up, encourage them and mention the free trial
-- If asked something completely unrelated, gently redirect to CyberWall topics
+- If asked something completely unrelated, gently redirect to ProCyberWall topics
 - Never make up features that don't exist above`;
 
         res.writeHead(200, {
@@ -394,7 +773,7 @@ Rules:
           return { error: 'Unknown tool' };
         }
 
-        const systemPrompt = `You are CyberWall Agent, an autonomous AI security agent embedded in the CyberWall client dashboard.
+        const systemPrompt = `You are ProCyberWall Agent, an autonomous AI security agent embedded in the ProCyberWall client dashboard.
 
 The client's domain is: ${domain || 'not set yet'}
 Their plan is: ${plan || 'starter'}
@@ -470,15 +849,15 @@ Rules:
       try {
         const { messages, step, domain } = JSON.parse(body);
 
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
-        });
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
 
-        const stepNames = { 1: 'Welcome', 2: 'Domain entry', 3: 'DNS nameserver update', 4: 'Verification', 5: 'Complete' };
+      const stepNames = { 1: 'Welcome', 2: 'Domain entry', 3: 'DNS nameserver update', 4: 'Verification', 5: 'Complete' };
 
-        const systemPrompt = `You are a friendly setup helper for CyberWall, a website security service.
+      const systemPrompt = `You are a friendly setup helper for ProCyberWall, a website security service.
 The client is on Step ${step} (${stepNames[step] || 'Setup'}) of the onboarding flow.
 Their domain: ${domain || 'not entered yet'}.
 
@@ -487,7 +866,7 @@ Your job is to answer their setup questions clearly and simply.
 Rules:
 - Keep answers to 2-3 sentences max
 - Use plain everyday English — no jargon
-- If they ask about DNS: explain it as "changing the address sign for your domain so it points to CyberWall"
+- If they ask about DNS: explain it as "changing the address sign for your domain so it points to ProCyberWall"
 - If they ask about nameservers: tell them to log in to where they bought their domain (GoDaddy, BigRock, Namecheap, etc.) → find "Nameservers" or "DNS settings" → replace with the two nameservers shown on screen
 - If they're confused about a step, explain what that step does in one sentence
 - Use 1 emoji per reply
@@ -529,7 +908,7 @@ Rules:
     function fetchFeed(feedUrl) {
       return new Promise((resolve) => {
         const mod = feedUrl.startsWith('https') ? https : http;
-        const opts = Object.assign(new URL(feedUrl), { headers: { 'User-Agent': 'CyberWall/1.0' } });
+        const opts = Object.assign(new URL(feedUrl), { headers: { 'User-Agent': 'ProCyberWall/1.0' } });
         const r = mod.get(opts, (resp) => {
           if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
             return fetchFeed(resp.headers.location).then(resolve);
@@ -594,19 +973,38 @@ Rules:
     req.on('data', c => body += c);
     req.on('end', async () => {
       try {
-        const profile = JSON.parse(body);
-        if (!profile.id || !profile.email) {
+        const raw = JSON.parse(body);
+        if (!raw.id || !raw.email) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'id and email are required' }));
           return;
         }
+        // Whitelist allowed fields — never trust caller-supplied role or status
+        const profile = {
+          id:            raw.id,
+          email:         raw.email,
+          full_name:     raw.full_name     || '',
+          phone:         raw.phone         || '',
+          business_name: raw.business_name || '',
+          domain:        raw.domain        || '',
+          plan:          raw.plan          || 'starter',
+          role:          'client',
+          status:        'trial',
+          created_at:    raw.created_at    || new Date(),
+        };
         const result = await supabaseRequest('POST', 'profiles', profile);
         if (result.status >= 400) {
+          console.error('Profile creation failed:', result.status, result.body);
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: result.body }));
+          res.end(JSON.stringify({ error: result.body || 'Profile creation failed' }));
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
+          // Notify admin via WhatsApp — fire and forget, non-blocking
+          if (ADMIN_PHONE) {
+            const msg = `🆕 *New ProCyberWall Signup!*\n\n*Name:* ${profile.full_name}\n*Email:* ${profile.email}\n*Plan:* ${(profile.plan || 'starter').toUpperCase()}\n*Domain:* ${profile.domain}\n\n— ProCyberWall System`;
+            sendTwilioMessage(ADMIN_PHONE, msg).catch(() => {});
+          }
         }
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -616,8 +1014,432 @@ Rules:
     return;
   }
 
+  // ── PHONE OTP — SEND (via WhatsApp) ─────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/send-phone-otp') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { phone } = JSON.parse(body);
+        if (!phone) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Phone required' }));
+          return;
+        }
+        if (!TWILIO_SID || !TWILIO_TOKEN) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'WhatsApp service not configured' }));
+          return;
+        }
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        global._phoneOtps = global._phoneOtps || {};
+        global._phoneOtps[phone] = { otp, expires: Date.now() + 10 * 60 * 1000 };
+
+        const toFormatted = phone.startsWith('+')
+          ? `whatsapp:${phone.replace(/\s/g, '')}`
+          : `whatsapp:+91${phone.replace(/\D/g, '').slice(-10)}`;
+        const message = `Your *ProCyberWall* verification code is:\n\n*${otp}*\n\nThis code expires in 10 minutes. Do not share it with anyone.`;
+        const params = new URLSearchParams({ From: TWILIO_FROM, To: toFormatted, Body: message }).toString();
+
+        await new Promise((resolve, reject) => {
+          const opts = {
+            hostname: 'api.twilio.com',
+            path: `/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
+            method: 'POST',
+            headers: {
+              'Authorization': 'Basic ' + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64'),
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': Buffer.byteLength(params)
+            }
+          };
+          const r = https.request(opts, resp => {
+            let data = '';
+            resp.on('data', c => data += c);
+            resp.on('end', () => resolve(JSON.parse(data)));
+          });
+          r.on('error', reject);
+          r.write(params);
+          r.end();
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to send OTP' }));
+      }
+    });
+    return;
+  }
+
+  // ── PHONE OTP — VERIFY ───────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/verify-phone-otp') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { phone, otp } = JSON.parse(body);
+        global._phoneOtps = global._phoneOtps || {};
+        const stored = global._phoneOtps[phone];
+        if (!stored) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No OTP found. Please request a new one.' }));
+          return;
+        }
+        if (Date.now() > stored.expires) {
+          delete global._phoneOtps[phone];
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Code expired. Please request a new one.' }));
+          return;
+        }
+        if (stored.otp !== otp) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Incorrect code. Please try again.' }));
+          return;
+        }
+        delete global._phoneOtps[phone];
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── ADMIN: GET ALL CLIENTS (service key — bypasses RLS) ─────────────────
+  if (req.method === 'GET' && req.url === '/api/admin/clients') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    try {
+      const result = await supabaseRequest('GET', 'profiles?role=eq.client&order=created_at.desc&select=*', null);
+      const clients = JSON.parse(result.body);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, clients: Array.isArray(clients) ? clients : [] }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── ADMIN: ADD CLIENT (creates auth user + profile via service key) ───────
+  if (req.method === 'POST' && req.url === '/api/admin/add-client') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { full_name, email, phone, business_name, domain, plan } = JSON.parse(body);
+        if (!email || !full_name || !domain) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'name, email and domain are required' }));
+          return;
+        }
+
+        // Step 1: create auth user (generates a UUID that satisfies FK constraint)
+        const authResult = await new Promise((resolve, reject) => {
+          const payload = JSON.stringify({
+            email,
+            password: crypto.randomBytes(16).toString('hex') + 'Cw1!',
+            email_confirm: true,
+            user_metadata: { full_name }
+          });
+          const opts = {
+            hostname: 'fwbclrdzctszwbfxywgi.supabase.co',
+            path: '/auth/v1/admin/users',
+            method: 'POST',
+            headers: {
+              'apikey': SUPABASE_SERVICE_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
+          };
+          const r = https.request(opts, resp => {
+            let raw = '';
+            resp.on('data', c => raw += c);
+            resp.on('end', () => {
+              try { resolve({ status: resp.statusCode, body: JSON.parse(raw) }); }
+              catch (e) { reject(new Error('Supabase auth parse error')); }
+            });
+          });
+          r.on('error', reject);
+          r.write(payload);
+          r.end();
+        });
+
+        if (authResult.status >= 400) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: authResult.body.msg || authResult.body.message || 'Failed to create user' }));
+          return;
+        }
+
+        const userId = authResult.body.id;
+
+        // Step 2: create profile row
+        const profileResult = await supabaseRequest('POST', 'profiles', {
+          id: userId, full_name, email, phone: phone || '',
+          business_name: business_name || '', domain, plan: plan || 'starter',
+          status: 'trial', role: 'client', created_at: new Date()
+        });
+
+        if (profileResult.status >= 400) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: profileResult.body }));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, userId }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── ADMIN: UPDATE CLIENT ──────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/admin/update-client') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { id, plan, status } = JSON.parse(body);
+        if (!id) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'id required'})); return; }
+        const update = {};
+        if (plan)   update.plan   = plan;
+        if (status) update.status = status;
+        const result = await supabaseRequest('PATCH', `profiles?id=eq.${id}`, update);
+        res.writeHead(result.status >= 400 ? 400 : 200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.status >= 400 ? { error: result.body } : { success: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── AUTH NEWS: Cybersecurity RSS feed (cached 30 min) ────────────────────
+  if (req.method === 'GET' && req.url === '/api/auth-news') {
+    try {
+      const now = Date.now();
+      if (!global._newsCache || now - global._newsCacheTime > 30 * 60 * 1000) {
+        const feeds = [
+          'https://feeds.feedburner.com/TheHackersNews',
+          'https://www.bleepingcomputer.com/feed/'
+        ];
+        const results = await Promise.allSettled(feeds.map(url => new Promise((resolve, reject) => {
+          const u = new URL(url);
+          const opts = { hostname: u.hostname, path: u.pathname + u.search, headers: { 'User-Agent': 'Mozilla/5.0' } };
+          const r = https.get(opts, resp => {
+            let raw = '';
+            resp.on('data', c => raw += c);
+            resp.on('end', () => resolve(raw));
+          });
+          r.on('error', reject);
+          r.setTimeout(8000, () => { r.destroy(); reject(new Error('timeout')); });
+        })));
+
+        const items = [];
+        results.forEach((r, fi) => {
+          if (r.status !== 'fulfilled') return;
+          const xml = r.value;
+          const source = fi === 0 ? 'The Hacker News' : 'Bleeping Computer';
+          const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+          let m;
+          while ((m = itemRegex.exec(xml)) !== null) {
+            const block = m[1];
+            const title = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/s.exec(block) || /<title>(.*?)<\/title>/s.exec(block) || [])[1] || '';
+            const link  = (/<link>(.*?)<\/link>/s.exec(block) || [])[1] || '';
+            const pub   = (/<pubDate>(.*?)<\/pubDate>/s.exec(block) || [])[1] || '';
+            const desc  = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/s.exec(block) || /<description>([\s\S]*?)<\/description>/s.exec(block) || [])[1] || '';
+            if (title.trim()) items.push({
+              title: title.trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'),
+              link:  link.trim(),
+              pub:   pub.trim(),
+              desc:  desc.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim().slice(0, 140),
+              source,
+              ts:    new Date(pub).getTime() || 0
+            });
+          }
+        });
+
+        items.sort((a, b) => b.ts - a.ts);
+        global._newsCache = items.slice(0, 20);
+        global._newsCacheTime = now;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ items: global._newsCache || [] }));
+    } catch (err) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ items: [] }));
+    }
+    return;
+  }
+
+  // ── TASKS: LIST & CREATE ─────────────────────────────────────────────────
+  if (req.url === '/api/admin/tasks') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+    if (req.method === 'GET') {
+      const r = await supabaseRequest('GET', 'tasks?order=created_at.desc&select=*', null);
+      const tasks = JSON.parse(r.body);
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ tasks: Array.isArray(tasks) ? tasks : [] }));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', async () => {
+        try {
+          const { title, description, priority, due_date, client_id } = JSON.parse(body);
+          if (!title) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'title required'})); return; }
+          const task = { title, description: description || null, priority: priority || 'med', due_date: due_date || null, client_id: client_id || null, completed: false };
+          const r = await supabaseRequest('POST', 'tasks', task);
+          res.writeHead(r.status >= 400 ? 400 : 201, {'Content-Type':'application/json'});
+          res.end(r.status >= 400 ? r.body : JSON.stringify({success:true}));
+        } catch (err) {
+          res.writeHead(500, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:err.message}));
+        }
+      });
+      return;
+    }
+  }
+
+  // ── TASKS: UPDATE & DELETE ────────────────────────────────────────────────
+  if (req.url.startsWith('/api/admin/tasks/')) {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    const taskId = req.url.slice('/api/admin/tasks/'.length).split('?')[0];
+
+    if (req.method === 'PATCH') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', async () => {
+        try {
+          const updates = JSON.parse(body);
+          const r = await supabaseRequest('PATCH', `tasks?id=eq.${encodeURIComponent(taskId)}`, updates);
+          res.writeHead(r.status >= 400 ? 400 : 200, {'Content-Type':'application/json'});
+          res.end(r.status >= 400 ? r.body : JSON.stringify({success:true}));
+        } catch (err) {
+          res.writeHead(500, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:err.message}));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      const r = await supabaseRequest('DELETE', `tasks?id=eq.${encodeURIComponent(taskId)}`, null);
+      res.writeHead(r.status >= 400 ? 400 : 200, {'Content-Type':'application/json'});
+      res.end(r.status >= 400 ? r.body : JSON.stringify({success:true}));
+      return;
+    }
+  }
+
+  // ── SUPPORT TICKETS: ADMIN LIST & RESOLVE ────────────────────────────────
+  if (req.url === '/api/admin/tickets') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+    if (req.method === 'GET') {
+      const r = await supabaseRequest('GET', 'support_tickets?order=created_at.desc&select=*', null);
+      const tickets = JSON.parse(r.body);
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ tickets: Array.isArray(tickets) ? tickets : [] }));
+      return;
+    }
+  }
+
+  if (req.url.startsWith('/api/admin/tickets/')) {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    const ticketId = req.url.slice('/api/admin/tickets/'.length).split('?')[0];
+
+    if (req.method === 'PATCH') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', async () => {
+        try {
+          const updates = JSON.parse(body);
+          if (updates.status === 'resolved') updates.resolved_at = new Date().toISOString();
+          const r = await supabaseRequest('PATCH', `support_tickets?id=eq.${encodeURIComponent(ticketId)}`, updates);
+          res.writeHead(r.status >= 400 ? 400 : 200, {'Content-Type':'application/json'});
+          res.end(r.status >= 400 ? r.body : JSON.stringify({success:true}));
+        } catch (err) {
+          res.writeHead(500, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:err.message}));
+        }
+      });
+      return;
+    }
+  }
+
+  // ── SUPPORT TICKETS: CLIENT SUBMIT & VIEW ────────────────────────────────
+  if (req.url === '/api/tickets') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', c => body += c);
+      req.on('end', async () => {
+        try {
+          const { subject, message } = JSON.parse(body);
+          if (!subject || !message) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'subject and message required'})); return; }
+          const ticket = { client_id: authUser.id, subject, message, status: 'open' };
+          const r = await supabaseRequest('POST', 'support_tickets', ticket);
+          res.writeHead(r.status >= 400 ? 400 : 201, {'Content-Type':'application/json'});
+          res.end(r.status >= 400 ? r.body : JSON.stringify({success:true}));
+        } catch (err) {
+          res.writeHead(500, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:err.message}));
+        }
+      });
+      return;
+    }
+  }
+
+  if (req.url === '/api/tickets/mine') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+    if (req.method === 'GET') {
+      const r = await supabaseRequest('GET', `support_tickets?client_id=eq.${encodeURIComponent(authUser.id)}&order=created_at.desc&select=*`, null);
+      const tickets = JSON.parse(r.body);
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ tickets: Array.isArray(tickets) ? tickets : [] }));
+      return;
+    }
+  }
+
   // ── CLOUDFLARE: ADD DOMAIN (ACTIVATE) ────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/cf/activate') {
+    const adminUser = await requireAdminAuth(req);
+    if (!adminUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
     let body = '';
     req.on('data', c => body += c);
     req.on('end', async () => {
@@ -823,6 +1645,40 @@ Rules:
     return;
   }
 
+  // ── SECURITY SCAN ─────────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/security-scan')) {
+    const params = new URL('http://x' + req.url).searchParams;
+    const domain = params.get('domain');
+    if (!domain) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'domain parameter required' }));
+      return;
+    }
+    const ip = req.socket.remoteAddress;
+    if (!checkRateLimit(ip, '/api/security-scan', 5, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Too many requests. Please wait a minute and try again.' }));
+      return;
+    }
+    try {
+      let scan = await runSecurityScan(domain);
+      if (scan.error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: scan.error }));
+        return;
+      }
+      const authUser = await requireAuth(req);
+      if (authUser) scan = await enhanceScanWithCloudflare(scan);
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify(scan));
+    } catch(err) {
+      console.error('Security scan error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Scan failed. Please try again.' }));
+    }
+    return;
+  }
+
   // ── STATIC FILE SERVING ───────────────────────────────────────────────────
   if (req.method === 'GET') {
     let urlPath = req.url.split('?')[0];
@@ -847,7 +1703,10 @@ Rules:
         res.end('Not found');
         return;
       }
-      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
+      const noCache = ['.html', '.js', '.css'].includes(ext);
+      const headers = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' };
+      if (noCache) headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      res.writeHead(200, headers);
       res.end(data);
     });
     return;
@@ -857,7 +1716,14 @@ Rules:
   res.end('Not found');
 });
 
+const REQUIRED_ENV = ['ANTHROPIC_API_KEY', 'SUPABASE_SERVICE_KEY'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`✅ CyberWall server running at http://localhost:${PORT}`);
+  console.log(`✅ ProCyberWall server running at http://localhost:${PORT}`);
 });
