@@ -92,6 +92,7 @@ async function loadDashboard() {
   loadCloudflareForProfile(profile);
   loadCyberNews();
   loadMyTickets();
+  loadSecurityScore(); // populate stat card on overview without needing to open the panel
 }
 
 function loadStats(profile) {
@@ -140,7 +141,10 @@ function showPanel(name, el, pushState = true) {
   const mobileMatch = document.querySelector(`.mobile-nav-item[data-panel="${name}"]`);
   if (mobileMatch) mobileMatch.classList.add('active');
   const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News'};
-  if (name === 'security-score') loadSecurityScore();
+  if (name === 'security-score' && !_currentScanDomain) loadSecurityScore();
+  // Always scroll to top when switching panels
+  const mainEl = document.querySelector('.main');
+  if (mainEl) mainEl.scrollTop = 0;
   if (name === 'darkweb') loadDarkWebScan(false);
   if (name === 'cybernews' && !_allNewsItems.length) loadCyberNews();
   document.getElementById('topbar-title').textContent = titles[name] || name;
