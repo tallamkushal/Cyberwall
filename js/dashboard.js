@@ -1,8 +1,21 @@
 // CYBERWALL — Dashboard Logic
 
+// Send the Supabase session token to the service worker so it can make
+// authenticated requests when refreshing the home-screen widget.
+async function syncTokenToSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const token = session?.access_token || null;
+    const reg = await navigator.serviceWorker.ready;
+    reg.active?.postMessage({ type: 'SET_TOKEN', token });
+  } catch {}
+}
+
 async function loadDashboard() {
   const user = await requireAuth();
   if (!user) return;
+  syncTokenToSW();
   let profile = await getCurrentProfile();
   if (!profile) {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -126,9 +139,10 @@ function showPanel(name, el, pushState = true) {
   // highlight matching mobile nav item
   const mobileMatch = document.querySelector(`.mobile-nav-item[data-panel="${name}"]`);
   if (mobileMatch) mobileMatch.classList.add('active');
-  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor'};
+  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News'};
   if (name === 'security-score') loadSecurityScore();
   if (name === 'darkweb') loadDarkWebScan(false);
+  if (name === 'cybernews' && !_allNewsItems.length) loadCyberNews();
   document.getElementById('topbar-title').textContent = titles[name] || name;
   if (pushState) history.pushState({ panel: name }, '', '#' + name);
 }
@@ -296,31 +310,90 @@ async function savePasswordSettings() {
   setTimeout(() => sucEl.classList.add('hidden'), 3000);
 }
 
-// ---- CYBER NEWS ----
+// ── CYBER NEWS ───────────────────────────────────────────────────────────────
+let _allNewsItems = [];
+let _newsFilterSev = 'all';
+
 async function loadCyberNews() {
-  const list = document.getElementById('cyber-news-list');
-  if (!list) return;
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
   try {
-    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
     const res = await fetch(`${SERVER}/api/cyber-news`);
     const items = await res.json();
     if (!Array.isArray(items) || items.length === 0) {
-      list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">No news available right now.</div>';
+      _renderNewsEmpty('No news available right now.');
       return;
     }
-    const severityColor = { critical: 'var(--red)', warning: 'var(--orange)', info: 'var(--accent)' };
-    const severityLabel = { critical: 'Critical', warning: 'Warning', info: 'Info' };
-    list.innerHTML = items.map(item => `
-      <a href="${escapeAttr(item.link)}" target="_blank" rel="noopener" style="display:block;padding:11px 16px;border-bottom:1px solid var(--border);text-decoration:none;transition:background 0.15s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-          <span style="font-size:10px;font-weight:700;color:${severityColor[item.severity] || 'var(--accent)'};text-transform:uppercase;letter-spacing:0.5px">${severityLabel[item.severity] || 'Info'}</span>
-          <span style="font-size:10px;color:var(--muted)">· ${escapeHtmlNews(item.source)} · ${newsTimeAgo(item.date)}</span>
-        </div>
-        <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.4">${escapeHtmlNews(item.title)}</div>
-      </a>`).join('');
+    _allNewsItems = items;
+    _renderNewsFull();
+    _renderNewsTeaser();
+    const timeEl = document.getElementById('news-update-time');
+    if (timeEl) timeEl.textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   } catch {
-    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Could not load news.</div>';
+    _renderNewsEmpty('Could not load news. Please try again later.');
   }
+}
+
+function _renderNewsEmpty(msg) {
+  const grid = document.getElementById('news-panel-grid');
+  if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:13px">${msg}</div>`;
+  const teaser = document.getElementById('cyber-news-teaser');
+  if (teaser) teaser.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">${msg}</div>`;
+}
+
+function _renderNewsFull() {
+  const grid = document.getElementById('news-panel-grid');
+  if (!grid) return;
+  const srcFilter = document.getElementById('news-source-filter')?.value || 'all';
+  const filtered = _allNewsItems.filter(i =>
+    (_newsFilterSev === 'all' || i.severity === _newsFilterSev) &&
+    (srcFilter === 'all' || i.source === srcFilter)
+  );
+  if (!filtered.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:13px">No articles match this filter.</div>`;
+    return;
+  }
+  const SEV_COLOR = { critical:'#dc2626', warning:'#ea580c', info:'#1a47e8' };
+  const SEV_BG    = { critical:'#fee2e2', warning:'#fff7ed', info:'#eef1fd' };
+  const SEV_LABEL = { critical:'Critical', warning:'Warning', info:'Info' };
+  const SOURCE_ICONS = {
+    'The Hacker News':'🗞️','BleepingComputer':'💻','Krebs on Security':'🔎',
+    'Dark Reading':'📖','SecurityWeek':'🛡️','HackerOne':'🐛','SANS ISC':'📡'
+  };
+  grid.innerHTML = filtered.map(item => `
+    <a href="${escapeAttr(item.link)}" target="_blank" rel="noopener" class="news-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:11px;font-weight:700;color:${SEV_COLOR[item.severity]||'#1a47e8'};background:${SEV_BG[item.severity]||'#eef1fd'};padding:2px 8px;border-radius:5px">${SEV_LABEL[item.severity]||'Info'}</span>
+        <span style="font-size:11px;color:var(--muted)">${newsTimeAgo(item.date)}</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45">${escapeHtmlNews(item.title)}</div>
+      ${item.desc ? `<div style="font-size:12px;color:var(--muted);line-height:1.5">${escapeHtmlNews(item.desc)}</div>` : ''}
+      <div style="font-size:11px;color:var(--muted-light);margin-top:auto">${SOURCE_ICONS[item.source]||'🌐'} ${escapeHtmlNews(item.source)}</div>
+    </a>`).join('');
+}
+
+function _renderNewsTeaser() {
+  const teaser = document.getElementById('cyber-news-teaser');
+  if (!teaser) return;
+  const top5 = _allNewsItems.slice(0, 5);
+  const SEV_COLOR = { critical:'#dc2626', warning:'#ea580c', info:'#1a47e8' };
+  const SEV_LABEL = { critical:'Critical', warning:'Warning', info:'Info' };
+  teaser.innerHTML = top5.map(item => `
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <span style="font-size:10px;font-weight:700;color:${SEV_COLOR[item.severity]||'#1a47e8'};text-transform:uppercase">${SEV_LABEL[item.severity]||'Info'}</span>
+        <span style="font-size:10px;color:var(--muted)">· ${escapeHtmlNews(item.source)} · ${newsTimeAgo(item.date)}</span>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.4">${escapeHtmlNews(item.title)}</div>
+    </div>`).join('') + `<div style="padding:10px 16px;font-size:12px;color:var(--accent);font-weight:600">View all ${_allNewsItems.length} articles →</div>`;
+}
+
+function filterNews(sev, btn) {
+  if (sev !== null) {
+    _newsFilterSev = sev;
+    document.querySelectorAll('.news-filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+  _renderNewsFull();
 }
 
 function escapeHtmlNews(str) {
@@ -330,7 +403,6 @@ function escapeHtmlNews(str) {
 
 function escapeAttr(str) {
   if (!str) return '#';
-  // Only allow http/https URLs
   return /^https?:\/\//.test(str) ? str.replace(/"/g, '%22') : '#';
 }
 
@@ -442,6 +514,9 @@ async function loadSecurityScore() {
     const res = await fetch(`${_SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`, { headers });
     const data = await res.json();
     if (data.error) { _renderScoreError(data.error); return; }
+    // Sync grade to overview stat card and security score card so all show the same
+    safeSet('stat-score', data.grade);
+    safeSet('score-grade', data.grade);
     _renderSecurityScore(data);
   } catch(e) { _renderScoreError('Scan failed. Please try again.'); }
 }
@@ -456,6 +531,8 @@ async function rerunSecurityScan() {
     const res = await fetch(`${_SERVER}/api/security-scan?domain=${encodeURIComponent(_currentScanDomain)}&t=${Date.now()}`, { headers });
     const data = await res.json();
     if (data.error) { _renderScoreError(data.error); return; }
+    safeSet('stat-score', data.grade);
+    safeSet('score-grade', data.grade);
     _renderSecurityScore(data);
   } catch(e) { _renderScoreError('Scan failed. Please try again.'); }
 }

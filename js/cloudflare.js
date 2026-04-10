@@ -31,9 +31,7 @@ async function loadCloudflareData(domain) {
     // Estimate response time from total request volume — sites with CDN typically < 50ms
     const avgMs = s.totalRequests30d > 0 ? Math.max(18, Math.min(120, Math.round(50 - (s.totalRequests30d / 50000)))) : 38;
     safeSet('stat-response', avgMs + 'ms');
-    // Security Grade stat card — show a letter grade derived from Cloudflare protection level
-    const cfGrade = (data.security.waf && data.ssl?.httpsEnforced) ? 'A+' : data.security.waf ? 'A' : 'B';
-    safeSet('stat-score', cfGrade);
+    // Security grade is set by the real scan in loadSecurityScore() — leave stat-score alone here
 
     // ── Threats panel stats ───────────────────────────────────────────────────
     safeSet('threats-today',     s.threatsToday.toLocaleString('en-IN'));
@@ -41,7 +39,7 @@ async function loadCloudflareData(domain) {
     safeSet('threats-countries', '—');
 
     // ── Security score card ───────────────────────────────────────────────────
-    safeSet('score-grade', data.security.waf ? 'A+' : 'B');
+    // score-grade is set by loadSecurityScore() to keep it in sync with the real scan
     safeSet('score-waf',   data.security.waf);
     safeSet('score-ssl',   data.security.ssl);
     safeSet('score-spf',   data.email.spf.includes('Pass') ? 'Pass' : 'Fail');

@@ -899,8 +899,13 @@ Rules:
   // ── CYBER NEWS FEED ───────────────────────────────────────────────────────
   if (req.method === 'GET' && req.url === '/api/cyber-news') {
     const FEEDS = [
-      { url: 'https://feeds.feedburner.com/TheHackersNews', source: 'The Hacker News' },
-      { url: 'https://www.bleepingcomputer.com/feed/', source: 'BleepingComputer' },
+      { url: 'https://feeds.feedburner.com/TheHackersNews',  source: 'The Hacker News' },
+      { url: 'https://www.bleepingcomputer.com/feed/',        source: 'BleepingComputer' },
+      { url: 'https://krebsonsecurity.com/feed/',             source: 'Krebs on Security' },
+      { url: 'https://www.darkreading.com/rss.xml',           source: 'Dark Reading' },
+      { url: 'https://www.securityweek.com/feed/',            source: 'SecurityWeek' },
+      { url: 'https://www.hackerone.com/blog.rss',            source: 'HackerOne' },
+      { url: 'https://isc.sans.edu/rssfeed_full.xml',         source: 'SANS ISC' },
     ];
 
     const cache = global._newsCache;
@@ -959,7 +964,7 @@ Rules:
       .then(results => {
         const all = results.flat()
           .sort((a, b) => new Date(b.date) - new Date(a.date))
-          .slice(0, 12)
+          .slice(0, 40)
           .map(item => ({ ...item, severity: categorize(item.title) }));
         global._newsCache = { ts: Date.now(), data: all };
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1812,6 +1817,68 @@ Rules:
       console.error('Security scan error:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Scan failed. Please try again.' }));
+    }
+    return;
+  }
+
+  // ── WIDGET DATA ───────────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.url === '/api/widget-data') {
+    const user = await requireAuth(req);
+    if (!user) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    try {
+      const profileResult = await supabaseRequest(
+        'GET',
+        `profiles?id=eq.${encodeURIComponent(user.id)}&select=domain,plan,status`,
+        null
+      );
+      const profiles = JSON.parse(profileResult.body);
+      const profile = Array.isArray(profiles) && profiles[0];
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+      if (!profile?.domain) {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+        res.end(JSON.stringify({
+          status_text: 'Setup needed',
+          dot_class: 'red',
+          attacks_blocked: '--',
+          domain: 'No domain set',
+          updated_at: timeStr,
+        }));
+        return;
+      }
+
+      const zoneId = await cfGetZoneId(profile.domain);
+      let attacks_blocked = '0';
+
+      if (zoneId) {
+        try {
+          const since30d = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const analytics = await cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since30d}&until=${now.toISOString()}&continuous=true`);
+          if (analytics.success) {
+            const count = analytics.result?.totals?.requests?.threat || 0;
+            attacks_blocked = count >= 1000 ? (count / 1000).toFixed(1) + 'k' : String(count);
+          }
+        } catch {}
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+      res.end(JSON.stringify({
+        status_text: zoneId ? 'Protected' : 'Not Protected',
+        dot_class: zoneId ? 'green' : 'red',
+        attacks_blocked,
+        domain: profile.domain,
+        updated_at: timeStr,
+      }));
+    } catch (err) {
+      console.error('Widget data error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to fetch widget data' }));
     }
     return;
   }

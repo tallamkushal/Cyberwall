@@ -12,6 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ProCyberWall — Admin</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <script src="js/theme.js"></script>
   <style>
     body { display: flex; height: 100vh; overflow: hidden; }
 
@@ -314,6 +315,7 @@
   <div class="topbar">
     <span class="topbar-title" id="topbar-title">Admin Overview</span>
     <div class="topbar-right">
+      <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme"><span class="theme-toggle-icon">🌙</span></button>
       <button class="topbar-btn">🔔 Alerts</button>
       <button class="topbar-btn primary" onclick="showPanel('add', null)">+ Add Client</button>
     </div>

@@ -238,6 +238,11 @@
     .alert-time  { font-size: 11px; color: var(--muted-light); margin-top: 5px; }
 
     /* ---- REPORTS ---- */
+    .news-filter-btn { font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;transition:all 0.15s; }
+    .news-filter-btn:hover { border-color:var(--accent);color:var(--accent); }
+    .news-filter-btn.active { background:var(--accent);border-color:var(--accent);color:white; }
+    .news-card { background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;transition:box-shadow 0.15s;text-decoration:none; }
+    .news-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.08); }
     .report-row {
       display: flex; align-items: center; gap: 14px;
       padding: 14px 0; border-bottom: 1px solid var(--border);
@@ -325,7 +330,7 @@
     }
     .mobile-nav-item {
       display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 6px 12px; border-radius: 8px; cursor: pointer;
+      padding: 6px 8px; border-radius: 8px; cursor: pointer;
       font-size: 10px; color: rgba(255,255,255,0.5);
       text-decoration: none; transition: color 0.15s;
     }
@@ -421,6 +426,9 @@
 
   <div class="sidebar-section">
     <div class="sidebar-section-label">AI</div>
+    <a class="sidebar-item" onclick="showPanel('cybernews', this)">
+      <span class="sidebar-item-icon">🌐</span> Cyber News
+    </a>
     <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
       <span class="sidebar-item-icon">🤖</span> AI Assistant
     </a>
@@ -582,39 +590,15 @@
         </div>
       </div>
 
-      <!-- Recent Threats + Cyber News -->
-      <div class="threats-news-grid" style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start">
-
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Recent Threats Blocked</span>
-            <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
-          </div>
-          <div style="overflow:auto;max-height:260px">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Threat Type</th><th>IP Address</th><th>Country</th>
-                  <th>Time</th><th>Severity</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="threats-tbody">
-                <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading threats...</td></tr>
-              </tbody>
-            </table>
-          </div>
+      <!-- Cyber News Teaser -->
+      <div class="card" style="cursor:pointer" onclick="showPanel('cybernews', null)">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+          <span class="card-title">🌐 Cyber News</span>
+          <span class="card-action">View all →</span>
         </div>
-
-        <div class="card" style="min-width:0">
-          <div class="card-header">
-            <span class="card-title">🌐 Cyber News</span>
-            <span style="font-size:11px;color:var(--muted)">Live · updates every 15 min</span>
-          </div>
-          <div id="cyber-news-list" style="display:flex;flex-direction:column;gap:0;max-height:260px;overflow-y:auto">
-            <div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Loading news...</div>
-          </div>
+        <div id="cyber-news-teaser" style="display:flex;flex-direction:column;gap:0">
+          <div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Loading latest threats &amp; news...</div>
         </div>
-
       </div>
     </div>
 
@@ -1054,6 +1038,39 @@
       </div>
     </div>
 
+    <!-- ── CYBER NEWS PANEL ─────────────────────────────────────────────── -->
+    <div class="panel" id="panel-cybernews">
+
+      <!-- Filters -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="news-filter-btn active" data-filter="all"    onclick="filterNews('all',this)">All</button>
+          <button class="news-filter-btn"         data-filter="critical" onclick="filterNews('critical',this)">🔴 Critical</button>
+          <button class="news-filter-btn"         data-filter="warning"  onclick="filterNews('warning',this)">🟠 Warning</button>
+          <button class="news-filter-btn"         data-filter="info"     onclick="filterNews('info',this)">🔵 Info</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <select id="news-source-filter" onchange="filterNews(null,null)" style="font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-family:inherit">
+            <option value="all">All Sources</option>
+            <option value="The Hacker News">The Hacker News</option>
+            <option value="BleepingComputer">BleepingComputer</option>
+            <option value="Krebs on Security">Krebs on Security</option>
+            <option value="Dark Reading">Dark Reading</option>
+            <option value="SecurityWeek">SecurityWeek</option>
+            <option value="HackerOne">HackerOne</option>
+            <option value="SANS ISC">SANS ISC</option>
+          </select>
+          <span style="font-size:11px;color:var(--muted)" id="news-update-time"></span>
+        </div>
+      </div>
+
+      <!-- News grid -->
+      <div id="news-panel-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+        <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading latest cybersecurity news...</div>
+      </div>
+
+    </div>
+
     <!-- ── DARK WEB MONITOR PANEL ───────────────────────────────────────── -->
     <div class="panel" id="panel-darkweb">
 
@@ -1145,6 +1162,9 @@
   </a>
   <a class="mobile-nav-item" onclick="showPanel('billing', this)" data-panel="billing">
     <span>💳</span><span>Billing</span>
+  </a>
+  <a class="mobile-nav-item" onclick="handleLogout()">
+    <span>🚪</span><span>Logout</span>
   </a>
 </nav>
 
@@ -1582,6 +1602,74 @@
   document.getElementById('cancel-modal').addEventListener('click', function(e) {
     if (e.target === this) closeCancelModal();
   });
+</script>
+
+<!-- ── iOS INSTALL BANNER ──────────────────────────────────────────────────── -->
+<div id="ios-install-banner" style="
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  left: 12px;
+  right: 12px;
+  z-index: 9999;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: none;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideUp 0.3s ease;
+">
+  <div style="font-size: 28px; line-height: 1; flex-shrink: 0;">🛡</div>
+  <div style="flex: 1;">
+    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px;">
+      Install ProCyberWall
+    </div>
+    <div style="font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5;">
+      Tap the Share button
+      <span style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:5px;padding:1px 6px;font-size:13px;">⎙</span>
+      then <strong style="color:rgba(255,255,255,0.8);">Add to Home Screen</strong>
+    </div>
+  </div>
+  <button onclick="dismissIOSBanner()" style="
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.35);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+  ">✕</button>
+</div>
+
+<style>
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+</style>
+
+<script>
+  (function () {
+    // Show only on iOS Safari, only if not already installed, only once
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isInstalled = window.navigator.standalone === true;
+    const dismissed = localStorage.getItem('ios-banner-dismissed');
+
+    if (isIOS && !isInstalled && !dismissed) {
+      const banner = document.getElementById('ios-install-banner');
+      banner.style.display = 'flex';
+    }
+  })();
+
+  function dismissIOSBanner() {
+    document.getElementById('ios-install-banner').style.display = 'none';
+    localStorage.setItem('ios-banner-dismissed', '1');
+  }
 </script>
 </body>
 </html>

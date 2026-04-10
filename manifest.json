@@ -24,5 +24,20 @@
       "url": "/dashboard.html#threats",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
+  ],
+  "widgets": [
+    {
+      "name": "Security Status",
+      "short_name": "CyberWall",
+      "description": "Live protection status and attacks blocked count",
+      "tag": "security-status",
+      "template": "/widget-security.html",
+      "data": "/api/widget-data",
+      "type": "application/json",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }],
+      "screenshots": [],
+      "multiple": false,
+      "update": 3600
+    }
   ]
 }
