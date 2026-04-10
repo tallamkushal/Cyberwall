@@ -68,9 +68,9 @@ function alertClientSetupDone(clientName, domain) {
 
 Hi ${clientName}!
 
-Great news — your website *${domain}* is now protected by ProCyberWall WAF!
+Great news — your website *${domain}* is now protected by ProCyberWall Firewall!
 
-✅ WAF rules active
+✅ Firewall active
 ✅ SSL monitoring active  
 ✅ Bot protection active
 ✅ DDoS protection active
@@ -94,7 +94,7 @@ function alertAdminNewSignup(clientName, email, plan, domain) {
 
 *Action needed:*
 1. Add domain to Cloudflare
-2. Configure WAF rules
+2. Configure firewall rules
 3. Send setup confirmation
 
 _Admin panel: ${window.location.origin}/admin.html_

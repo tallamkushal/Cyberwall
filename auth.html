@@ -217,6 +217,51 @@
       .form-row { grid-template-columns: 1fr; }
     }
   </style>
+  <style>
+    /* ── Phone picker ───────────────────────────────────────── */
+    .phone-wrap { display: flex; gap: 8px; position: relative; }
+
+    .dial-trigger {
+      display: flex; align-items: center; gap: 6px;
+      padding: 11px 10px; min-width: 90px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer; font-size: 14px;
+      color: var(--text); white-space: nowrap;
+      transition: border-color 0.15s;
+      -webkit-user-select: none; user-select: none;
+    }
+    .dial-trigger:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,71,232,0.08); }
+    .dial-trigger .dial-caret { font-size: 10px; color: var(--muted); margin-left: 2px; }
+    .dial-trigger .dial-flag { font-size: 18px; line-height: 1; }
+    .dial-trigger .dial-code { font-weight: 600; font-size: 13px; }
+
+    .dial-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0;
+      width: 260px; background: var(--surface);
+      border: 1.5px solid var(--border); border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      z-index: 999; overflow: hidden;
+      display: none;
+    }
+    .dial-dropdown.open { display: block; }
+    .dial-search {
+      width: 100%; padding: 10px 14px; border: none; border-bottom: 1.5px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 13px;
+      outline: none; box-sizing: border-box;
+    }
+    .dial-list { max-height: 220px; overflow-y: auto; }
+    .dial-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; cursor: pointer; font-size: 13px;
+      color: var(--text); transition: background 0.1s;
+    }
+    .dial-option:hover { background: var(--bg); }
+    .dial-option.selected { background: rgba(26,71,232,0.08); font-weight: 600; }
+    .dial-option .opt-flag { font-size: 18px; line-height: 1; flex-shrink: 0; }
+    .dial-option .opt-code { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+    .dial-option .opt-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .phone-digits-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  </style>
 </head>
 <body>
   <!-- OAuth loading overlay — shown instantly if returning from Google -->
@@ -262,8 +307,7 @@
   </div>
 
   <div class="left-content">
-    <h2>Protect your business from cyber threats</h2>
-    <p>Enterprise-grade WAF protection for small businesses — without the enterprise price tag.</p>
+    <h2 style="font-size:22px;line-height:1.35;background:rgba(255,255,255,0.12);border-left:3px solid rgba(255,255,255,0.7);border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:16px">Enterprise-grade firewall protection for small businesses — <span style="color:#fde68a">without the enterprise price tag.</span></h2>
     <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px 14px;margin-top:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:#f87171;text-transform:uppercase">⚠ Cyber Threats Today</div>
@@ -343,6 +387,9 @@
         { title: 'PowerSchool breach exposed data of 62 million students and 9.5 million teachers across North America', source: 'The Hacker News', ts: new Date('2025-01-07').getTime() },
         { title: 'Salt Typhoon hackers still inside US telecom networks months after discovery — senators demand action', source: 'Bleeping Computer', ts: new Date('2025-02-05').getTime() },
         { title: 'DeepSeek AI exposed a database with chat histories and secret keys — publicly accessible with no auth', source: 'The Hacker News', ts: new Date('2025-01-29').getTime() },
+        { title: 'CISA warns of actively exploited Ivanti zero-days affecting thousands of enterprise VPN gateways globally', source: 'SecurityWeek', ts: new Date('2025-04-01').getTime() },
+        { title: 'Google patches critical Chrome zero-day exploited in the wild — update immediately', source: 'Bleeping Computer', ts: new Date('2025-03-18').getTime() },
+        { title: 'Ransomware gang claims attack on major UK retailer — customer data allegedly stolen', source: 'CyberScoop', ts: new Date('2025-04-05').getTime() },
       ];
 
       function prioritise(items) {
@@ -353,9 +400,18 @@
         return [...local, ...rest];
       }
 
+      // Pick 5 articles offset by day-of-year so the rotation changes daily
+      function dailySlice(arr, count) {
+        if (!arr.length) return arr;
+        const day = Math.floor(Date.now() / 86400000); // days since epoch
+        const offset = day % arr.length;
+        const rotated = [...arr.slice(offset), ...arr.slice(0, offset)];
+        return rotated.slice(0, count);
+      }
+
       fetch('/api/auth-news').then(r => r.json()).then(data => {
         const items = prioritise(data.items || []);
-        render(items.length ? items.slice(0, 5) : FALLBACK);
+        render(items.length ? dailySlice(items, 6) : FALLBACK);
       }).catch(() => {
         render(prioritise(FALLBACK));
       });
@@ -553,11 +609,20 @@
         </div>
         <div class="form-group">
           <label class="form-label">Phone (WhatsApp)</label>
-          <div style="display:flex;gap:8px">
-            <select class="form-input" id="s-dialcode" style="width:130px;padding:11px 8px"></select>
-            <input type="tel" class="form-input" id="s-phone" placeholder="Phone number" style="flex:1"/>
+          <div class="phone-wrap" id="s-phone-wrap">
+            <button type="button" class="dial-trigger" id="s-dial-trigger" onclick="toggleDial('s')" aria-haspopup="listbox">
+              <span class="dial-flag" id="s-dial-flag">🇮🇳</span>
+              <span class="dial-code" id="s-dial-code">+91</span>
+              <span class="dial-caret">▾</span>
+            </button>
+            <div class="dial-dropdown" id="s-dial-dropdown" role="listbox">
+              <input class="dial-search" id="s-dial-search" placeholder="Search country…" oninput="filterDial('s')" autocomplete="off"/>
+              <div class="dial-list" id="s-dial-list"></div>
+            </div>
+            <input type="hidden" id="s-dialcode" value="+91"/>
+            <input type="tel" class="form-input" id="s-phone" placeholder="10-digit number" style="flex:1" maxlength="10" inputmode="numeric"/>
           </div>
-          <div class="form-hint">We send setup updates on WhatsApp</div>
+          <div class="form-hint" id="s-phone-hint">India · 10 digits required · We send setup updates on WhatsApp</div>
         </div>
         <div class="form-group">
           <label class="form-label">Password</label>
@@ -573,7 +638,7 @@
       <!-- STEP 2 -->
       <div id="s2" class="hidden">
         <h2 class="auth-title">Your business details</h2>
-        <p class="auth-sub">Helps us configure your WAF correctly.</p>
+        <p class="auth-sub">Helps us configure your firewall correctly.</p>
         <div class="form-group"><label class="form-label">Business Name</label><div class="input-wrapper"><span class="input-icon">🏢</span><input class="form-input" id="s-biz" placeholder="Your Company Pvt Ltd"/></div></div>
         <div class="form-group"><label class="form-label">Website URL</label><div class="input-wrapper"><span class="input-icon">🌐</span><input class="form-input" id="s-domain" placeholder="https://yoursite.com"/></div><div class="form-hint">The website you want protected</div></div>
         <div class="form-group"><label class="form-label">Business Type</label>
@@ -602,7 +667,7 @@
         <p class="auth-sub">Start free for 7 days. Cancel anytime.</p>
         <label class="plan-opt selected" id="plan-starter" onclick="selectPlan('starter', this)">
           <input type="radio" name="plan" checked/>
-          <div style="flex:1"><div class="plan-opt-name">Starter</div><div class="plan-opt-desc">WAF + SSL + monthly report</div></div>
+          <div style="flex:1"><div class="plan-opt-name">Starter</div><div class="plan-opt-desc">Firewall + SSL + monthly report</div></div>
           <div class="plan-opt-price" id="signup-price-starter">$29/mo</div>
         </label>
         <label class="plan-opt" id="plan-pro" onclick="selectPlan('pro', this)">
@@ -661,7 +726,7 @@
       <div id="s-success" class="success-box hidden">
         <div class="success-icon">🎉</div>
         <h3 style="font-size:20px;margin-bottom:8px">You're all set!</h3>
-        <p style="font-size:13px;color:var(--muted);line-height:1.7">Welcome to ProCyberWall! Check your email to verify your account.<br/><br/>Our team will set up your WAF within <strong>24 hours</strong> and WhatsApp you when it's live.</p>
+        <p style="font-size:13px;color:var(--muted);line-height:1.7">Welcome to ProCyberWall! Check your email to verify your account.<br/><br/>Our team will set up your firewall within <strong>24 hours</strong> and WhatsApp you when it's live.</p>
         <br/>
         <button class="btn btn-primary btn-full btn-large" onclick="window.location.href='onboarding.html'">Go to Dashboard →</button>
       </div>
@@ -725,9 +790,12 @@
     const pass  = document.getElementById('s-pass').value;
     const err   = document.getElementById('s1-error');
 
+    const dialCode = document.getElementById('s-dialcode').value;
+    const selectedCountry = COUNTRIES.find(c => c.dial === dialCode);
+    const requiredDigits = selectedCountry ? selectedCountry.digits : 10;
     if (!fname) { showErr(err, 'Please enter your first name'); return false; }
     if (!email || !email.includes('@')) { showErr(err, 'Please enter a valid email'); return false; }
-    if (!phone || phone.length < 10) { showErr(err, 'Please enter a valid phone number'); return false; }
+    if (!phone || phone.replace(/\D/g,'').length !== requiredDigits) { showErr(err, `Please enter a valid ${requiredDigits}-digit phone number`); return false; }
     if (pass.length < 8) { showErr(err, 'Password must be at least 8 characters'); return false; }
     if (_pwScore(pass) < 2) { showErr(err, 'Password is too weak — add uppercase letters, numbers, or symbols'); return false; }
 
@@ -1063,30 +1131,43 @@
   });
 
   // ── Country codes + pricing ───────────────────────────────────────────────
+  // digits = local subscriber number length (without country code)
   const COUNTRIES = [
-    {name:'Afghanistan',code:'AF',dial:'+93'},{name:'Albania',code:'AL',dial:'+355'},{name:'Algeria',code:'DZ',dial:'+213'},
-    {name:'Argentina',code:'AR',dial:'+54'},{name:'Australia',code:'AU',dial:'+61'},{name:'Austria',code:'AT',dial:'+43'},
-    {name:'Bangladesh',code:'BD',dial:'+880'},{name:'Belgium',code:'BE',dial:'+32'},{name:'Brazil',code:'BR',dial:'+55'},
-    {name:'Canada',code:'CA',dial:'+1'},{name:'Chile',code:'CL',dial:'+56'},{name:'China',code:'CN',dial:'+86'},
-    {name:'Colombia',code:'CO',dial:'+57'},{name:'Denmark',code:'DK',dial:'+45'},{name:'Egypt',code:'EG',dial:'+20'},
-    {name:'Ethiopia',code:'ET',dial:'+251'},{name:'Finland',code:'FI',dial:'+358'},{name:'France',code:'FR',dial:'+33'},
-    {name:'Germany',code:'DE',dial:'+49'},{name:'Ghana',code:'GH',dial:'+233'},{name:'Greece',code:'GR',dial:'+30'},
-    {name:'Hong Kong',code:'HK',dial:'+852'},{name:'Hungary',code:'HU',dial:'+36'},{name:'India',code:'IN',dial:'+91'},
-    {name:'Indonesia',code:'ID',dial:'+62'},{name:'Iran',code:'IR',dial:'+98'},{name:'Iraq',code:'IQ',dial:'+964'},
-    {name:'Ireland',code:'IE',dial:'+353'},{name:'Israel',code:'IL',dial:'+972'},{name:'Italy',code:'IT',dial:'+39'},
-    {name:'Japan',code:'JP',dial:'+81'},{name:'Jordan',code:'JO',dial:'+962'},{name:'Kenya',code:'KE',dial:'+254'},
-    {name:'Kuwait',code:'KW',dial:'+965'},{name:'Malaysia',code:'MY',dial:'+60'},{name:'Mexico',code:'MX',dial:'+52'},
-    {name:'Morocco',code:'MA',dial:'+212'},{name:'Nepal',code:'NP',dial:'+977'},{name:'Netherlands',code:'NL',dial:'+31'},
-    {name:'New Zealand',code:'NZ',dial:'+64'},{name:'Nigeria',code:'NG',dial:'+234'},{name:'Norway',code:'NO',dial:'+47'},
-    {name:'Pakistan',code:'PK',dial:'+92'},{name:'Peru',code:'PE',dial:'+51'},{name:'Philippines',code:'PH',dial:'+63'},
-    {name:'Poland',code:'PL',dial:'+48'},{name:'Portugal',code:'PT',dial:'+351'},{name:'Qatar',code:'QA',dial:'+974'},
-    {name:'Romania',code:'RO',dial:'+40'},{name:'Russia',code:'RU',dial:'+7'},{name:'Saudi Arabia',code:'SA',dial:'+966'},
-    {name:'Singapore',code:'SG',dial:'+65'},{name:'South Africa',code:'ZA',dial:'+27'},{name:'South Korea',code:'KR',dial:'+82'},
-    {name:'Spain',code:'ES',dial:'+34'},{name:'Sri Lanka',code:'LK',dial:'+94'},{name:'Sweden',code:'SE',dial:'+46'},
-    {name:'Switzerland',code:'CH',dial:'+41'},{name:'Taiwan',code:'TW',dial:'+886'},{name:'Tanzania',code:'TZ',dial:'+255'},
-    {name:'Thailand',code:'TH',dial:'+66'},{name:'Turkey',code:'TR',dial:'+90'},{name:'UAE',code:'AE',dial:'+971'},
-    {name:'Uganda',code:'UG',dial:'+256'},{name:'Ukraine',code:'UA',dial:'+380'},{name:'United Kingdom',code:'GB',dial:'+44'},
-    {name:'United States',code:'US',dial:'+1'},{name:'Vietnam',code:'VN',dial:'+84'},{name:'Zimbabwe',code:'ZW',dial:'+263'},
+    {name:'Afghanistan',code:'AF',dial:'+93',digits:9},  {name:'Albania',code:'AL',dial:'+355',digits:9},
+    {name:'Algeria',code:'DZ',dial:'+213',digits:9},     {name:'Argentina',code:'AR',dial:'+54',digits:10},
+    {name:'Australia',code:'AU',dial:'+61',digits:9},    {name:'Austria',code:'AT',dial:'+43',digits:10},
+    {name:'Bangladesh',code:'BD',dial:'+880',digits:10}, {name:'Belgium',code:'BE',dial:'+32',digits:9},
+    {name:'Brazil',code:'BR',dial:'+55',digits:11},      {name:'Canada',code:'CA',dial:'+1',digits:10},
+    {name:'Chile',code:'CL',dial:'+56',digits:9},        {name:'China',code:'CN',dial:'+86',digits:11},
+    {name:'Colombia',code:'CO',dial:'+57',digits:10},    {name:'Denmark',code:'DK',dial:'+45',digits:8},
+    {name:'Egypt',code:'EG',dial:'+20',digits:10},       {name:'Ethiopia',code:'ET',dial:'+251',digits:9},
+    {name:'Finland',code:'FI',dial:'+358',digits:9},     {name:'France',code:'FR',dial:'+33',digits:9},
+    {name:'Germany',code:'DE',dial:'+49',digits:10},     {name:'Ghana',code:'GH',dial:'+233',digits:9},
+    {name:'Greece',code:'GR',dial:'+30',digits:10},      {name:'Hong Kong',code:'HK',dial:'+852',digits:8},
+    {name:'Hungary',code:'HU',dial:'+36',digits:9},      {name:'India',code:'IN',dial:'+91',digits:10},
+    {name:'Indonesia',code:'ID',dial:'+62',digits:10},   {name:'Iran',code:'IR',dial:'+98',digits:10},
+    {name:'Iraq',code:'IQ',dial:'+964',digits:10},       {name:'Ireland',code:'IE',dial:'+353',digits:9},
+    {name:'Israel',code:'IL',dial:'+972',digits:9},      {name:'Italy',code:'IT',dial:'+39',digits:10},
+    {name:'Japan',code:'JP',dial:'+81',digits:10},       {name:'Jordan',code:'JO',dial:'+962',digits:9},
+    {name:'Kenya',code:'KE',dial:'+254',digits:9},       {name:'Kuwait',code:'KW',dial:'+965',digits:8},
+    {name:'Malaysia',code:'MY',dial:'+60',digits:9},     {name:'Mexico',code:'MX',dial:'+52',digits:10},
+    {name:'Morocco',code:'MA',dial:'+212',digits:9},     {name:'Nepal',code:'NP',dial:'+977',digits:10},
+    {name:'Netherlands',code:'NL',dial:'+31',digits:9},  {name:'New Zealand',code:'NZ',dial:'+64',digits:9},
+    {name:'Nigeria',code:'NG',dial:'+234',digits:10},    {name:'Norway',code:'NO',dial:'+47',digits:8},
+    {name:'Pakistan',code:'PK',dial:'+92',digits:10},    {name:'Peru',code:'PE',dial:'+51',digits:9},
+    {name:'Philippines',code:'PH',dial:'+63',digits:10}, {name:'Poland',code:'PL',dial:'+48',digits:9},
+    {name:'Portugal',code:'PT',dial:'+351',digits:9},    {name:'Qatar',code:'QA',dial:'+974',digits:8},
+    {name:'Romania',code:'RO',dial:'+40',digits:10},     {name:'Russia',code:'RU',dial:'+7',digits:10},
+    {name:'Saudi Arabia',code:'SA',dial:'+966',digits:9},{name:'Singapore',code:'SG',dial:'+65',digits:8},
+    {name:'South Africa',code:'ZA',dial:'+27',digits:9}, {name:'South Korea',code:'KR',dial:'+82',digits:10},
+    {name:'Spain',code:'ES',dial:'+34',digits:9},        {name:'Sri Lanka',code:'LK',dial:'+94',digits:9},
+    {name:'Sweden',code:'SE',dial:'+46',digits:9},       {name:'Switzerland',code:'CH',dial:'+41',digits:9},
+    {name:'Taiwan',code:'TW',dial:'+886',digits:9},      {name:'Tanzania',code:'TZ',dial:'+255',digits:9},
+    {name:'Thailand',code:'TH',dial:'+66',digits:9},     {name:'Turkey',code:'TR',dial:'+90',digits:10},
+    {name:'UAE',code:'AE',dial:'+971',digits:9},         {name:'Uganda',code:'UG',dial:'+256',digits:9},
+    {name:'Ukraine',code:'UA',dial:'+380',digits:10},    {name:'United Kingdom',code:'GB',dial:'+44',digits:10},
+    {name:'United States',code:'US',dial:'+1',digits:10},{name:'Vietnam',code:'VN',dial:'+84',digits:9},
+    {name:'Zimbabwe',code:'ZW',dial:'+263',digits:9},
   ];
 
   const CURRENCY_MAP = {
@@ -1106,14 +1187,75 @@
   const USD_PRICES = [29, 59, 99];
   const PRICE_IDS  = ['signup-price-starter','signup-price-pro','signup-price-business'];
 
-  // Populate country dropdown (dial codes)
-  const dialSel = document.getElementById('s-dialcode');
-  COUNTRIES.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.dial;
-    o.textContent = `${c.dial} ${c.name}`;
-    dialSel.appendChild(o);
+  // ── Phone picker helpers ─────────────────────────────────────────────────
+  function toFlag(code) {
+    return [...code.toUpperCase()].map(c => String.fromCodePoint(0x1F1E6 - 65 + c.charCodeAt(0))).join('');
+  }
+
+  // Build + render the dial list for a given picker prefix ('s')
+  function buildDialList(prefix, filter) {
+    const list = document.getElementById(`${prefix}-dial-list`);
+    const currentVal = document.getElementById(`${prefix}-dialcode`).value;
+    list.innerHTML = '';
+    const term = (filter || '').toLowerCase();
+    COUNTRIES.filter(c =>
+      !term || c.name.toLowerCase().includes(term) || c.dial.includes(term)
+    ).forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'dial-option' + (c.dial === currentVal && !filter ? ' selected' : '');
+      d.innerHTML = `<span class="opt-flag">${toFlag(c.code)}</span><span class="opt-name">${c.name}</span><span class="opt-code">${c.dial}</span>`;
+      d.onclick = () => selectDial(prefix, c);
+      list.appendChild(d);
+    });
+  }
+
+  function selectDial(prefix, country) {
+    document.getElementById(`${prefix}-dialcode`).value = country.dial;
+    document.getElementById(`${prefix}-dial-flag`).textContent = toFlag(country.code);
+    document.getElementById(`${prefix}-dial-code`).textContent = country.dial;
+    const phoneEl = document.getElementById(`${prefix}-phone`);
+    phoneEl.maxLength = country.digits;
+    phoneEl.placeholder = `${country.digits}-digit number`;
+    phoneEl.value = '';
+    const hint = document.getElementById(`${prefix}-phone-hint`);
+    if (hint) hint.textContent = `${country.name} · ${country.digits} digits required · We send setup updates on WhatsApp`;
+    closeDial(prefix);
+    phoneEl.focus();
+  }
+
+  function toggleDial(prefix) {
+    const dd = document.getElementById(`${prefix}-dial-dropdown`);
+    const isOpen = dd.classList.contains('open');
+    // Close any other open dropdowns
+    document.querySelectorAll('.dial-dropdown.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) {
+      buildDialList(prefix, '');
+      dd.classList.add('open');
+      document.getElementById(`${prefix}-dial-search`).value = '';
+      setTimeout(() => document.getElementById(`${prefix}-dial-search`).focus(), 50);
+    }
+  }
+
+  function closeDial(prefix) {
+    document.getElementById(`${prefix}-dial-dropdown`).classList.remove('open');
+  }
+
+  function filterDial(prefix) {
+    buildDialList(prefix, document.getElementById(`${prefix}-dial-search`).value);
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.dial-dropdown.open').forEach(dd => {
+      if (!dd.closest('.phone-wrap').contains(e.target)) dd.classList.remove('open');
+    });
   });
+
+  // Initialize signup phone picker with India default
+  (function initSignupPicker() {
+    const india = COUNTRIES.find(c => c.code === 'IN');
+    selectDial('s', india);
+  })();
 
   // Populate country dropdown (step 2)
   const countrySel = document.getElementById('s-country');
@@ -1128,9 +1270,9 @@
   (async () => {
     try {
       const geo = await fetch('https://ipapi.co/json/').then(r => r.json());
-      // Set dial code
+      // Set dial code picker
       const match = COUNTRIES.find(c => c.code === geo.country_code);
-      if (match) dialSel.value = match.dial;
+      if (match) selectDial('s', match);
       // Set country in step 2
       if (geo.country_code) countrySel.value = geo.country_code;
       // Set pricing

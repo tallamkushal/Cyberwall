@@ -106,24 +106,26 @@
     @keyframes cw-bounce { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-5px);} }
 
     #cw-greeting {
-      position: fixed; bottom: 152px; right: 24px; z-index: 9998;
-      background: white; border-radius: 16px 16px 4px 16px;
-      padding: 10px 14px; font-size: 13.5px; font-family: 'DM Sans', sans-serif;
-      color: #111827; line-height: 1.5;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
-      border: 1px solid rgba(26,71,232,0.1);
-      max-width: 220px;
-      animation: cw-greet-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+      position: fixed; z-index: 9998;
+      background: white; border-radius: 12px;
+      padding: 10px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+      color: #111827; line-height: 1.5; font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.06);
+      border: 1px solid rgba(26,71,232,0.12);
+      white-space: nowrap;
+      transform-origin: bottom center;
+      animation: cw-greet-in 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
       cursor: pointer;
     }
     #cw-greeting::after {
-      content: ''; position: absolute; bottom: -8px; right: 18px;
+      content: ''; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
       width: 0; height: 0;
-      border-left: 8px solid transparent;
-      border-right: 0px solid transparent;
-      border-top: 8px solid white;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 7px solid white;
+      filter: drop-shadow(0 2px 1px rgba(0,0,0,0.06));
     }
-    @keyframes cw-greet-in { from { opacity:0; transform:translateY(10px) scale(0.9); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes cw-greet-in { from { opacity:0; transform:scale(0.7) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
 
     .cw-suggestions {
       padding: 0 14px 12px; display: flex; flex-wrap: wrap; gap: 6px;
@@ -170,8 +172,7 @@
         bottom: 80px; right: 16px;
       }
       #cw-greeting {
-        right: 16px; bottom: 144px;
-        max-width: calc(100vw - 32px);
+        /* positionGreeting() handles exact placement on mobile too */
       }
     }
   `;
@@ -254,13 +255,16 @@
   }
 
   function positionGreeting(el) {
-    if (window.innerWidth <= 480) return;
-    const r  = btn.getBoundingClientRect();
-    const eh = el.offsetHeight || 44;
-    el.style.bottom = 'auto';
+    const r   = btn.getBoundingClientRect();
+    const ew  = el.offsetWidth  || 160;
+    const eh  = el.offsetHeight || 40;
+    // Center bubble horizontally over the button, sit just above it
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - ew / 2, window.innerWidth - ew - 8));
+    const top  = Math.max(8, r.top - eh - 12);
+    el.style.left   = left + 'px';
+    el.style.top    = top  + 'px';
     el.style.right  = 'auto';
-    el.style.top    = Math.max(8, r.top - eh - 10) + 'px';
-    el.style.left   = Math.max(8, r.left - 90 + r.width / 2) + 'px';
+    el.style.bottom = 'auto';
   }
 
   // Restore saved position on load
@@ -483,11 +487,12 @@
   // Greeting bubble on page load
   const greeting = document.createElement('div');
   greeting.id = 'cw-greeting';
-  greeting.textContent = 'Hi! I\'m Wally, your ProCyberWall AI assistant 👋';
+  greeting.textContent = 'Hey, I\'m Wally AI 👋';
   document.body.appendChild(greeting);
-  requestAnimationFrame(() => positionGreeting(greeting));
+  // Two rAF frames so the element is rendered and measurable before positioning
+  requestAnimationFrame(() => requestAnimationFrame(() => positionGreeting(greeting)));
   greeting.addEventListener('click', () => { greeting.remove(); togglePanel(); });
-  setTimeout(() => greeting.remove(), 6000);
+  setTimeout(() => greeting.remove(), 5000);
 
   // Events
   btn.addEventListener('click', () => { if (hasDragged) { hasDragged = false; return; } togglePanel(); });

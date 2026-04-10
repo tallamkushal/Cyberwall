@@ -143,6 +143,7 @@ function showPanel(name, el, pushState = true) {
   const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News'};
   if (name === 'security-score' && !_currentScanDomain) loadSecurityScore();
   // Always scroll to top when switching panels
+  window.scrollTo({ top: 0, behavior: 'instant' });
   const mainEl = document.querySelector('.main');
   if (mainEl) mainEl.scrollTop = 0;
   if (name === 'darkweb') loadDarkWebScan(false);
@@ -363,8 +364,11 @@ function _renderNewsFull() {
     'The Hacker News':'🗞️','BleepingComputer':'💻','Krebs on Security':'🔎',
     'Dark Reading':'📖','SecurityWeek':'🛡️','HackerOne':'🐛','SANS ISC':'📡'
   };
-  grid.innerHTML = filtered.map(item => `
-    <a href="${escapeAttr(item.link)}" target="_blank" rel="noopener" class="news-card">
+  grid.innerHTML = filtered.map(item => {
+    const validLink = item.link && /^https?:\/\//.test(item.link);
+    const tag = validLink ? 'a' : 'div';
+    const attrs = validLink ? `href="${item.link.replace(/"/g,'%22')}" target="_blank" rel="noopener"` : '';
+    return `<${tag} ${attrs} class="news-card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span style="font-size:11px;font-weight:700;color:${SEV_COLOR[item.severity]||'#1a47e8'};background:${SEV_BG[item.severity]||'#eef1fd'};padding:2px 8px;border-radius:5px">${SEV_LABEL[item.severity]||'Info'}</span>
         <span style="font-size:11px;color:var(--muted)">${newsTimeAgo(item.date)}</span>
@@ -372,7 +376,8 @@ function _renderNewsFull() {
       <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.45">${escapeHtmlNews(item.title)}</div>
       ${item.desc ? `<div style="font-size:12px;color:var(--muted);line-height:1.5">${escapeHtmlNews(item.desc)}</div>` : ''}
       <div style="font-size:11px;color:var(--muted-light);margin-top:auto">${SOURCE_ICONS[item.source]||'🌐'} ${escapeHtmlNews(item.source)}</div>
-    </a>`).join('');
+    </${tag}>`;
+  }).join('');
 }
 
 function _renderNewsTeaser() {
@@ -548,7 +553,7 @@ function _ssGrade(score) {
   return 'F';
 }
 
-const _SS_GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ea580c','C':'#ea580c','C-':'#ea580c','D':'#dc2626','F':'#dc2626'};
+const _SS_GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ca8a04','C':'#ca8a04','C-':'#ca8a04','D':'#dc2626','F':'#dc2626'};
 const _SS_SEV_COLORS   = {critical:'#dc2626',high:'#ea580c',medium:'#d97706',low:'#9ca3af'};
 const _SS_SEV_LABELS   = {critical:'Fix this now',high:'Fix soon',medium:'Good to fix',low:'Optional'};
 

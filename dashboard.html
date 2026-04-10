@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1a47e8"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
   <link rel="apple-touch-icon" href="/icons/icon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
@@ -324,7 +324,7 @@
     .mobile-nav {
       display: none;
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-      background: #0f0f0e; border-top: 1px solid rgba(255,255,255,0.1);
+      background: var(--surface); border-top: 1px solid var(--border);
       padding: 6px 0 env(safe-area-inset-bottom, 6px);
       justify-content: space-around;
     }
@@ -338,45 +338,110 @@
     .mobile-nav-item.active { color: #1a47e8; }
 
     @media (max-width: 768px) {
+      /* On mobile, let the page scroll naturally instead of locking inside .main */
+      body { overflow: auto; height: auto; }
       .sidebar { display: none; }
       .mobile-nav { display: flex; }
-      .main { margin-left: 0; padding-bottom: 70px; }
+      .main {
+        margin-left: 0;
+        padding-bottom: 80px;
+        height: auto;
+        overflow: visible;
+        -webkit-overflow-scrolling: touch;
+      }
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .grid-2, .grid-3-1, .grid-3-col { grid-template-columns: 1fr; }
-      .content { padding: 12px 14px; }
+      .content { padding: 16px 14px; }
 
-      /* Topbar */
-      .topbar { padding: env(safe-area-inset-top, 0px) 14px 0; height: calc(52px + env(safe-area-inset-top, 0px)); flex-wrap: nowrap; overflow: hidden; }
-      .topbar-title { font-size: 13px; }
+      /* Topbar — black status bar handles safe area, no need for env() */
+      .topbar { padding: 0 14px; height: 52px; flex-wrap: nowrap; overflow: hidden; }
+      .topbar-title { display: none; }
+      .topbar-logo-link { display: flex !important; }
+      #protection-status { display: none !important; }
       .topbar-right { gap: 6px; }
       .topbar-right .topbar-btn:not(.primary) { display: none; }
       .topbar-right .badge:not(:last-child) { display: none; }
-      .topbar-btn.primary { padding: 6px 10px; font-size: 12px; }
+      .topbar-btn.primary { display: none; }
+
+      /* Cards */
+      .card { border-radius: 14px; }
+      .card-header { padding: 14px 14px 10px; }
+      .card-title { font-size: 13px; }
+      .card-body { padding: 14px; }
 
       /* Stat cards */
       .stat-value { font-size: 22px; }
       .stat-label { font-size: 11px; }
-      .stat-card { padding: 14px; }
+      .stat-card { padding: 14px; border-radius: 14px; }
 
       /* Tables */
-      .data-table th, .data-table td { padding: 8px 8px; font-size: 11px; }
+      .data-table th, .data-table td { padding: 8px; font-size: 11px; }
       .data-table th:nth-child(3), .data-table td:nth-child(3),
       .data-table th:nth-child(4), .data-table td:nth-child(4) { display: none; }
 
       /* Misc */
-      .card-body { padding: 14px; }
       .billing-plan { flex-direction: column; gap: 6px; }
       .billing-plan-price { font-size: 22px; }
       .alert-item { padding: 10px; }
       .score-grade { font-size: 40px; }
+
+      /* Pull-to-refresh indicator */
+      .ptr-indicator {
+        display: flex; align-items: center; justify-content: center;
+        height: 0; overflow: hidden; opacity: 0;
+        transition: height 0.15s ease, opacity 0.15s ease;
+        font-size: 22px;
+      }
+      .ptr-indicator.refreshing {
+        height: 48px; opacity: 1;
+      }
     }
     @media (max-width: 480px) {
       .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
       .stat-value { font-size: 18px; }
+      #news-panel-grid { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 900px) {
       .threats-news-grid { grid-template-columns: 1fr !important; }
     }
+
+    /* ── More menu (slide-up) ─────────────────────────────── */
+    #more-menu-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 150;
+      background: rgba(0,0,0,0.45);
+    }
+    #more-menu-backdrop.open { display: block; }
+    #more-menu-sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 151;
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      padding: 0 0 env(safe-area-inset-bottom, 16px);
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.4);
+    }
+    #more-menu-sheet.open { transform: translateY(0); }
+    .more-menu-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 12px auto 6px;
+    }
+    .more-menu-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      color: var(--muted); padding: 4px 20px 10px; text-transform: uppercase;
+    }
+    .more-menu-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 2px; padding: 0 12px 16px;
+    }
+    .more-menu-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 5px; padding: 14px 6px; border-radius: 14px;
+      cursor: pointer; font-size: 11px; font-weight: 600;
+      color: var(--text); background: transparent;
+      transition: background 0.15s;
+      border: none; text-align: center; line-height: 1.3;
+    }
+    .more-menu-item:active { background: var(--border); }
+    .more-menu-item span:first-child { font-size: 24px; }
   </style>
 </head>
 <body>
@@ -471,11 +536,18 @@
 </nav>
 
 <!-- MAIN CONTENT -->
-<div class="main">
+<div class="main" id="main-scroll">
+
+  <!-- PULL-TO-REFRESH INDICATOR (mobile only) -->
+  <div class="ptr-indicator" id="ptr-indicator">🔄</div>
 
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-left">
+      <a href="index.html" class="topbar-logo-link" style="display:none;align-items:center;gap:7px;text-decoration:none;flex-shrink:0">
+        <div style="width:28px;height:28px;border-radius:7px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:14px">🛡</div>
+        <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:-0.3px">ProCyberWall</span>
+      </a>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
       <span class="badge badge-green" id="protection-status">
         <span class="live-dot"></span> Protected
@@ -503,7 +575,7 @@
           <div class="onboarding-banner-icon">🛡️</div>
           <div>
             <div class="onboarding-banner-title">Complete your setup to activate protection</div>
-            <div class="onboarding-banner-sub">Your website isn't protected yet. Connect your domain to enable the WAF, SSL monitoring, and alerts.</div>
+            <div class="onboarding-banner-sub">Your website isn't protected yet. Connect your domain to enable the firewall, SSL monitoring, and alerts.</div>
           </div>
         </div>
         <a href="onboarding.html" class="btn btn-primary" style="flex-shrink:0;font-size:13px">Complete Setup →</a>
@@ -578,8 +650,7 @@
           </div>
           <div class="card-body">
             <div class="score-wrap">
-              <div class="score-grade" id="score-grade" style="color:var(--green)">—</div>
-              <div class="score-sub">Everything ProCyberWall has switched on for you</div>
+              <div class="score-sub" style="margin-bottom:10px">Everything ProCyberWall has switched on for you</div>
               <div class="score-row"><span class="score-row-label">🛡 Attack Blocker</span><span id="score-waf" class="score-row-val">—</span></div>
               <div class="score-row"><span class="score-row-label">🔐 Safe Connection</span><span id="score-ssl" class="score-row-val">—</span></div>
               <div class="score-row"><span class="score-row-label">✉ Email Protection</span><span id="score-spf" class="score-row-val">—</span></div>
@@ -604,7 +675,7 @@
 
     <!-- ===== THREATS ===== -->
     <div class="panel" id="panel-threats">
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stats-grid">
         <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value" id="threats-today">—</div><div class="stat-label">Threats Today</div></div>
         <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value" id="threats-month">—</div><div class="stat-label">Blocked This Month</div></div>
         <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fef9c3">🌍</div></div><div class="stat-value" id="threats-countries">—</div><div class="stat-label">Countries of Origin</div></div>
@@ -680,7 +751,7 @@
       </div>
 
       <!-- 4 Health Stat Cards -->
-      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
+      <div class="stats-grid" style="margin-bottom:18px">
 
         <div class="stat-card">
           <div class="stat-card-top">
@@ -883,7 +954,7 @@
 
     <!-- ===== AI ASSISTANT ===== -->
     <div class="panel" id="panel-ai">
-      <div class="card" style="max-width:720px;margin:0 auto">
+      <div class="card">
         <div class="card-body">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
             <div style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px">🤖</div>
@@ -907,7 +978,7 @@
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
             <button class="copy-btn" onclick="askSuggestion('Am I fully protected?')">Am I protected?</button>
             <button class="copy-btn" onclick="askSuggestion('What is SQL injection?')">What is SQL injection?</button>
-            <button class="copy-btn" onclick="askSuggestion('What does a WAF do?')">What does a WAF do?</button>
+            <button class="copy-btn" onclick="askSuggestion('What does a firewall do?')">What does a firewall do?</button>
             <button class="copy-btn" onclick="askSuggestion('How do I improve my security score?')">Improve my score</button>
           </div>
         </div>
@@ -934,10 +1005,10 @@
           <div id="ss-grade-circle" style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:white;flex-shrink:0">—</div>
 
           <!-- Headline + bar -->
-          <div style="flex:1;min-width:200px">
+          <div style="flex:1;min-width:0">
             <div id="ss-hero-headline" style="font-size:18px;font-weight:800;margin-bottom:4px;line-height:1.2;color:white">Checking your website…</div>
             <div id="ss-domain-label" style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:8px"></div>
-            <div style="height:8px;background:rgba(0,0,0,0.15);border-radius:4px;overflow:hidden;max-width:320px">
+            <div style="height:8px;background:rgba(0,0,0,0.15);border-radius:4px;overflow:hidden">
               <div id="ss-score-bar" style="height:100%;border-radius:4px;width:0%;background:rgba(255,255,255,0.85);transition:width 1s ease"></div>
             </div>
             <div id="ss-score-line" style="font-size:12px;margin-top:6px;color:rgba(255,255,255,0.75)"></div>
@@ -1065,7 +1136,7 @@
       </div>
 
       <!-- News grid -->
-      <div id="news-panel-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">
+      <div id="news-panel-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
         <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:13px">Loading latest cybersecurity news...</div>
       </div>
 
@@ -1082,15 +1153,15 @@
         </div>
         <div class="card-body">
           <div id="dw-summary" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px">
-            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
               <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:var(--accent)" id="dw-count-emails">—</div>
               <div style="font-size:12px;color:var(--muted);margin-top:4px">Emails Exposed</div>
             </div>
-            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
               <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:#ea580c" id="dw-count-breaches">—</div>
               <div style="font-size:12px;color:var(--muted);margin-top:4px">Total Breach Events</div>
             </div>
-            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
               <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:var(--green)" id="dw-status-text">—</div>
               <div style="font-size:12px;color:var(--muted);margin-top:4px">Status</div>
             </div>
@@ -1160,13 +1231,48 @@
   <a class="mobile-nav-item" onclick="showPanel('alerts', this)" data-panel="alerts" data-requires="pro">
     <span>🔔</span><span>Alerts</span>
   </a>
-  <a class="mobile-nav-item" onclick="showPanel('billing', this)" data-panel="billing">
-    <span>💳</span><span>Billing</span>
-  </a>
-  <a class="mobile-nav-item" onclick="handleLogout()">
-    <span>🚪</span><span>Logout</span>
+  <a class="mobile-nav-item" onclick="openMoreMenu()">
+    <span>⋯</span><span>More</span>
   </a>
 </nav>
+
+<!-- MORE MENU BACKDROP + SHEET -->
+<div id="more-menu-backdrop" onclick="closeMoreMenu()"></div>
+<div id="more-menu-sheet">
+  <div class="more-menu-handle"></div>
+  <div class="more-menu-title">More</div>
+  <div class="more-menu-grid">
+    <button class="more-menu-item" onclick="moreNav('security-score')">
+      <span>🎯</span><span>Security<br>Score</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('ssl')">
+      <span>🛡️</span><span>Protection<br>Status</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('cyber-news')">
+      <span>📰</span><span>Cyber<br>News</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('darkweb')">
+      <span>🕵️</span><span>Dark<br>Web</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('reports')" data-requires="pro">
+      <span>📄</span><span>Reports</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('settings')">
+      <span>⚙️</span><span>Settings</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('support')">
+      <span>💬</span><span>Support</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('billing')">
+      <span>💳</span><span>Billing</span>
+    </button>
+  </div>
+  <div style="padding:0 16px 8px;display:flex;gap:10px">
+    <button class="more-menu-item" style="flex:1;flex-direction:row;gap:8px;justify-content:center;background:rgba(234,88,88,0.1);color:#ef4444" onclick="closeMoreMenu();handleLogout()">
+      <span style="font-size:18px">🚪</span><span style="font-size:13px">Log out</span>
+    </button>
+  </div>
+</div>
 
 <!-- UPGRADE MODAL -->
 <div id="modal-upgrade" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center">
@@ -1284,6 +1390,29 @@
     sendAiMessage();
   }
 
+  // ── More menu (mobile slide-up) ───────────────────────────────────────────
+  function openMoreMenu() {
+    document.getElementById('more-menu-backdrop').classList.add('open');
+    document.getElementById('more-menu-sheet').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMoreMenu() {
+    document.getElementById('more-menu-backdrop').classList.remove('open');
+    document.getElementById('more-menu-sheet').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function moreNav(panel) {
+    closeMoreMenu();
+    // Find the mobile nav item that matches, or pass null to use sidebar active logic
+    const sidebarItem = document.querySelector(`.sidebar-item[onclick*="'${panel}'"]`);
+    showPanel(panel, sidebarItem);
+    // Update mobile nav active state — clear active, none match "More" sub-items
+    document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
+    // Highlight "More" button so user knows they're in a sub-section
+    const moreBtn = document.querySelector('.mobile-nav-item[onclick="openMoreMenu()"]');
+    if (moreBtn) moreBtn.classList.add('active');
+  }
+
   // ── Set report title on load ──────────────────────────────────────────────
   (function() {
     const now = new Date();
@@ -1364,7 +1493,7 @@
         ['Threats Blocked (30 days)', threatsBlocked],
         ['Security Score', securityScore],
         ['Uptime', uptime],
-        ['WAF Status', wafStatus],
+        ['Firewall Status', wafStatus],
         ['HTTPS Enforced', httpsEnforced],
         ['Bot Shield', botShield],
       ];
@@ -1436,7 +1565,7 @@
       doc.setFontSize(9);
       doc.setTextColor(130, 130, 130);
       doc.setFont('helvetica', 'normal');
-      doc.text('ProCyberWall — Managed WAF Service  |  procyberwall.com', margin, 284);
+      doc.text('ProCyberWall — Managed Firewall Service  |  procyberwall.com', margin, 284);
       doc.text(`Confidential report for ${clientName}`, W - margin - 60, 284);
 
       // Save
@@ -1529,7 +1658,7 @@
   <div style="background:white;border-radius:20px;padding:32px;max-width:440px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.25)">
     <div style="font-size:28px;margin-bottom:12px;text-align:center">⚠️</div>
     <div style="font-size:18px;font-weight:800;color:#111827;text-align:center;margin-bottom:8px">Cancel your subscription?</div>
-    <div style="font-size:13px;color:#6b7280;text-align:center;margin-bottom:20px;line-height:1.6">Your WAF protection, SSL monitoring, and all security features will stop at the end of your billing period. Your website will be exposed.</div>
+    <div style="font-size:13px;color:#6b7280;text-align:center;margin-bottom:20px;line-height:1.6">Your firewall protection, SSL monitoring, and all security features will stop at the end of your billing period. Your website will be exposed.</div>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-bottom:20px">
       <div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:8px">To confirm, type <strong>CANCEL</strong> below:</div>
       <input id="cancel-confirm-input" type="text" placeholder="Type CANCEL here" style="width:100%;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box" oninput="checkCancelWord()" />
@@ -1675,5 +1804,90 @@
     sessionStorage.setItem('install-banner-dismissed', '1');
   }
 </script>
+
+<!-- ── PULL-TO-REFRESH ────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  const indicator = document.getElementById('ptr-indicator');
+  if (!indicator) return;
+
+  const THRESHOLD  = 65;
+  const MAX_PULL   = 80;
+  let startY       = 0;
+  let pulling      = false;
+  let refreshing   = false;
+
+  // Use document for touch events since body scrolls on mobile
+  document.addEventListener('touchstart', function (e) {
+    if (window.scrollY === 0 && !refreshing) {
+      startY  = e.touches[0].pageY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (!pulling || refreshing) return;
+    const dist = e.touches[0].pageY - startY;
+    if (dist <= 0) { pulling = false; return; }
+
+    const h       = Math.min(dist * 0.5, MAX_PULL);
+    const opacity = Math.min(dist / THRESHOLD, 1);
+    const rotation = Math.round((dist / THRESHOLD) * 180);
+
+    indicator.style.height  = h + 'px';
+    indicator.style.opacity = opacity;
+    indicator.style.transform = `rotate(${rotation}deg)`;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    if (!pulling || refreshing) return;
+    pulling = false;
+
+    const dist = e.changedTouches[0].pageY - startY;
+    if (dist >= THRESHOLD) {
+      // Trigger refresh
+      refreshing = true;
+      indicator.classList.add('refreshing');
+      indicator.style.cssText = ''; // let CSS class take over
+      indicator.textContent   = '🔄';
+      indicator.style.animation = 'ptr-spin 0.7s linear infinite';
+
+      // Reload current panel data
+      const activePanel = document.querySelector('.panel.active');
+      const panelId     = activePanel ? activePanel.id.replace('panel-', '') : 'overview';
+
+      setTimeout(function () {
+        const profile = window._currentProfile;
+        if (profile) {
+          loadCloudflareForProfile(profile);
+          if (panelId === 'security-score') loadSecurityScore();
+          if (panelId === 'threats')        loadThreats();
+          if (panelId === 'cybernews')      loadCyberNews();
+          if (panelId === 'darkweb')        loadDarkWebScan(false);
+        }
+        // Reset indicator
+        indicator.classList.remove('refreshing');
+        indicator.style.animation = '';
+        indicator.style.height    = '0';
+        indicator.style.opacity   = '0';
+        refreshing = false;
+      }, 800);
+    } else {
+      // Not pulled far enough — reset
+      indicator.style.height    = '0';
+      indicator.style.opacity   = '0';
+      indicator.style.transform = '';
+    }
+    startY = 0;
+  }, { passive: true });
+})();
+</script>
+
+<style>
+  @keyframes ptr-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+</style>
 </body>
 </html>

@@ -236,7 +236,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
   });
 
   // Three feature pills at bottom
-  const features = ['🛡 WAF Protection', '🔔 WhatsApp Alerts', '🔐 Free SSL', '📊 Monthly Reports', '⚡ Faster Website'];
+  const features = ['🛡 Firewall Protection', '🔔 WhatsApp Alerts', '🔐 Free SSL', '📊 Monthly Reports', '⚡ Faster Website'];
   features.forEach((f, i) => {
     const fw = 2.1;
     const gap = 0.12;
@@ -301,7 +301,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
 {
   const s = newSlide();
   heading(s, 'What is CyberWall?', 0.3, 21);
-  sub(s, 'A fully managed Web Application Firewall (WAF) service — we sit between the internet and your website, blocking threats before they reach you.', 0.97);
+  sub(s, 'A fully managed firewall service — we sit between the internet and your website, blocking threats before they reach you.', 0.97);
 
   // Architecture flow
   const boxes = [
@@ -320,7 +320,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
 
   // 6 feature cards
   const features = [
-    ['🔥', 'WAF Protection',      'Blocks SQL injection, XSS, brute force, path traversal and 100+ attack types — automatically, 24/7.'],
+    ['🔥', 'Firewall Protection',      'Blocks SQL injection, XSS, brute force, path traversal and 100+ attack types — automatically, 24/7.'],
     ['🔔', 'WhatsApp Alerts',     'Instant message on your phone the moment a threat is detected. No checking dashboards needed.'],
     ['🔐', 'Free SSL / HTTPS',    'Your website gets a free SSL certificate and all traffic is forced to HTTPS automatically.'],
     ['📊', 'Monthly PDF Reports', 'Professional security report in your inbox every month. Perfect to show stakeholders.'],
@@ -380,7 +380,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
   s.addText('Security Score', { x: 8.87, y: 2.28, w: 3.8, h: 0.28, fontSize: 9, bold: true, color: WHITE, fontFace: 'Segoe UI' });
   s.addText('A+', { x: 8.87, y: 2.62, w: 4.0, h: 0.75, fontSize: 30, bold: true, color: GREEN, fontFace: 'Segoe UI', align: 'center' });
   s.addText('Excellent Protection', { x: 8.87, y: 3.38, w: 4.0, h: 0.22, fontSize: 8, color: MUTED, fontFace: 'Segoe UI', align: 'center' });
-  const scoreRows = [['🛡 WAF Rules', 'Active', GREEN], ['🔐 SSL', 'Valid', GREEN], ['✉ SPF/DKIM', 'Pass', GREEN], ['🔒 HTTPS', 'Enforced', GREEN]];
+  const scoreRows = [['🛡 Firewall Rules', 'Active', GREEN], ['🔐 SSL', 'Valid', GREEN], ['✉ SPF/DKIM', 'Pass', GREEN], ['🔒 HTTPS', 'Enforced', GREEN]];
   scoreRows.forEach((r, i) => {
     s.addShape(prs.ShapeType.line, { x: 8.87, y: 3.66 + i * 0.35, w: 3.9, h: 0, line: { color: BORDER, width: 0.4 } });
     s.addText(r[0], { x: 8.92, y: 3.72 + i * 0.35, w: 2.3, h: 0.22, fontSize: 8, color: MUTED, fontFace: 'Segoe UI' });
@@ -668,7 +668,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
 
   // Bot response
   s.addShape(prs.ShapeType.roundRect, { x: 2.55, y: 3.43, w: 7.5, h: 0.8, fill: { color: WHITE }, line: { color: BORDER, width: 0 }, rectRadius: 0.08 });
-  s.addText("Yes! ✅ Your site is fully protected. WAF is active, SSL is valid (289 days left), and we've blocked 28 threats today — including 1 DDoS attempt and 4 SQL injection attacks. Your security score is A+.", { x: 2.65, y: 3.49, w: 7.3, h: 0.68, fontSize: 8, color: DARK, fontFace: 'Segoe UI' });
+  s.addText("Yes! ✅ Your site is fully protected. Firewall is active, SSL is valid (289 days left), and we've blocked 28 threats today — including 1 DDoS attempt and 4 SQL injection attacks. Your security score is A+.", { x: 2.65, y: 3.49, w: 7.3, h: 0.68, fontSize: 8, color: DARK, fontFace: 'Segoe UI' });
 
   // User message 2
   s.addShape(prs.ShapeType.roundRect, { x: 9.6, y: 4.38, w: 3.15, h: 0.38, fill: { color: ACCENT }, line: { color: ACCENT, width: 0 }, rectRadius: 0.08 });
@@ -685,7 +685,7 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
   s.addText('Send →', { x: 11.35, y: 5.78, w: 1.28, h: 0.26, fontSize: 8.5, bold: true, color: DARK, fontFace: 'Segoe UI', align: 'center' });
 
   // Suggestion chips
-  const chips = ['Am I protected?', 'What is SQL injection?', 'What does a WAF do?', 'Improve my score'];
+  const chips = ['Am I protected?', 'What is SQL injection?', 'What does a firewall do?', 'Improve my score'];
   chips.forEach((c, i) => {
     const cw = 2.35;
     s.addShape(prs.ShapeType.roundRect, { x: 2.4 + i * (cw + 0.08), y: 6.18, w: cw, h: 0.3, fill: { color: SURF }, line: { color: BORDER, width: 1 }, rectRadius: 0.08 });
@@ -704,15 +704,15 @@ function threatRow(s, x, y, type, ip, country, target, time, severity, even) {
   const plans = [
     {
       name: 'Starter', price: '₹2,499', gst: '+ 18% GST', color: '4A90E2',
-      features: ['1 Website', 'WAF Protection', 'Free SSL / HTTPS', 'WhatsApp Alerts', 'Monthly PDF Report', 'AI Assistant', 'Email Support'],
+      features: ['1 Website', 'Firewall Protection', 'Free SSL / HTTPS', 'WhatsApp Alerts', 'Monthly PDF Report', 'AI Assistant', 'Email Support'],
     },
     {
       name: 'Pro', price: '₹4,999', gst: '+ 18% GST', color: ACCENT, popular: true,
-      features: ['3 Websites', 'WAF Protection', 'Free SSL / HTTPS', 'WhatsApp Alerts', 'Weekly Reports', 'AI Assistant', 'DDoS Mitigation', 'Priority Support'],
+      features: ['3 Websites', 'Firewall Protection', 'Free SSL / HTTPS', 'WhatsApp Alerts', 'Weekly Reports', 'AI Assistant', 'DDoS Mitigation', 'Priority Support'],
     },
     {
       name: 'Business', price: '₹8,499', gst: '+ 18% GST', color: 'B57BFF',
-      features: ['10 Websites', 'Advanced WAF Rules', 'Free SSL / HTTPS', 'Real-Time Alerts', 'Custom Reports', 'AI Assistant', 'Bot Management', 'Dedicated Manager'],
+      features: ['10 Websites', 'Advanced Firewall Rules', 'Free SSL / HTTPS', 'Real-Time Alerts', 'Custom Reports', 'AI Assistant', 'Bot Management', 'Dedicated Manager'],
     },
   ];
 

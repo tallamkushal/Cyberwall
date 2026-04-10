@@ -398,8 +398,8 @@ async function runSecurityScan(domainInput) {
   else if (httpResult.success) issues.push({ severity: 'medium', label: 'No HTTP → HTTPS redirect configured', detail: 'Customers who type your address without "https://" reach an unencrypted version of your site. This is a simple server configuration fix that ProCyberWall can set up for you.' });
   else unknownChecks.push('HTTP to HTTPS redirect');
 
-  if (cdnDetected) passedChecks.push({ label: `Protected by ${cdnProvider} firewall`, icon: '🛡️', desc: `<strong>WAF / CDN (Web Application Firewall / Content Delivery Network) via ${cdnProvider}</strong> — Your website traffic passes through ${cdnProvider}'s global network, which filters out hackers, bots, and DDoS attacks before they ever reach your server.` });
-  else issues.push({ severity: 'high', label: 'No WAF or CDN detected — no firewall protection', detail: 'Your website server is directly exposed to the internet with no firewall. Hackers, bots, and DDoS attacks hit your server directly. ProCyberWall adds a WAF (Web Application Firewall) to block these for you.' });
+  if (cdnDetected) passedChecks.push({ label: `Protected by ${cdnProvider} firewall`, icon: '🛡️', desc: `<strong>Firewall / CDN via ${cdnProvider}</strong> — Your website traffic passes through ${cdnProvider}'s global network, which filters out hackers, bots, and DDoS attacks before they ever reach your server.` });
+  else issues.push({ severity: 'high', label: 'No firewall detected — no firewall protection', detail: 'Your website server is directly exposed to the internet with no firewall. Hackers, bots, and DDoS attacks hit your server directly. ProCyberWall adds a firewall to block these for you.' });
 
   if (!serverLeaksVersion) passedChecks.push({ label: 'Server software details are hidden', icon: '👁️', desc: '<strong>Server header / version disclosure</strong> — Your website does not reveal what server software it runs (e.g. Apache 2.4, Nginx 1.18). Hiding this makes it harder for hackers to look up known vulnerabilities specific to your software version.' });
   else issues.push({ severity: 'low', label: `Server version exposed in HTTP headers (${serverHdr})`, detail: `Your server is revealing its software and version in the HTTP "Server" header. Hackers can look up known CVEs (security vulnerabilities) for exactly this version and exploit them.` });
@@ -415,7 +415,7 @@ async function runSecurityScan(domainInput) {
       https:       { score: httpsScore,        max: 25, label: 'Safe connection for customers',       about: '<strong>HTTPS / SSL / TLS</strong> — Checks whether your website encrypts data between your customers and your server. If this score is low, customer data like passwords and phone numbers can be stolen in transit.' },
       headers:     { score: headersScore,      max: 35, label: 'Protection from common attacks',      about: '<strong>HTTP Security Headers</strong> (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) — The biggest part of your score. These are instructions your server sends to browsers to block the most common attack types — XSS, Clickjacking, MIME sniffing, and more.' },
       redirects:   { score: redirectScore,     max: 15, label: 'All visitors reach the safe version', about: '<strong>HTTP → HTTPS redirect / HSTS preload</strong> — Checks that every visitor always lands on the encrypted HTTPS version of your site. A low score means some customers reach an unencrypted HTTP page without knowing.' },
-      protection:  { score: protectionScore,   max: 15, label: 'Firewall & hidden server details',    about: '<strong>WAF (Web Application Firewall) / CDN / Server header disclosure</strong> — Checks whether a firewall is blocking attacks before they hit your server, and whether your server software version is hidden. Exposed server details help hackers find and use known CVEs (vulnerabilities).' },
+      protection:  { score: protectionScore,   max: 15, label: 'Firewall & hidden server details',    about: '<strong>Firewall / CDN / Server header disclosure</strong> — Checks whether a firewall is blocking attacks before they hit your server, and whether your server software version is hidden. Exposed server details help hackers find and use known CVEs (vulnerabilities).' },
       reliability: { score: reliabilityScore,  max: 10, label: 'Website is up and fast',              about: '<strong>Uptime / Response time</strong> — Checks whether your website is online and responding quickly. A slow or unreachable site drives customers away and hurts your business reputation and search rankings.' },
     },
     issues, passedChecks, unknownChecks, headersFound, headersMissing,
@@ -449,7 +449,7 @@ async function enhanceScanWithCloudflare(scan) {
     if (httpsEnforced)          { managedBonus += 3; managedChecks.push({ label: 'HTTPS enforced via Cloudflare', icon: '🔒' }); }
     if (sslMode === 'strict')   { managedBonus += 3; managedChecks.push({ label: 'SSL mode: Full Strict', icon: '🔐' }); }
     else if (sslMode === 'full') { managedBonus += 2; managedChecks.push({ label: 'SSL mode: Full', icon: '🔐' }); }
-    if (wafActive)               { managedBonus += 8; managedChecks.push({ label: 'OWASP WAF rules active', icon: '⚔️' }); }
+    if (wafActive)               { managedBonus += 8; managedChecks.push({ label: 'OWASP firewall rules active', icon: '⚔️' }); }
 
     const enhancedScore = Math.min(100, scan.numericScore + managedBonus);
     return { ...scan, managed: true, numericScore: enhancedScore, grade: getSecurityGrade(enhancedScore), managedBonus, managedChecks };
@@ -588,7 +588,7 @@ Rules:
 You help with:
 - Managing clients (onboarding, offboarding, plan changes)
 - Revenue tracking, MRR analysis, and billing follow-ups
-- Operational tasks like WAF setup, DNS configuration, SSL monitoring
+- Operational tasks like firewall setup, DNS configuration, SSL monitoring
 - Drafting WhatsApp or email messages to clients
 - Security explanations for client-facing communication
 
@@ -648,7 +648,7 @@ Rules:
         const { messages } = JSON.parse(body);
 
         const systemPrompt = `You are Wally, the friendly AI assistant on the ProCyberWall website.
-ProCyberWall is a managed WAF (Web Application Firewall) service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the ProCyberWall team.
+ProCyberWall is a managed firewall service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the ProCyberWall team.
 
 What ProCyberWall does:
 - Protects any website from SQL injection, XSS, DDoS, bots, brute force attacks
@@ -660,9 +660,9 @@ What ProCyberWall does:
 - Setup completed within 24 hours
 
 Pricing (USD):
-- Starter: $29/month — 1 website, WAF, SSL monitoring, monthly report, WhatsApp support
+- Starter: $29/month — 1 website, firewall, SSL monitoring, monthly report, WhatsApp support
 - Pro: $59/month — everything in Starter + real-time dashboard, instant WhatsApp alerts, email security, priority support, weekly summaries
-- Business: $99/month — up to 5 websites, everything in Pro + dark web monitoring, DMARC config, custom WAF rules, dedicated account manager
+- Business: $99/month — up to 5 websites, everything in Pro + dark web monitoring, DMARC config, custom firewall rules, dedicated account manager
 - All plans: 7-day free trial, no credit card required
 
 Pricing (INR, for Indian customers — inclusive of 18% GST):
@@ -674,7 +674,7 @@ Pricing (INR, for Indian customers — inclusive of 18% GST):
 
 How it works:
 1. Sign up and share your domain
-2. ProCyberWall team configures your Cloudflare WAF within 24 hours
+2. ProCyberWall team configures your firewall within 24 hours
 3. You get protected 24/7 — WhatsApp alerts when anything is blocked
 4. Monthly report every month in plain English
 
@@ -1248,32 +1248,44 @@ Rules:
     return;
   }
 
-  // ── AUTH NEWS: Cybersecurity RSS feed (cached 30 min) ────────────────────
+  // ── AUTH NEWS: Global cybersecurity RSS feeds (cached daily) ────────────
   if (req.method === 'GET' && req.url === '/api/auth-news') {
     try {
-      const now = Date.now();
-      if (!global._newsCache || now - global._newsCacheTime > 30 * 60 * 1000) {
+      // Cache key = today's date string — resets automatically at midnight
+      const todayKey = new Date().toISOString().slice(0, 10);
+      if (!global._newsCache || global._newsCacheDay !== todayKey) {
         const feeds = [
-          'https://feeds.feedburner.com/TheHackersNews',
-          'https://www.bleepingcomputer.com/feed/'
+          { url: 'https://feeds.feedburner.com/TheHackersNews',         source: 'The Hacker News' },
+          { url: 'https://www.bleepingcomputer.com/feed/',               source: 'Bleeping Computer' },
+          { url: 'https://krebsonsecurity.com/feed/',                    source: 'Krebs on Security' },
+          { url: 'https://www.darkreading.com/rss.xml',                  source: 'Dark Reading' },
+          { url: 'https://www.securityweek.com/feed/',                   source: 'SecurityWeek' },
+          { url: 'https://isc.sans.edu/rssfeed_full.xml',                source: 'SANS ISC' },
+          { url: 'https://feeds.feedburner.com/Securityweek',            source: 'SecurityWeek' },
+          { url: 'https://cyberscoop.com/feed/',                         source: 'CyberScoop' },
         ];
-        const results = await Promise.allSettled(feeds.map(url => new Promise((resolve, reject) => {
-          const u = new URL(url);
-          const opts = { hostname: u.hostname, path: u.pathname + u.search, headers: { 'User-Agent': 'Mozilla/5.0' } };
-          const r = https.get(opts, resp => {
-            let raw = '';
-            resp.on('data', c => raw += c);
-            resp.on('end', () => resolve(raw));
-          });
-          r.on('error', reject);
-          r.setTimeout(8000, () => { r.destroy(); reject(new Error('timeout')); });
-        })));
 
-        const items = [];
-        results.forEach((r, fi) => {
-          if (r.status !== 'fulfilled') return;
-          const xml = r.value;
-          const source = fi === 0 ? 'The Hacker News' : 'Bleeping Computer';
+        function fetchFeed(url) {
+          return new Promise((resolve, reject) => {
+            const u = new URL(url);
+            const opts = { hostname: u.hostname, path: u.pathname + u.search, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProCyberWall/1.0)' } };
+            const r = https.get(opts, resp => {
+              // Follow one redirect
+              if (resp.statusCode === 301 || resp.statusCode === 302) {
+                const loc = resp.headers.location;
+                if (loc) return fetchFeed(loc).then(resolve).catch(reject);
+              }
+              let raw = '';
+              resp.on('data', c => raw += c);
+              resp.on('end', () => resolve(raw));
+            });
+            r.on('error', reject);
+            r.setTimeout(8000, () => { r.destroy(); reject(new Error('timeout')); });
+          });
+        }
+
+        function parseItems(xml, source) {
+          const out = [];
           const itemRegex = /<item>([\s\S]*?)<\/item>/g;
           let m;
           while ((m = itemRegex.exec(xml)) !== null) {
@@ -1282,21 +1294,39 @@ Rules:
             const link  = (/<link>(.*?)<\/link>/s.exec(block) || [])[1] || '';
             const pub   = (/<pubDate>(.*?)<\/pubDate>/s.exec(block) || [])[1] || '';
             const desc  = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/s.exec(block) || /<description>([\s\S]*?)<\/description>/s.exec(block) || [])[1] || '';
-            if (title.trim()) items.push({
-              title: title.trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"'),
+            const clean = s => s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&#\d+;/g,'');
+            const t = clean(title.trim());
+            if (t) out.push({
+              title: t,
               link:  link.trim(),
               pub:   pub.trim(),
-              desc:  desc.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").trim().slice(0, 140),
+              desc:  clean(desc.replace(/<[^>]+>/g,'')).trim().slice(0, 150),
               source,
               ts:    new Date(pub).getTime() || 0
             });
           }
+          return out;
+        }
+
+        const results = await Promise.allSettled(feeds.map(f => fetchFeed(f.url).then(xml => parseItems(xml, f.source))));
+
+        const items = [];
+        results.forEach(r => { if (r.status === 'fulfilled') items.push(...r.value); });
+
+        // Sort by newest, deduplicate by title prefix, keep top 40
+        items.sort((a, b) => b.ts - a.ts);
+        const seen = new Set();
+        const deduped = items.filter(i => {
+          const key = i.title.slice(0, 60).toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
 
-        items.sort((a, b) => b.ts - a.ts);
-        global._newsCache = items.slice(0, 20);
-        global._newsCacheTime = now;
+        global._newsCache    = deduped.slice(0, 40);
+        global._newsCacheDay = todayKey;
       }
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ items: global._newsCache || [] }));
     } catch (err) {
