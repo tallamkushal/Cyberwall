@@ -799,7 +799,7 @@
     const typingEl = appendAdminTyping();
 
     try {
-      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com'}/api/admin-ai-chat`, {
+      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/admin-ai-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: adminAiMessages })

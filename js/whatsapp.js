@@ -7,7 +7,7 @@
 
 var SERVER = window.location.hostname === 'localhost'
   ? 'http://localhost:3001'
-  : 'https://cyberwall.onrender.com';
+  : '';
 
 // ---- SEND WHATSAPP MESSAGE ----
 async function sendWhatsApp(toPhone, message) {

@@ -20,7 +20,7 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     if (!userId) throw new Error('User creation failed. Please try again.');
 
     // Create profile via server (bypasses RLS using service key)
-    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
     const profileRes = await fetch(`${SERVER}/api/create-profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

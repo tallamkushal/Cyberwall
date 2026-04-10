@@ -705,7 +705,7 @@
     if (!session) { window.location.href = 'auth.html'; return; }
     const profile = await getCurrentProfile();
     if (!profile) {
-      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
       const user = session.user;
       await fetch(`${SERVER}/api/create-profile`, {
         method: 'POST',
@@ -807,7 +807,7 @@
 
     // Add domain to Cloudflare and get real nameservers
     try {
-      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
       const res  = await fetch(`${SERVER}/api/cf/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -890,7 +890,7 @@
     const typingEl = aiAddTyping();
 
     try {
-      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com'}/api/ai-onboard`, {
+      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/ai-onboard`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

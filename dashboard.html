@@ -1122,7 +1122,7 @@
 
     try {
       const profile = await getCurrentProfile();
-      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com'}/api/ai-chat`, {
+      const res = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/ai-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

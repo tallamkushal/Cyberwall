@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 
-var SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+var SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
 var _clientsById = {}; // populated after loadAllClients
 
 async function getAuthHeaders() {

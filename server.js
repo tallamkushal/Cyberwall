@@ -456,7 +456,7 @@ async function enhanceScanWithCloudflare(scan) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const allowedOrigins = ['https://cyberwall.onrender.com', 'http://localhost:3001'];
+  const allowedOrigins = ['https://cyberwall.onrender.com', 'https://procyberwall.com', 'https://www.procyberwall.com', 'http://localhost:3001'];
   const origin = req.headers['origin'] || '';
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);

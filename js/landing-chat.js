@@ -1,5 +1,5 @@
 (function () {
-  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
   let messages = [];
   let isOpen = false;
   let isTyping = false;

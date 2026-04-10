@@ -10,7 +10,7 @@ async function loadDashboard() {
     const { data, error } = await supabaseClient.from('profiles').select('id').eq('id', session.user.id).single();
     if (!data && error?.code === 'PGRST116') {
       // No profile at all — create a minimal one so the user isn't stuck in a loop
-      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
       const u = session.user;
       const res = await fetch(`${SERVER}/api/create-profile`, {
         method: 'POST',
@@ -299,7 +299,7 @@ async function loadCyberNews() {
   const list = document.getElementById('cyber-news-list');
   if (!list) return;
   try {
-    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
     const res = await fetch(`${SERVER}/api/cyber-news`);
     const items = await res.json();
     if (!Array.isArray(items) || items.length === 0) {
@@ -401,7 +401,7 @@ function showUpgradePrompt(requiredPlan) {
 }
 
 // ---- SUPPORT TICKETS ----
-const _SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+const _SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
 
 async function _getAuthHeaders() {
   const { data: { session } } = await supabaseClient.auth.getSession();

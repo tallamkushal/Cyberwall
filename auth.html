@@ -368,7 +368,7 @@
 <script>
 // ── AUTH PAGE SECURITY SCANNER ────────────────────────────────────────────────
 (function() {
-  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
   const GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b'};
   const SEV_COLORS   = {critical:'#ef4444',high:'#f97316',medium:'#fbbf24',low:'#9ca3af'};
 
@@ -922,7 +922,7 @@
     }
   }
 
-  const _OTP_SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://cyberwall.onrender.com';
+  const _OTP_SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
 
   // ---- SIGNUP HANDLER ----
   async function handleSignup() {
