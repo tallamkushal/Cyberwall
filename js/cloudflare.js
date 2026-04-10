@@ -18,7 +18,7 @@ async function loadCloudflareData(domain) {
     const data = await res.json();
 
     if (data.error) {
-      if (res.status === 404) showCFNotSetup();
+      showCFNotSetup();
       showCFLoading(false);
       return;
     }
@@ -95,6 +95,7 @@ async function loadCloudflareData(domain) {
 
   } catch (err) {
     console.error('Cloudflare load error:', err);
+    showCFNotSetup();
   }
   showCFLoading(false);
 }
@@ -126,6 +127,18 @@ function showCFNotSetup() {
   });
   safeSet('score-grade', '—');
   safeSet('chart-peak-label', 'Connect your domain to see data');
+
+  // Protection Status panel — show a clear not-connected state
+  safeSet('ssl-status',   '— Not connected');
+  safeSet('ssl-issuer',   '—');
+  safeSet('ssl-expires',  '—');
+  safeSet('ssl-protocol', '—');
+  safeSet('ssl-https',    '—');
+  safeSet('health-ssl-val',    '—');
+  safeSet('health-ssl-sub',    'Domain not connected to ProCyberWall');
+  safeSet('health-status-text', 'Not connected');
+  safeSet('health-status-desc', 'Your domain is not yet connected to ProCyberWall. Contact us to activate protection.');
+  safeSet('health-status-icon', '⚪');
 }
 
 function showCFLoading(show) {
@@ -231,7 +244,9 @@ function updateHealthPanel(ssl, email) {
 
 function sslDaysLeft(expiresStr) {
   if (!expiresStr || expiresStr === '—') return null;
-  const d = new Date(expiresStr);
+  // Strip "(X days)" suffix if present before parsing
+  const clean = expiresStr.replace(/\s*\(\d+\s*days?\)/i, '').trim();
+  const d = new Date(clean);
   if (isNaN(d)) return null;
   const days = Math.ceil((d - Date.now()) / 86400000);
   return days > 0 ? days : 0;

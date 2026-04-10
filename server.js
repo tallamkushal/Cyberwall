@@ -8,10 +8,11 @@ const Anthropic = require('@anthropic-ai/sdk');
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── CLOUDFLARE CREDENTIALS (server-side only) ─────────────────────────────
-const CF_EMAIL   = process.env.CF_EMAIL   || '';
-const CF_API_KEY = process.env.CF_API_KEY || '';
+const CF_EMAIL    = process.env.CF_EMAIL    || '';
+const CF_API_KEY  = process.env.CF_API_KEY  || '';
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
-const CF_BASE    = 'https://api.cloudflare.com/client/v4';
+const HIBP_API_KEY = process.env.HIBP_API_KEY || '';
+const CF_BASE     = 'https://api.cloudflare.com/client/v4';
 
 function cfGet(apiPath) {
   return new Promise((resolve, reject) => {
@@ -362,46 +363,46 @@ async function runSecurityScan(domainInput) {
 
   const issues = [], passedChecks = [], unknownChecks = [];
 
-  if (httpsEnabled)  passedChecks.push({ label: 'HTTPS enabled', icon: '🔒' });
-  else issues.push({ severity: 'critical', label: 'HTTPS not enabled', detail: 'Your site sends data in plain text. Visitor passwords and data are exposed.' });
+  if (httpsEnabled)  passedChecks.push({ label: 'Website connection is secure', icon: '🔒', desc: '<strong>HTTPS (HyperText Transfer Protocol Secure)</strong> — Every time a customer visits your website, the information they type — like their name, phone number, or payment details — is encrypted and cannot be read by anyone else. Customers see a lock icon in their browser.' });
+  else issues.push({ severity: 'critical', label: 'Website connection is NOT secure (No HTTPS)', detail: 'Your website runs on HTTP, not HTTPS. Anyone between your customer and your website can read their passwords and personal details. Customers will see a "Not Secure" warning in their browser.' });
 
-  if (certValid) passedChecks.push({ label: 'SSL certificate valid', icon: '✅' });
-  else if (httpsEnabled) issues.push({ severity: 'critical', label: 'Invalid SSL certificate', detail: 'Visitors see a browser security warning before reaching your site.' });
-  else unknownChecks.push('SSL certificate');
+  if (certValid) passedChecks.push({ label: 'Security certificate is working', icon: '✅', desc: '<strong>SSL/TLS Certificate</strong> — Your website has a valid certificate issued by a trusted authority. This is like an official ID card for your website that proves to browsers and customers that your site is genuine and has not been faked.' });
+  else if (httpsEnabled) issues.push({ severity: 'critical', label: 'SSL/TLS certificate has a problem', detail: 'Your SSL certificate is invalid or untrusted. Every customer who visits your website right now sees a scary browser warning page. Most will leave immediately.' });
+  else unknownChecks.push('SSL/TLS certificate check');
 
   if (certExpiresInDays !== null) {
-    if (certExpiresInDays > 30) passedChecks.push({ label: `SSL cert expires in ${certExpiresInDays} days`, icon: '📅' });
-    else if (certExpiresInDays > 0) issues.push({ severity: 'high', label: `SSL cert expires in ${certExpiresInDays} days`, detail: 'Renew before it expires or visitors will see security errors.' });
-    else issues.push({ severity: 'critical', label: 'SSL certificate expired', detail: 'Your site is showing security errors to every visitor right now.' });
-  } else if (httpsEnabled) unknownChecks.push('SSL expiry date');
+    if (certExpiresInDays > 30) passedChecks.push({ label: `Security certificate good for ${certExpiresInDays} more days`, icon: '📅', desc: `<strong>SSL Certificate Expiry</strong> — Your SSL/TLS certificate is valid and does not need renewal yet. ProCyberWall will alert you before it expires so your customers never see a browser warning.` });
+    else if (certExpiresInDays > 0) issues.push({ severity: 'high', label: `SSL certificate expires in ${certExpiresInDays} days`, detail: 'When your SSL certificate expires, customers will see a scary browser warning and your website will look unsafe. Renew it before it expires.' });
+    else issues.push({ severity: 'critical', label: 'SSL certificate has expired', detail: 'Your SSL/TLS certificate has expired. Your website is showing security error warnings to every visitor right now. They cannot safely use your site.' });
+  } else if (httpsEnabled) unknownChecks.push('SSL certificate expiry date');
 
-  if (headers['strict-transport-security']) passedChecks.push({ label: 'HSTS header present', icon: '🔐' });
-  else issues.push({ severity: 'medium', label: 'Missing HSTS header', detail: 'Browsers can still be downgraded to HTTP by attackers.' });
+  if (headers['strict-transport-security']) passedChecks.push({ label: 'Always uses secure connection', icon: '🔐', desc: '<strong>HSTS (HTTP Strict Transport Security)</strong> — This header tells browsers to always use HTTPS, even if a customer types "http://" by mistake. No customer ever lands on an unsafe version of your site.' });
+  else issues.push({ severity: 'medium', label: 'HSTS not enabled — secure connection not always forced', detail: 'Without the HSTS header, a hacker can sometimes intercept and downgrade your customer\'s connection to the unsafe HTTP version of your website.' });
 
-  if (headers['content-security-policy']) passedChecks.push({ label: 'Content Security Policy set', icon: '🛡️' });
-  else issues.push({ severity: 'medium', label: 'No Content Security Policy', detail: 'XSS attacks can inject malicious scripts into your pages.' });
+  if (headers['content-security-policy']) passedChecks.push({ label: 'Protection against fake content injection', icon: '🛡️', desc: '<strong>CSP (Content Security Policy)</strong> — This header tells browsers exactly which content is allowed on your page. Hackers cannot inject fake buttons, fake login forms, or malicious scripts onto your website pages. Your customers only see what you put there.' });
+  else issues.push({ severity: 'medium', label: 'No CSP — hackers can inject fake content on your pages', detail: 'Without a Content Security Policy header, hackers can use XSS (Cross-Site Scripting) attacks to make fake login forms or buttons appear on your website to steal customer details.' });
 
-  if (headers['x-frame-options']) passedChecks.push({ label: 'Clickjacking protection on', icon: '🖼️' });
-  else issues.push({ severity: 'low', label: 'No clickjacking protection', detail: 'Your site can be embedded in a malicious iframe to trick users.' });
+  if (headers['x-frame-options']) passedChecks.push({ label: 'Protection against fake lookalike pages', icon: '🖼️', desc: '<strong>X-Frame-Options header</strong> — This prevents your website from being loaded inside another website\'s frame or iframe. It stops a Clickjacking attack, where criminals copy your site inside a fake one to trick customers.' });
+  else issues.push({ severity: 'low', label: 'No X-Frame-Options — Clickjacking risk', detail: 'Without this header, criminals can embed your website inside their fake website using an iframe. Customers think they are on your site but are actually being tricked into giving money or passwords to criminals.' });
 
-  if (headers['x-content-type-options']) passedChecks.push({ label: 'MIME sniff protection on', icon: '📄' });
-  else issues.push({ severity: 'low', label: 'MIME sniffing not blocked', detail: 'Browsers may execute files as scripts when they should not.' });
+  if (headers['x-content-type-options']) passedChecks.push({ label: 'Protection against hidden file attacks', icon: '📄', desc: '<strong>X-Content-Type-Options header</strong> — This tells browsers not to guess the type of a file and just run it. It stops MIME-sniffing attacks, where a hacker uploads a harmful file disguised as something safe (like an image) and tricks the browser into running it.' });
+  else issues.push({ severity: 'low', label: 'No X-Content-Type-Options — MIME sniffing risk', detail: 'Without this header, a hacker could upload a harmful script disguised as an image or document on your website and trick browsers into executing it.' });
 
-  if (headers['referrer-policy']) passedChecks.push({ label: 'Referrer policy configured', icon: '🔗' });
-  else unknownChecks.push('Referrer Policy');
+  if (headers['referrer-policy']) passedChecks.push({ label: 'Customer browsing info is private', icon: '🔗', desc: '<strong>Referrer-Policy header</strong> — Controls what URL information is shared when a customer clicks a link from your website to another site. Protects customer privacy and prevents internal page paths from leaking to third-party sites.' });
+  else issues.push({ severity: 'low', label: 'No Referrer-Policy — browsing info may leak', detail: 'Without this header, when a customer clicks a link from your site to another, their full URL path is shared with that site. This can leak internal page names and customer session info to third parties.' });
 
-  if (headers['permissions-policy']) passedChecks.push({ label: 'Permissions policy set', icon: '🎛️' });
-  else unknownChecks.push('Permissions Policy');
+  if (headers['permissions-policy']) passedChecks.push({ label: 'Website feature access is controlled', icon: '🎛️', desc: '<strong>Permissions-Policy header</strong> (formerly Feature-Policy) — Restricts which browser features your website can use, like camera, microphone, or location. This stops any injected malicious code from secretly accessing your customers\' device features.' });
+  else issues.push({ severity: 'low', label: 'No Permissions-Policy — browser features unrestricted', detail: 'Without this header, any malicious script injected into your site could silently access your customers\' camera, microphone, or location. Adding this header locks down which browser features your site is allowed to use.' });
 
-  if (httpToHttps) passedChecks.push({ label: 'HTTP redirects to HTTPS', icon: '↪️' });
-  else if (httpResult.success) issues.push({ severity: 'medium', label: 'No HTTP→HTTPS redirect', detail: 'Users who type your URL without https:// land on an insecure version.' });
-  else unknownChecks.push('HTTP redirect behavior');
+  if (httpToHttps) passedChecks.push({ label: 'All visitors automatically get the safe version', icon: '↪️', desc: '<strong>HTTP → HTTPS redirect</strong> — Your server automatically redirects anyone who visits "http://" to the secure "https://" version. No matter how a customer types your address, they always land on the encrypted version.' });
+  else if (httpResult.success) issues.push({ severity: 'medium', label: 'No HTTP → HTTPS redirect configured', detail: 'Customers who type your address without "https://" reach an unencrypted version of your site. This is a simple server configuration fix that ProCyberWall can set up for you.' });
+  else unknownChecks.push('HTTP to HTTPS redirect');
 
-  if (cdnDetected) passedChecks.push({ label: `Protected by ${cdnProvider}`, icon: '🛡️' });
-  else issues.push({ severity: 'high', label: 'No CDN or WAF detected', detail: 'Your site is directly exposed. A WAF blocks attacks before they reach your server.' });
+  if (cdnDetected) passedChecks.push({ label: `Protected by ${cdnProvider} firewall`, icon: '🛡️', desc: `<strong>WAF / CDN (Web Application Firewall / Content Delivery Network) via ${cdnProvider}</strong> — Your website traffic passes through ${cdnProvider}'s global network, which filters out hackers, bots, and DDoS attacks before they ever reach your server.` });
+  else issues.push({ severity: 'high', label: 'No WAF or CDN detected — no firewall protection', detail: 'Your website server is directly exposed to the internet with no firewall. Hackers, bots, and DDoS attacks hit your server directly. ProCyberWall adds a WAF (Web Application Firewall) to block these for you.' });
 
-  if (!serverLeaksVersion) passedChecks.push({ label: 'Server info not exposed', icon: '👁️' });
-  else issues.push({ severity: 'low', label: `Server version exposed (${serverHdr})`, detail: 'Attackers can look up known vulnerabilities in your server software.' });
+  if (!serverLeaksVersion) passedChecks.push({ label: 'Server software details are hidden', icon: '👁️', desc: '<strong>Server header / version disclosure</strong> — Your website does not reveal what server software it runs (e.g. Apache 2.4, Nginx 1.18). Hiding this makes it harder for hackers to look up known vulnerabilities specific to your software version.' });
+  else issues.push({ severity: 'low', label: `Server version exposed in HTTP headers (${serverHdr})`, detail: `Your server is revealing its software and version in the HTTP "Server" header. Hackers can look up known CVEs (security vulnerabilities) for exactly this version and exploit them.` });
 
   const SEV = { critical: 0, high: 1, medium: 2, low: 3 };
   issues.sort((a, b) => (SEV[a.severity] || 9) - (SEV[b.severity] || 9));
@@ -411,11 +412,11 @@ async function runSecurityScan(domainInput) {
     numericScore: totalScore, grade: getSecurityGrade(totalScore),
     confidence: httpsEnabled ? 'high' : (httpResult.success ? 'medium' : 'low'),
     breakdown: {
-      https:       { score: httpsScore,        max: 25, label: 'HTTPS & SSL' },
-      headers:     { score: headersScore,      max: 35, label: 'Security Headers' },
-      redirects:   { score: redirectScore,     max: 15, label: 'Redirect Hygiene' },
-      protection:  { score: protectionScore,   max: 15, label: 'Basic Protection' },
-      reliability: { score: reliabilityScore,  max: 10, label: 'Reliability' },
+      https:       { score: httpsScore,        max: 25, label: 'Safe connection for customers',       about: '<strong>HTTPS / SSL / TLS</strong> — Checks whether your website encrypts data between your customers and your server. If this score is low, customer data like passwords and phone numbers can be stolen in transit.' },
+      headers:     { score: headersScore,      max: 35, label: 'Protection from common attacks',      about: '<strong>HTTP Security Headers</strong> (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) — The biggest part of your score. These are instructions your server sends to browsers to block the most common attack types — XSS, Clickjacking, MIME sniffing, and more.' },
+      redirects:   { score: redirectScore,     max: 15, label: 'All visitors reach the safe version', about: '<strong>HTTP → HTTPS redirect / HSTS preload</strong> — Checks that every visitor always lands on the encrypted HTTPS version of your site. A low score means some customers reach an unencrypted HTTP page without knowing.' },
+      protection:  { score: protectionScore,   max: 15, label: 'Firewall & hidden server details',    about: '<strong>WAF (Web Application Firewall) / CDN / Server header disclosure</strong> — Checks whether a firewall is blocking attacks before they hit your server, and whether your server software version is hidden. Exposed server details help hackers find and use known CVEs (vulnerabilities).' },
+      reliability: { score: reliabilityScore,  max: 10, label: 'Website is up and fast',              about: '<strong>Uptime / Response time</strong> — Checks whether your website is online and responding quickly. A slow or unreachable site drives customers away and hurts your business reputation and search rankings.' },
     },
     issues, passedChecks, unknownChecks, headersFound, headersMissing,
     responseTime: httpsResult.ms || null,
@@ -1436,6 +1437,112 @@ Rules:
     }
   }
 
+  // ── DARK WEB SCAN (HIBP single-email) ────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/darkweb-scan')) {
+    try {
+      const authUser = await requireAuth(req);
+      if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+      if (!HIBP_API_KEY) {
+        res.writeHead(200, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ notConfigured: true, error: 'Dark web monitoring is not yet configured on this account. Contact ProCyberWall support to enable it.' }));
+        return;
+      }
+
+      const profileRes = await supabaseRequest('GET', `profiles?id=eq.${encodeURIComponent(authUser.id)}&select=full_name,email,domain,plan,phone`, null);
+      const profiles = JSON.parse(profileRes.body);
+      const profile = Array.isArray(profiles) && profiles[0] ? profiles[0] : {};
+      const email = profile.email || authUser.email;
+
+      if (!email) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'No email found on your account.'})); return; }
+
+      // Check email against HIBP
+      const breaches = await new Promise((resolve) => {
+        const opts = {
+          hostname: 'haveibeenpwned.com',
+          path: `/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`,
+          method: 'GET',
+          headers: { 'hibp-api-key': HIBP_API_KEY, 'user-agent': 'ProCyberWall' }
+        };
+        const r = https.request(opts, resp => {
+          let raw = '';
+          resp.on('data', c => raw += c);
+          resp.on('end', () => {
+            if (resp.statusCode === 404) return resolve([]);
+            if (resp.statusCode === 401) return resolve({ hibpError: 'Invalid API key' });
+            if (resp.statusCode !== 200) return resolve([]);
+            try { resolve(JSON.parse(raw)); } catch(e) { resolve([]); }
+          });
+        });
+        r.on('error', () => resolve([]));
+        r.setTimeout(10000, () => { r.destroy(); resolve([]); });
+        r.end();
+      });
+
+      if (breaches?.hibpError) {
+        res.writeHead(500, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ error: breaches.hibpError }));
+        return;
+      }
+
+      const totalBreaches = breaches.length;
+
+      if (totalBreaches > 0 && profile.phone && TWILIO_SID) {
+        const preview = breaches.slice(0, 3).map(b => `• ${b.Title} (${b.BreachDate?.slice(0,4) || '?'})`).join('\n');
+        const msg = `🕵️ *Dark Web Alert*\n\nYour email *${email}* was found in ${totalBreaches} data breach${totalBreaches>1?'es':''}:\n\n${preview}${totalBreaches>3?`\n+${totalBreaches-3} more`:''}\n\nLog in to your ProCyberWall dashboard for the full report.\n\n— ProCyberWall`;
+        sendTwilioMessage(profile.phone, msg).catch(() => {});
+      }
+
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({
+        email,
+        scannedAt: new Date().toISOString(),
+        breachDetails: breaches.map(b => ({
+          name:        b.Title,
+          date:        b.BreachDate,
+          dataClasses: b.DataClasses || [],
+        })),
+        totalAffectedEmails: totalBreaches > 0 ? 1 : 0,
+        totalBreaches,
+      }));
+    } catch(e) {
+      res.writeHead(500, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── CANCEL SUBSCRIPTION REQUEST ──────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/cancel-subscription') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+
+    try {
+      // Fetch client profile for name, email, domain, plan
+      const profileRes = await supabaseRequest('GET', `profiles?id=eq.${encodeURIComponent(authUser.id)}&select=full_name,email,domain,plan`, null);
+      const profiles = JSON.parse(profileRes.body);
+      const profile = Array.isArray(profiles) && profiles[0] ? profiles[0] : {};
+
+      const name   = profile.full_name || authUser.email || 'Unknown';
+      const email  = profile.email     || authUser.email || '—';
+      const domain = profile.domain    || '—';
+      const plan   = (profile.plan     || 'starter').toUpperCase();
+
+      // Notify admin via WhatsApp
+      if (ADMIN_PHONE) {
+        const msg = `🚨 *Cancellation Request*\n\n*Client:* ${name}\n*Email:* ${email}\n*Domain:* ${domain}\n*Plan:* ${plan}\n\nThis client wants to cancel their ProCyberWall subscription. Please reach out to retain them.\n\n— ProCyberWall System`;
+        sendTwilioMessage(ADMIN_PHONE, msg).catch(() => {});
+      }
+
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ ok: true }));
+    } catch(e) {
+      res.writeHead(500, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ── CLOUDFLARE: ADD DOMAIN (ACTIVATE) ────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/cf/activate') {
     const adminUser = await requireAdminAuth(req);
@@ -1590,14 +1697,40 @@ Rules:
       // --- SSL cert ---
       const packs = ok(certPacks)?.result || [];
       const activePack = packs.find(p => p.status === 'active') || packs[0];
-      const certExpiry = activePack?.certificates?.[0]?.expires_on || null;
+      const cert0 = activePack?.certificates?.[0] || {};
+      // Cloudflare uses 'expires_on' for custom certs and 'expiration_date' for some pack types
+      const certExpiry = cert0.expires_on || cert0.expiration_date || activePack?.expires_on || null;
       let certExpiresStr = '—';
-      if (certExpiry) {
+      let certIssuer = cert0.issuer || activePack?.issuer || '';
+      let sslStatusStr = activePack ? '✓ Valid' : '—';
+
+      // Always do a direct TLS probe — gets expiry, issuer, and validates cert independently
+      try {
+        const tlsCheck = await probeDomain(domain.replace(/^https?:\/\//, '').split('/')[0], true);
+        if (tlsCheck.certInfo) {
+          if (!certIssuer) certIssuer = tlsCheck.certInfo.issuer || 'Unknown';
+          if (tlsCheck.certInfo.authorized !== undefined) {
+            sslStatusStr = tlsCheck.certInfo.authorized ? '✓ Valid' : '⚠ Issue';
+          }
+          if (tlsCheck.certInfo.validTo) {
+            const exp = new Date(tlsCheck.certInfo.validTo);
+            if (!isNaN(exp)) {
+              const days = Math.round((exp - now) / 86400000);
+              certExpiresStr = exp.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) + ` (${days} days)`;
+            }
+          }
+        }
+      } catch(e) { /* silently ignore TLS probe errors */ }
+
+      // If TLS probe didn't get expiry, try Cloudflare cert pack data
+      if (certExpiresStr === '—' && certExpiry) {
         const exp = new Date(certExpiry);
-        const days = Math.round((exp - now) / 86400000);
-        certExpiresStr = exp.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) + ` (${days} days)`;
+        if (!isNaN(exp)) {
+          const days = Math.round((exp - now) / 86400000);
+          certExpiresStr = exp.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) + ` (${days} days)`;
+        }
       }
-      const certIssuer = activePack?.certificates?.[0]?.issuer || 'Cloudflare';
+      if (!certIssuer) certIssuer = 'Cloudflare';
 
       // --- Security score (computed) ---
       let score = 60;
@@ -1623,7 +1756,7 @@ Rules:
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
         threats:     evts.slice(0, 10),
         ssl: {
-          status:  activePack ? '✓ Valid' : '—',
+          status:  sslStatusStr,
           issuer:  certIssuer,
           expires: certExpiresStr,
           protocol: `TLS ${tlsVersion}`,

@@ -12,6 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ProCyberWall — Login / Sign Up</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <script src="js/theme.js"></script>
   <style>
     body { display: flex; min-height: 100vh; }
 
@@ -241,6 +242,9 @@
     <div class="left-logo-icon">🛡</div>
     <span class="left-logo-text">ProCyberWall</span>
   </a>
+  <button onclick="toggleTheme()" style="position:absolute;top:20px;right:20px;background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted)" title="Toggle theme">
+    <span class="theme-toggle-icon">🌙</span>
+  </button>
 
   <!-- SECURITY SCANNER — right below logo -->
   <div class="auth-scanner">
@@ -369,7 +373,7 @@
 // ── AUTH PAGE SECURITY SCANNER ────────────────────────────────────────────────
 (function() {
   const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-  const GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b'};
+  const GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','C-':'#d97706','D':'#dc2626','F':'#dc2626'};
   const SEV_COLORS   = {critical:'#ef4444',high:'#f97316',medium:'#fbbf24',low:'#9ca3af'};
 
   document.addEventListener('DOMContentLoaded', function() {

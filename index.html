@@ -367,7 +367,7 @@
     <p>ProCyberWall gives your business enterprise-grade WAF protection — fully managed, no technical knowledge needed.</p>
     <div class="hero-ctas">
       <a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a>
-      <a href="#scanner" class="btn btn-ghost btn-xl" style="display:flex;align-items:center;gap:7px">🎯 Check your score free</a>
+      <a href="#scanner" class="btn btn-primary btn-xl" style="display:flex;align-items:center;gap:7px">🎯 Check your score free</a>
     </div>
     <p class="hero-sub">No credit card required &nbsp;·&nbsp; Setup in 24 hours &nbsp;·&nbsp; Cancel anytime</p>
 
@@ -613,7 +613,7 @@
       const res = await fetch(`${SCAN_SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`);
       const data = await res.json();
       if (data.error) {
-        resultEl.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:14px;padding:20px;color:#dc2626;font-size:14px">⚠️ ${data.error}</div>`;
+        resultEl.innerHTML = `<div style="background:#f3e8ff;border:1px solid #d8b4fe;border-radius:14px;padding:20px;color:#7c3aed;font-size:14px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔍</span><div><strong>Invalid domain</strong><div style="margin-top:3px;font-size:13px;opacity:0.85">${data.error}</div></div></div>`;
         return;
       }
       renderScanResult(data, resultEl);
@@ -625,15 +625,15 @@
   }
 
   function renderScanResult(data, container) {
-    const GRADE_COLORS = { 'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b' };
-    const SEV_COLORS   = { critical:'#dc2626', high:'#ea580c', medium:'#d97706', low:'#9ca3af' };
+    const GRADE_COLORS = { 'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ea580c','C':'#ea580c','C-':'#ea580c','D':'#dc2626','F':'#dc2626' };
+    const SEV_COLORS   = { critical:'#dc2626', high:'#ea580c', medium:'#ea580c', low:'#9ca3af' };
     const SEV_LABELS   = { critical:'Critical', high:'High', medium:'Medium', low:'Low' };
     const color   = GRADE_COLORS[data.grade] || '#dc2626';
-    const barColor= data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#d97706' : '#dc2626';
+    const barColor= data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#ea580c' : '#dc2626';
 
     const breakdownHtml = Object.values(data.breakdown).map(b => {
       const pct = b.score / b.max;
-      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#d97706' : '#dc2626';
+      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#ea580c' : '#dc2626';
       return `<div class="scan-breakdown-item">
         <div class="scan-breakdown-score" style="color:${c}">${b.score}<span class="scan-breakdown-max">/${b.max}</span></div>
         <div class="scan-breakdown-label">${b.label}</div>
@@ -665,36 +665,72 @@
       ? 'Strong score! CyberWall keeps it that way — 24/7 monitoring, WAF, and instant alerts.'
       : `CyberWall can fix all ${data.issues.length} issue${data.issues.length>1?'s':''} and bring your score to A+.`;
 
+    const largeCorp = isLargeCorporation(data.domain);
+    const largeCorpBannerHtml = (largeCorp && data.numericScore < 85) ? `
+      <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px">
+        <div style="font-size:20px;flex-shrink:0;line-height:1.3">🏦</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px">Why does this large organisation score lower?</div>
+          <div style="font-size:12px;color:#374151;line-height:1.6">Large organisations have built massive, invisible <strong>"fortresses"</strong> in their backend and cloud infrastructure that render those specific front-end headers less critical. Their security investments live deep inside private networks, dedicated WAF appliances, custom zero-trust architecture, and teams of security engineers — layers that our front-end scanner simply cannot see.</div>
+        </div>
+      </div>` : '';
+
     const beforeGrade = data.grade;
     const afterScore  = Math.min(100, data.numericScore + 35);
     const afterGrade  = data.numericScore >= 85 ? data.grade : getGradeClient(afterScore);
 
     container.innerHTML = `
       <div class="scan-result-card">
+
+        <!-- Header: domain info on left, current grade on right -->
         <div class="scan-result-header">
-          <div class="scan-grade-circle" style="background:${color}">${data.grade}</div>
           <div class="scan-result-info">
             <div class="scan-result-domain">${data.domain}</div>
-            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.grade} Security Grade</div>
+            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.passedChecks.length} things working great · ${data.issues.length} things to fix</div>
             <div class="scan-score-bar"><div class="scan-score-bar-fill" id="scan-bar-fill" style="width:0%;background:${barColor}"></div></div>
-            <div style="font-size:12px;color:var(--muted-light)">${data.passedChecks.length} checks passed · ${data.issues.length} issues found · Confidence: ${data.confidence}</div>
+            <div style="font-size:12px;color:var(--muted-light)">Scan confidence: ${data.confidence}</div>
           </div>
-          ${data.numericScore < 85 ? `<div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:12px 20px;flex-shrink:0">
-            <div style="font-size:11px;color:var(--muted-light);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">With CyberWall</div>
-            <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#16a34a">${afterGrade}</div>
-            <div style="font-size:11px;color:var(--muted)">${afterScore}/100</div>
-          </div>` : ''}
+          <!-- Current grade on the right -->
+          <div style="text-align:center;flex-shrink:0">
+            <div style="font-size:11px;color:var(--muted-light);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Your score right now</div>
+            <div class="scan-grade-circle" style="background:${color};margin:0 auto">${data.grade}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:8px">${data.numericScore} / 100</div>
+          </div>
         </div>
+
+        ${(!largeCorp && data.numericScore < 85) ? `
+        <!-- Before → After comparison -->
+        <div style="display:flex;align-items:center;gap:0;margin:20px 0 4px;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.12)">
+          <!-- Before -->
+          <div style="flex:1;text-align:center;padding:16px 12px;background:rgba(220,38,38,0.12)">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#f87171;margin-bottom:8px">Without CyberWall</div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;color:#ef4444;line-height:1">${beforeGrade}</div>
+            <div style="font-size:12px;color:#ef4444;margin-top:6px">${data.numericScore} / 100</div>
+          </div>
+          <!-- Arrow -->
+          <div style="padding:0 10px;font-size:26px;color:rgba(255,255,255,0.3);flex-shrink:0">→</div>
+          <!-- After -->
+          <div style="flex:1;text-align:center;padding:16px 12px;background:rgba(22,163,74,0.15);position:relative">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#4ade80;margin-bottom:8px">With CyberWall ✨</div>
+            <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;color:#22c55e;line-height:1">${afterGrade}</div>
+            <div style="font-size:12px;color:#22c55e;margin-top:6px">${afterScore} / 100</div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:12px;color:rgba(255,255,255,0.35);padding-top:6px">↑ We fix all ${data.issues.length} issue${data.issues.length>1?'s':''} and bring your score up in 24 hours</div>
+        </div>` : (!largeCorp ? `<div style="margin:12px 0 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.5)">Great score! CyberWall keeps it that way with 24/7 monitoring.</div>` : '')}
+
         <div class="scan-breakdown">${breakdownHtml}</div>
+        ${largeCorpBannerHtml}
         ${issuesHtml}
         ${passedHtml}
-        <div class="scan-cta-strip">
+        ${!largeCorp ? `<div class="scan-cta-strip">
           <div>
             <div class="scan-cta-text">${ctaMsg}</div>
             <div class="scan-cta-sub">Setup in 24 hours · No credit card · WAF + SSL + Monitoring included</div>
           </div>
           <a href="auth.html" class="btn-white" style="white-space:nowrap;flex-shrink:0;font-size:14px">Fix with CyberWall →</a>
-        </div>
+        </div>` : ''}
       </div>`;
 
     // Animate score bar
@@ -709,6 +745,33 @@
     if (score >= 80) return 'B+'; if (score >= 75) return 'B'; if (score >= 70) return 'B-';
     if (score >= 65) return 'C+'; if (score >= 55) return 'C'; if (score >= 40) return 'D';
     return 'F';
+  }
+
+  function isLargeCorporation(domain) {
+    const LARGE_CORPS = [
+      'google.com','alphabet.com','amazon.com','aws.amazon.com','microsoft.com','apple.com',
+      'facebook.com','meta.com','netflix.com','twitter.com','x.com','linkedin.com',
+      'youtube.com','instagram.com','whatsapp.com','tiktok.com','snapchat.com',
+      'salesforce.com','oracle.com','sap.com','ibm.com','intel.com','nvidia.com',
+      'adobe.com','paypal.com','stripe.com','shopify.com','ebay.com',
+      'walmart.com','target.com','bestbuy.com','nike.com','adidas.com',
+      'mcdonalds.com','starbucks.com','cocacola.com','pepsi.com',
+      'github.com','slack.com','zoom.us','dropbox.com','spotify.com',
+      'airbnb.com','uber.com','lyft.com','tesla.com','spacex.com',
+      'boeing.com','lockheedmartin.com','nasa.gov',
+      'bbc.com','bbc.co.uk','nytimes.com','cnn.com','theguardian.com','reuters.com',
+      'cloudflare.com','akamai.com','fastly.com','atlassian.com',
+      'twilio.com','mongodb.com','redis.com','hashicorp.com','datadog.com',
+      'jpmorgan.com','goldmansachs.com','visa.com','mastercard.com',
+      'americanexpress.com','chase.com','wellsfargo.com','bankofamerica.com',
+      'hsbc.com','barclays.com','citibank.com','ubs.com','db.com',
+      'deloitte.com','pwc.com','kpmg.com','ey.com','mckinsey.com',
+      'accenture.com','capgemini.com','infosys.com','wipro.com','tcs.com',
+      'flipkart.com','reliance.com','jio.com','hdfcbank.com','icicibank.com',
+      'sbi.co.in','axisbank.com','bajajfinserv.com',
+    ];
+    const d = domain.replace(/^www\./, '').toLowerCase();
+    return LARGE_CORPS.some(corp => d === corp || d.endsWith('.' + corp));
   }
 </script>
 <script>

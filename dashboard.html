@@ -12,6 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>ProCyberWall — Dashboard</title>
   <link rel="stylesheet" href="css/style.css"/>
+  <script src="js/theme.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     body { display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
@@ -303,13 +304,13 @@
       font-size: 13px; line-height: 1.6;
     }
     .ai-msg-user .ai-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
-    .ai-msg-bot  .ai-bubble { background: white; border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+    .ai-msg-bot  .ai-bubble { background: var(--accent-light); border: 1px solid #c7d7fb; color: var(--accent); border-bottom-left-radius: 4px; }
     .ai-bubble p { margin: 0 0 8px; } .ai-bubble p:last-child { margin: 0; }
     .ai-bubble ul, .ai-bubble ol { margin: 6px 0 6px 16px; }
     .ai-bubble strong { font-weight: 700; }
-    .ai-bubble code { background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .ai-bubble code { background: rgba(26,71,232,0.1); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
     .ai-typing { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
-    .ai-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+    .ai-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s infinite; }
     .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
     .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
@@ -401,8 +402,8 @@
     <a class="sidebar-item" onclick="showPanel('security-score', this)">
       <span class="sidebar-item-icon">🎯</span>
       <span>
-        <span style="display:block">My Security Grade</span>
-        <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">How safe you look</span>
+        <span style="display:block">How safe is my website?</span>
+        <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">Your safety score</span>
       </span>
     </a>
     <a class="sidebar-item" onclick="showPanel('ssl', this)" data-requires="pro">
@@ -422,6 +423,10 @@
     <div class="sidebar-section-label">AI</div>
     <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
       <span class="sidebar-item-icon">🤖</span> AI Assistant
+    </a>
+    <a class="sidebar-item" onclick="showPanel('darkweb', this)" data-requires="business">
+      <span class="sidebar-item-icon">🕵️</span> Dark Web Monitor
+      <span class="lock-icon">🔒</span>
     </a>
   </div>
 
@@ -470,6 +475,9 @@
     </div>
     <div class="topbar-right">
       <span class="badge badge-blue" id="plan-badge">Pro Plan</span>
+      <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme" style="padding:7px 10px;font-size:16px;border:none">
+        <span class="theme-toggle-icon">🌙</span>
+      </button>
       <a href="https://wa.me/919999999999" target="_blank" class="topbar-btn">💬 WhatsApp Us</a>
       <button class="topbar-btn primary">↓ Download Report</button>
     </div>
@@ -525,7 +533,7 @@
             <span class="badge" style="background:#ede9fe;color:#7c3aed;border:none">Grade</span>
           </div>
           <div class="stat-value"><span id="stat-score">—</span></div>
-          <div class="stat-label">My Security Grade</div>
+          <div class="stat-label">Safety Score</div>
           <div style="font-size:11px;color:var(--muted-light);margin-top:3px">Tap to see full report →</div>
         </div>
       </div>
@@ -557,18 +565,18 @@
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🟢 Protection Status</span>
+            <span class="card-title">🟢 What's protecting me right now</span>
             <span class="card-action" onclick="showPanel('ssl',null)">View details →</span>
           </div>
           <div class="card-body">
             <div class="score-wrap">
               <div class="score-grade" id="score-grade" style="color:var(--green)">—</div>
-              <div class="score-sub">What CyberWall has active right now</div>
-              <div class="score-row"><span class="score-row-label">🛡 Firewall (WAF)</span><span id="score-waf" class="score-row-val">—</span></div>
-              <div class="score-row"><span class="score-row-label">🔐 SSL Certificate</span><span id="score-ssl" class="score-row-val">—</span></div>
-              <div class="score-row"><span class="score-row-label">✉ Email Security</span><span id="score-spf" class="score-row-val">—</span></div>
-              <div class="score-row"><span class="score-row-label">🤖 Bot Protection</span><span id="score-bot" class="score-row-val">—</span></div>
-              <div class="score-row"><span class="score-row-label">🔒 HTTPS Enforced</span><span id="score-https" class="score-row-val">—</span></div>
+              <div class="score-sub">Everything ProCyberWall has switched on for you</div>
+              <div class="score-row"><span class="score-row-label">🛡 Attack Blocker</span><span id="score-waf" class="score-row-val">—</span></div>
+              <div class="score-row"><span class="score-row-label">🔐 Safe Connection</span><span id="score-ssl" class="score-row-val">—</span></div>
+              <div class="score-row"><span class="score-row-label">✉ Email Protection</span><span id="score-spf" class="score-row-val">—</span></div>
+              <div class="score-row"><span class="score-row-label">🤖 Bot Blocker</span><span id="score-bot" class="score-row-val">—</span></div>
+              <div class="score-row"><span class="score-row-label">🔒 Safe Link Always On</span><span id="score-https" class="score-row-val">—</span></div>
             </div>
           </div>
         </div>
@@ -661,9 +669,9 @@
       <div style="background:linear-gradient(135deg,#dcfce7,#f0fdf4);border:1px solid #bbf7d0;border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px">
         <div style="font-size:28px;line-height:1;flex-shrink:0">🟢</div>
         <div>
-          <div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:4px">My Protection Status</div>
+          <div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:4px">Is my website properly protected?</div>
           <div style="font-size:13px;color:#16a34a;line-height:1.6">
-            This shows you <strong>what ProCyberWall has switched on right now</strong> to protect your website — live. Is your SSL certificate valid? Is HTTPS enforced? Is your firewall active? Think of it as the <em>control room</em> showing all your green lights.
+            This is a <strong>safety checklist</strong> for your website. Each item below shows one thing we've switched on to stop bad people from attacking you or your customers. Think of it like checking that your shop's front door is locked, the alarm is on, and all the lights are working — all at once. Green means it's working! 🟢
           </div>
         </div>
       </div>
@@ -680,8 +688,9 @@
               Your website is protected and running normally. ProCyberWall is actively monitoring it.
             </div>
           </div>
-          <div id="health-last-checked" style="font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">
-            Last checked<br><span id="health-check-time">—</span>
+          <div style="flex-shrink:0;text-align:right">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Last checked<br><span id="health-check-time">—</span></div>
+            <button onclick="loadCloudflareForProfile(window._currentProfile)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
           </div>
         </div>
       </div>
@@ -694,7 +703,7 @@
             <div class="stat-icon" style="background:#dcfce7">🔒</div>
           </div>
           <div class="stat-value" id="health-ssl-val" style="font-size:18px">—</div>
-          <div class="stat-label">SSL Certificate</div>
+          <div class="stat-label">Safe Connection</div>
           <div id="health-ssl-sub" style="font-size:11px;color:var(--muted);margin-top:3px">—</div>
         </div>
 
@@ -703,8 +712,8 @@
             <div class="stat-icon" style="background:#dbeafe">⚡</div>
           </div>
           <div class="stat-value" id="health-uptime-val" style="font-size:18px">—</div>
-          <div class="stat-label">Uptime</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px">Last 30 days</div>
+          <div class="stat-label">Always On</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Over the last month</div>
         </div>
 
         <div class="stat-card">
@@ -712,8 +721,8 @@
             <div class="stat-icon" style="background:#fef9c3">🚀</div>
           </div>
           <div class="stat-value" id="health-response-val" style="font-size:18px">—</div>
-          <div class="stat-label">Response Time</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px">Via Cloudflare CDN</div>
+          <div class="stat-label">Speed</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">How fast your site loads</div>
         </div>
 
         <div class="stat-card">
@@ -721,7 +730,7 @@
             <div class="stat-icon" style="background:#ede9fe">🌐</div>
           </div>
           <div class="stat-value" id="health-domain-val" style="font-size:18px">—</div>
-          <div class="stat-label">Domain Status</div>
+          <div class="stat-label">Website Up</div>
           <div id="health-domain-sub" style="font-size:11px;color:var(--muted);margin-top:3px">—</div>
         </div>
 
@@ -730,26 +739,26 @@
       <!-- Detailed Cards -->
       <div class="grid-2">
         <div class="card">
-          <div class="card-header"><span class="card-title">🔒 SSL Certificate</span></div>
+          <div class="card-header"><span class="card-title">🔒 Is my website safe for customers?</span></div>
           <div class="card-body">
-            <div class="ssl-row"><span class="ssl-label">Domain</span><span class="ssl-val" id="user-domain">Loading...</span></div>
-            <div class="ssl-row"><span class="ssl-label">Status</span><span id="ssl-status" class="ssl-val text-green">✓ Valid</span></div>
-            <div class="ssl-row"><span class="ssl-label">Issuer</span><span id="ssl-issuer" class="ssl-val">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">Expires</span><span id="ssl-expires" class="ssl-val text-green">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">Protocol</span><span id="ssl-protocol" class="ssl-val text-green">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">HTTPS Enforced</span><span id="ssl-https" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Your website</span><span class="ssl-val" id="user-domain">Loading...</span></div>
+            <div class="ssl-row"><span class="ssl-label">Safe connection working?</span><span id="ssl-status" class="ssl-val text-green">✓ Yes, all good</span></div>
+            <div class="ssl-row"><span class="ssl-label">Certificate issued by</span><span id="ssl-issuer" class="ssl-val">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Certificate valid until</span><span id="ssl-expires" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Security strength</span><span id="ssl-protocol" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Always sends to safe version?</span><span id="ssl-https" class="ssl-val text-green">—</span></div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title">✉ Email Security (SPF/DKIM/DMARC)</span></div>
+          <div class="card-header"><span class="card-title">📧 Email Protection</span></div>
           <div class="card-body">
-            <div class="ssl-row"><span class="ssl-label">SPF Record</span><span id="email-spf" class="ssl-val text-green">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">DKIM</span><span id="email-dkim" class="ssl-val text-green">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">DMARC</span><span id="email-dmarc" class="ssl-val">—</span></div>
-            <div class="ssl-row"><span class="ssl-label">MX Records</span><span id="email-mx" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Emails really come from you</span><span id="email-spf" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Emails have a safety signature</span><span id="email-dkim" class="ssl-val text-green">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Blocks fake emails pretending to be you</span><span id="email-dmarc" class="ssl-val">—</span></div>
+            <div class="ssl-row"><span class="ssl-label">Email inbox works</span><span id="email-mx" class="ssl-val text-green">—</span></div>
             <div style="padding:12px 0 0">
               <div id="email-dmarc-warning" style="background:var(--orange-light);border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--orange);display:none">
-                ⚠ DMARC not configured — your domain could be spoofed. Contact us on WhatsApp to fix this.
+                ⚠️ Someone could send fake emails pretending to be from your website — and people might believe them. Message us on WhatsApp and we'll fix this for you.
               </div>
             </div>
           </div>
@@ -876,7 +885,7 @@
             <div class="settings-title">Danger Zone</div>
             <div class="settings-row">
               <div><div class="settings-label">Cancel Subscription</div><div class="settings-desc">Protection ends at current billing period</div></div>
-              <button class="btn btn-danger" style="font-size:12px;padding:6px 14px">Cancel Plan</button>
+              <button class="btn btn-danger" style="font-size:12px;padding:6px 14px" onclick="showCancelModal()">Cancel Plan</button>
             </div>
             <div class="settings-row">
               <div><div class="settings-label">Logout</div><div class="settings-desc">Sign out of your account</div></div>
@@ -925,99 +934,91 @@
     <div class="panel" id="panel-security-score">
 
       <!-- What is this? banner -->
-      <div style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:1px solid #ddd6fe;border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px">
-        <div style="font-size:28px;line-height:1;flex-shrink:0">🎯</div>
+      <div style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:1px solid #ddd6fe;border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
+        <div style="font-size:24px;line-height:1;flex-shrink:0">🎯</div>
         <div>
-          <div style="font-size:15px;font-weight:700;color:#5b21b6;margin-bottom:4px">My Security Grade</div>
-          <div style="font-size:13px;color:#6d28d9;line-height:1.6">
-            This is like a <strong>report card for your website</strong>. We scan your site the same way a hacker would — from the outside — and give it a score out of 100. A higher score means your site is harder to attack. It does <em>not</em> tell you if you're currently under attack.
-          </div>
+          <div style="font-size:14px;font-weight:700;color:#5b21b6;margin-bottom:3px">How safe is my website?</div>
+          <div style="font-size:12px;color:#6d28d9;line-height:1.6">We checked your website and gave it a score out of 100 — just like marks in school. <strong>Higher marks = harder for bad people to attack your website.</strong> 80 or more is very good. Below 50 means your website needs help urgently.</div>
         </div>
       </div>
 
-      <!-- Score Header -->
-      <div class="card" style="margin-bottom:18px">
-        <div class="card-body" style="padding:24px">
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-            <div id="ss-grade-circle" style="width:80px;height:80px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:32px;font-weight:800;color:white;flex-shrink:0">—</div>
-            <div style="flex:1;min-width:200px">
-              <div style="font-size:18px;font-weight:700;margin-bottom:4px" id="ss-domain-label">Loading your security score…</div>
-              <div style="font-size:13px;color:var(--muted)" id="ss-score-line">Running external scan…</div>
-              <div style="height:8px;background:var(--bg);border-radius:4px;margin:8px 0;overflow:hidden">
-                <div id="ss-score-bar" style="height:100%;border-radius:4px;width:0%;background:#e5e7eb;transition:width 0.9s ease"></div>
-              </div>
-              <div style="font-size:12px;color:var(--muted-light)" id="ss-score-meta"></div>
+      <!-- HERO: Status card -->
+      <div id="ss-hero" style="border-radius:16px;padding:20px 22px;margin-bottom:20px;transition:background 0.5s">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+
+          <!-- Grade circle -->
+          <div id="ss-grade-circle" style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:white;flex-shrink:0">—</div>
+
+          <!-- Headline + bar -->
+          <div style="flex:1;min-width:200px">
+            <div id="ss-hero-headline" style="font-size:18px;font-weight:800;margin-bottom:4px;line-height:1.2;color:white">Checking your website…</div>
+            <div id="ss-domain-label" style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:8px"></div>
+            <div style="height:8px;background:rgba(0,0,0,0.15);border-radius:4px;overflow:hidden;max-width:320px">
+              <div id="ss-score-bar" style="height:100%;border-radius:4px;width:0%;background:rgba(255,255,255,0.85);transition:width 1s ease"></div>
             </div>
-            <div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:14px 20px;flex-shrink:0" id="ss-managed-box" style="display:none">
-              <div style="font-size:11px;color:var(--muted-light);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Managed Score</div>
-              <div id="ss-managed-grade" style="font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#16a34a">—</div>
-              <div id="ss-managed-points" style="font-size:11px;color:var(--muted)"></div>
-            </div>
+            <div id="ss-score-line" style="font-size:12px;margin-top:6px;color:rgba(255,255,255,0.75)"></div>
           </div>
-          <!-- Confidence + scan time -->
-          <div style="display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap">
-            <span id="ss-confidence-badge" style="display:none" class="badge badge-green"></span>
-            <span id="ss-managed-badge" style="display:none;background:rgba(26,71,232,0.1);color:var(--accent);font-size:11px;font-weight:600;padding:3px 10px;border-radius:6px">🛡️ Managed by CyberWall</span>
-            <span style="font-size:12px;color:var(--muted-light)" id="ss-scan-time"></span>
-            <button onclick="rerunSecurityScan()" style="margin-left:auto;font-size:12px;padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif" id="ss-rescan-btn">↻ Re-scan</button>
+
+          <!-- Score number -->
+          <div style="text-align:center;flex-shrink:0">
+            <div id="ss-score-big" style="font-family:'Bricolage Grotesque',sans-serif;font-size:48px;font-weight:800;color:white;line-height:1">—</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.65);font-weight:600">out of 100</div>
           </div>
+
+        </div>
+
+        <!-- Message -->
+        <div id="ss-hero-msg" style="margin-top:14px;padding:12px 14px;background:rgba(0,0,0,0.12);border-radius:10px;font-size:13px;line-height:1.65;color:rgba(255,255,255,0.9)"></div>
+
+        <!-- Meta row -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <span id="ss-score-meta" style="font-size:11px;color:rgba(255,255,255,0.6)"></span>
+          <span id="ss-confidence-badge" style="display:none;font-size:10px;font-weight:600;background:rgba(255,255,255,0.15);color:white;padding:2px 8px;border-radius:5px"></span>
+          <span id="ss-managed-badge" style="display:none;font-size:10px;font-weight:600;background:rgba(255,255,255,0.15);color:white;padding:2px 8px;border-radius:5px">🛡️ Managed by CyberWall</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.5)" id="ss-scan-time"></span>
+          <button onclick="rerunSecurityScan()" style="margin-left:auto;font-size:11px;padding:4px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);cursor:pointer;color:white;font-family:'DM Sans',sans-serif" id="ss-rescan-btn">↻ Re-scan</button>
         </div>
       </div>
 
-      <!-- Before / After Comparison -->
-      <div id="ss-before-after" style="display:none;margin-bottom:18px">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Security Improvement with CyberWall</span></div>
-          <div class="card-body" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-            <div style="text-align:center;flex:1;min-width:140px">
-              <div style="font-size:11px;color:var(--muted-light);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Before CyberWall</div>
-              <div id="ss-before-grade" style="font-family:'Bricolage Grotesque',sans-serif;font-size:48px;font-weight:800;color:#dc2626">—</div>
-              <div id="ss-before-score" style="font-size:13px;color:var(--muted)"></div>
-            </div>
-            <div style="font-size:32px;color:var(--muted-light);flex-shrink:0">→</div>
-            <div style="text-align:center;flex:1;min-width:140px">
-              <div style="font-size:11px;color:var(--muted-light);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">With CyberWall</div>
-              <div id="ss-after-grade" style="font-family:'Bricolage Grotesque',sans-serif;font-size:48px;font-weight:800;color:#16a34a">—</div>
-              <div id="ss-after-score" style="font-size:13px;color:var(--muted)"></div>
-            </div>
-            <div style="flex:1;min-width:160px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:16px;text-align:center">
-              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Security Improvement</div>
-              <div id="ss-improvement" style="font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:#16a34a"></div>
-            </div>
-          </div>
+      <!-- Hidden managed box (kept for JS compatibility) -->
+      <div id="ss-managed-box" style="display:none">
+        <div id="ss-managed-grade"></div>
+        <div id="ss-managed-points"></div>
+      </div>
+
+
+      <!-- ISSUES -->
+      <div class="card" style="border-top:3px solid #dc2626;margin-bottom:18px" id="ss-breakdown-section">
+        <div class="card-header"><span class="card-title" id="ss-issues-title">Things to fix</span></div>
+        <div class="card-body" id="ss-issues-body">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
         </div>
       </div>
 
-      <!-- Score Breakdown -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px" id="ss-breakdown-section" style="display:none">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Score Breakdown</span></div>
-          <div class="card-body" id="ss-breakdown-body">
-            <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title" id="ss-issues-title">Issues Found</span></div>
-          <div class="card-body" id="ss-issues-body">
-            <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
-          </div>
+      <!-- WHAT'S KEEPING YOU SAFE -->
+      <div class="card" style="border-top:3px solid #16a34a;margin-bottom:18px">
+        <div class="card-header"><span class="card-title">What's keeping you safe ✅</span></div>
+        <div class="card-body" id="ss-passed-body">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
         </div>
       </div>
 
-      <!-- Passed Checks + Managed Checks -->
+      <!-- SCORE BREAKDOWN -->
+      <div class="card" style="margin-bottom:18px" id="ss-breakdown-card">
+        <div class="card-header"><span class="card-title">📊 How your score is calculated</span></div>
+        <div class="card-body" id="ss-breakdown-body">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Managed + Unknown checks (shown only when applicable) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px" id="ss-checks-section">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Checks Passed</span></div>
-          <div class="card-body" id="ss-passed-body">
-            <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>
-          </div>
-        </div>
         <div class="card" id="ss-managed-checks-card" style="display:none">
-          <div class="card-header"><span class="card-title">CyberWall Managed Checks</span></div>
+          <div class="card-header"><span class="card-title">What CyberWall fixed for you 🛡️</span></div>
           <div class="card-body" id="ss-managed-checks-body"></div>
         </div>
         <div class="card" id="ss-unknown-card" style="display:none">
-          <div class="card-header"><span class="card-title">Unknown / Partial</span></div>
+          <div class="card-header"><span class="card-title">We couldn't check these yet ❓</span></div>
           <div class="card-body" id="ss-unknown-body"></div>
         </div>
       </div>
@@ -1051,6 +1052,76 @@
           <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading...</div>
         </div>
       </div>
+    </div>
+
+    <!-- ── DARK WEB MONITOR PANEL ───────────────────────────────────────── -->
+    <div class="panel" id="panel-darkweb">
+
+      <!-- Summary card -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <span class="card-title">Dark Web Monitoring</span>
+          <button class="btn btn-primary" style="font-size:12px;padding:7px 16px" onclick="loadDarkWebScan(true)" id="dw-scan-btn">🔍 Scan Now</button>
+        </div>
+        <div class="card-body">
+          <div id="dw-summary" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px">
+            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:var(--accent)" id="dw-count-emails">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Emails Exposed</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:#ea580c" id="dw-count-breaches">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Total Breach Events</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:var(--green)" id="dw-status-text">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px">Status</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted-light)" id="dw-scan-time"></div>
+        </div>
+      </div>
+
+      <!-- Results list -->
+      <div class="card" id="dw-results-card" style="display:none">
+        <div class="card-header"><span class="card-title">Breaches Found</span><span class="card-sub" id="dw-email-label" style="font-size:12px;color:var(--muted);margin-left:8px"></span></div>
+        <div class="card-body" id="dw-results-body"></div>
+      </div>
+
+      <!-- All clear -->
+      <div class="card" id="dw-clear-card" style="display:none">
+        <div class="card-body" style="text-align:center;padding:32px">
+          <div style="font-size:48px;margin-bottom:12px">🎉</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">No breaches found</div>
+          <div style="font-size:13px;color:var(--muted)">No email addresses from your domain were found in any known data breaches. We'll alert you on WhatsApp immediately if this changes.</div>
+        </div>
+      </div>
+
+      <!-- What to do -->
+      <div class="card" style="margin-top:18px">
+        <div class="card-header"><span class="card-title">What to do if your emails are exposed</span></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:13px">
+              <span style="font-size:18px;flex-shrink:0">1️⃣</span>
+              <div><strong>Change the password</strong> for every affected email account immediately. Use a unique password you haven't used anywhere else.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:13px">
+              <span style="font-size:18px;flex-shrink:0">2️⃣</span>
+              <div><strong>Enable 2-factor authentication</strong> on all email accounts and any service that uses those emails to log in.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:13px">
+              <span style="font-size:18px;flex-shrink:0">3️⃣</span>
+              <div><strong>Check for suspicious activity</strong> — look for emails you didn't send, accounts you didn't create, or logins from unknown devices.</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:flex-start;font-size:13px">
+              <span style="font-size:18px;flex-shrink:0">4️⃣</span>
+              <div><strong>Contact ProCyberWall support</strong> if you need help — we can assist with DMARC setup and email hardening to prevent future exposure.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -1345,7 +1416,7 @@
       doc.setFontSize(9);
       doc.setTextColor(130, 130, 130);
       doc.setFont('helvetica', 'normal');
-      doc.text('ProCyberWall — Managed WAF Service  |  cyberwall.onrender.com', margin, 284);
+      doc.text('ProCyberWall — Managed WAF Service  |  procyberwall.com', margin, 284);
       doc.text(`Confidential report for ${clientName}`, W - margin - 60, 284);
 
       // Save
@@ -1432,5 +1503,85 @@
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
     }
   </script>
+
+<!-- ── CANCEL SUBSCRIPTION MODAL ──────────────────────────────────────── -->
+<div id="cancel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:20px;padding:32px;max-width:440px;width:100%;box-shadow:0 24px 80px rgba(0,0,0,0.25)">
+    <div style="font-size:28px;margin-bottom:12px;text-align:center">⚠️</div>
+    <div style="font-size:18px;font-weight:800;color:#111827;text-align:center;margin-bottom:8px">Cancel your subscription?</div>
+    <div style="font-size:13px;color:#6b7280;text-align:center;margin-bottom:20px;line-height:1.6">Your WAF protection, SSL monitoring, and all security features will stop at the end of your billing period. Your website will be exposed.</div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-bottom:20px">
+      <div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:8px">To confirm, type <strong>CANCEL</strong> below:</div>
+      <input id="cancel-confirm-input" type="text" placeholder="Type CANCEL here" style="width:100%;border:1.5px solid #fca5a5;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box" oninput="checkCancelWord()" />
+    </div>
+    <div id="cancel-error" style="display:none;font-size:12px;color:#dc2626;margin-bottom:12px;text-align:center">Please type CANCEL exactly as shown.</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeCancelModal()" style="flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Keep My Plan</button>
+      <button id="cancel-confirm-btn" onclick="confirmCancellation()" disabled style="flex:1;padding:11px;border:none;border-radius:10px;background:#dc2626;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;opacity:0.4">Cancel Subscription</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showCancelModal() {
+    const m = document.getElementById('cancel-modal');
+    m.style.display = 'flex';
+    document.getElementById('cancel-confirm-input').value = '';
+    document.getElementById('cancel-confirm-btn').disabled = true;
+    document.getElementById('cancel-confirm-btn').style.opacity = '0.4';
+    document.getElementById('cancel-error').style.display = 'none';
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancel-modal').style.display = 'none';
+  }
+
+  function checkCancelWord() {
+    const val = document.getElementById('cancel-confirm-input').value.trim();
+    const btn = document.getElementById('cancel-confirm-btn');
+    const match = val === 'CANCEL';
+    btn.disabled = !match;
+    btn.style.opacity = match ? '1' : '0.4';
+  }
+
+  async function confirmCancellation() {
+    const val = document.getElementById('cancel-confirm-input').value.trim();
+    if (val !== 'CANCEL') {
+      document.getElementById('cancel-error').style.display = 'block';
+      return;
+    }
+    const btn = document.getElementById('cancel-confirm-btn');
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      const res = await fetch(`${SERVER}/api/cancel-subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({})
+      });
+      const json = await res.json();
+      if (json.ok) {
+        closeCancelModal();
+        alert('Your cancellation request has been received. Our team will be in touch shortly.');
+      } else {
+        alert(json.error || 'Something went wrong. Please contact support.');
+        btn.textContent = 'Cancel Subscription';
+        btn.disabled = false;
+      }
+    } catch(e) {
+      alert('Could not send request. Please try again or contact support.');
+      btn.textContent = 'Cancel Subscription';
+      btn.disabled = false;
+    }
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('cancel-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCancelModal();
+  });
+</script>
 </body>
 </html>

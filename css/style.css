@@ -31,6 +31,23 @@
   --shadow-lg: 0 20px 60px rgba(0,0,0,0.10);
 }
 
+/* ---- DARK MODE TOKENS ---- */
+html[data-theme="dark"] {
+  --bg:           #111110;
+  --surface:      #1c1c1a;
+  --border:       #2e2e2a;
+  --text:         #edede8;
+  --muted:        #8a8a84;
+  --muted-light:  #5a5a56;
+  --accent-light: #111a3e;
+  --green-light:  #0a1f12;
+  --red-light:    #1f0c0c;
+  --orange-light: #1f150a;
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:    0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:    0 20px 60px rgba(0,0,0,0.6);
+}
+
 /* ---- RESET ---- */
 * {
   box-sizing: border-box;

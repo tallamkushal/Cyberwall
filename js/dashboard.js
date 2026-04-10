@@ -71,6 +71,7 @@ async function loadDashboard() {
   const banner = document.getElementById('onboarding-banner');
   if (banner && !profile.domain) banner.classList.remove('hidden');
 
+  window._currentProfile = profile;
   applyPlanGating(profile.plan || 'starter');
   loadStats(profile);
   loadThreats();
@@ -125,8 +126,9 @@ function showPanel(name, el, pushState = true) {
   // highlight matching mobile nav item
   const mobileMatch = document.querySelector(`.mobile-nav-item[data-panel="${name}"]`);
   if (mobileMatch) mobileMatch.classList.add('active');
-  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade'};
+  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor'};
   if (name === 'security-score') loadSecurityScore();
+  if (name === 'darkweb') loadDarkWebScan(false);
   document.getElementById('topbar-title').textContent = titles[name] || name;
   if (pushState) history.pushState({ panel: name }, '', '#' + name);
 }
@@ -341,51 +343,11 @@ function newsTimeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// ---- PLAN GATING ----
+// ---- PLAN GATING (disabled — all features open) ----
 const PLAN_RANK = { starter: 1, pro: 2, business: 3 };
 
 function applyPlanGating(plan) {
-  const userRank = PLAN_RANK[plan] || 1;
-
-  // Lock sidebar + mobile nav items the user can't access
-  document.querySelectorAll('[data-requires]').forEach(item => {
-    const required = item.getAttribute('data-requires');
-    const requiredRank = PLAN_RANK[required] || 2;
-    if (userRank < requiredRank) {
-      item.classList.add('locked');
-      item.setAttribute('onclick', `showUpgradePrompt('${required}')`);
-      // Remove the notification badge on locked items so it's not misleading
-      const notif = item.querySelector('.sidebar-notif');
-      if (notif) notif.remove();
-      // Add lock icon
-      const lockSpan = document.createElement('span');
-      lockSpan.className = 'lock-icon';
-      lockSpan.textContent = '🔒';
-      item.appendChild(lockSpan);
-    }
-  });
-
-  // Limit threats log to 10 rows for Starter
-  if (plan === 'starter') {
-    const tbody = document.getElementById('threats-full-tbody');
-    if (tbody) {
-      const rows = Array.from(tbody.querySelectorAll('tr'));
-      rows.forEach((row, i) => { if (i >= 10) row.remove(); });
-      const hint = document.createElement('tr');
-      hint.innerHTML = `<td colspan="7" style="text-align:center;padding:14px;color:var(--muted);font-size:13px;border-top:1px solid var(--border)">
-        🔒 Showing last 10 threats. <a onclick="showUpgradePrompt('pro')" style="color:var(--accent);cursor:pointer;font-weight:600">Upgrade to Pro</a> for full history.
-      </td>`;
-      tbody.appendChild(hint);
-    }
-  }
-
-  // Show AI model tier note
-  if (plan === 'pro') {
-    const aiSub = document.querySelector('#panel-ai .card-body > div > div:last-child');
-    if (aiSub && aiSub.style.fontSize === '12px') {
-      aiSub.textContent = 'Powered by Claude Haiku · Upgrade to Business for advanced AI (Claude Opus)';
-    }
-  }
+  // All features unlocked — no plan restrictions
 }
 
 function showUpgradePrompt(requiredPlan) {
@@ -505,9 +467,9 @@ function _ssGrade(score) {
   return 'F';
 }
 
-const _SS_GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#d97706','C':'#d97706','D':'#dc2626','F':'#991b1b'};
+const _SS_GRADE_COLORS = {'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ea580c','C':'#ea580c','C-':'#ea580c','D':'#dc2626','F':'#dc2626'};
 const _SS_SEV_COLORS   = {critical:'#dc2626',high:'#ea580c',medium:'#d97706',low:'#9ca3af'};
-const _SS_SEV_LABELS   = {critical:'Critical',high:'High',medium:'Medium',low:'Low'};
+const _SS_SEV_LABELS   = {critical:'Fix this now',high:'Fix soon',medium:'Good to fix',low:'Optional'};
 
 function _renderScoreEmpty() {
   const el = document.getElementById('ss-domain-label');
@@ -534,75 +496,90 @@ function _renderScoreError(msg) {
 
 function _renderSecurityScore(data) {
   const color    = _SS_GRADE_COLORS[data.grade] || '#dc2626';
-  const barColor = data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#d97706' : '#dc2626';
+  const score    = data.numericScore;
+
+  // Hero background gradient based on score
+  const heroBg = score >= 80
+    ? 'linear-gradient(135deg,#15803d,#16a34a)'
+    : score >= 55
+    ? 'linear-gradient(135deg,#c2410c,#ea580c)'
+    : 'linear-gradient(135deg,#991b1b,#dc2626)';
+
+  const heroHeadline = score >= 80
+    ? '🛡️ Your website is well protected'
+    : score >= 55
+    ? '⚠️ Your website needs some attention'
+    : '🚨 Your website is at risk right now';
+
+  const heroMsg = score >= 80
+    ? `Great news! We checked <strong>${data.domain}</strong> and it is doing well. ProCyberWall is actively blocking threats. Keep it this way and your customers can always trust your website.`
+    : score >= 55
+    ? `We checked <strong>${data.domain}</strong> and found ${data.issues.length} thing${data.issues.length>1?'s':''} that need fixing. Your website is partially protected but there are gaps that hackers can use. The good news — we can fix all of them.`
+    : `We checked <strong>${data.domain}</strong> and it is not fully protected. There ${data.issues.length===1?'is':'are'} <strong>${data.issues.length} problem${data.issues.length>1?'s':''}</strong> that leave your website open to attacks right now. Hackers look for exactly these gaps. Let's fix them.`;
+
+  const hero = document.getElementById('ss-hero');
+  if (hero) hero.style.background = heroBg;
+
+  const headline = document.getElementById('ss-hero-headline');
+  if (headline) headline.innerHTML = heroHeadline;
+
+  const msg = document.getElementById('ss-hero-msg');
+  if (msg) msg.innerHTML = heroMsg;
+
+  const scoreBig = document.getElementById('ss-score-big');
+  if (scoreBig) scoreBig.textContent = score;
 
   const circle = document.getElementById('ss-grade-circle');
-  if (circle) { circle.textContent = data.grade; circle.style.background = color; }
+  if (circle) { circle.textContent = data.grade; circle.style.background = 'rgba(255,255,255,0.2)'; }
 
   const domainEl = document.getElementById('ss-domain-label');
   if (domainEl) domainEl.textContent = data.domain;
+
   const scoreLine = document.getElementById('ss-score-line');
-  if (scoreLine) scoreLine.textContent = `${data.numericScore}/100 · ${data.grade} Security Grade`;
+  if (scoreLine) scoreLine.innerHTML = `${score}/100 &nbsp;·&nbsp; ${data.passedChecks.length} things safe &nbsp;·&nbsp; ${data.issues.length} things to fix`;
+
   const bar = document.getElementById('ss-score-bar');
-  if (bar) setTimeout(() => { bar.style.width = data.numericScore + '%'; bar.style.background = barColor; }, 80);
+  if (bar) setTimeout(() => { bar.style.width = score + '%'; }, 80);
+
   const meta = document.getElementById('ss-score-meta');
-  if (meta) meta.textContent = `${data.passedChecks.length} checks passed · ${data.issues.length} issues found · Confidence: ${data.confidence}`;
+  if (meta) meta.textContent = `Scan confidence: ${data.confidence}`;
 
   const confBadge = document.getElementById('ss-confidence-badge');
   if (confBadge) { confBadge.textContent = '🔎 Confidence: ' + data.confidence; confBadge.style.display = ''; }
 
   const scanTime = document.getElementById('ss-scan-time');
   if (scanTime && data.scannedAt) {
-    scanTime.textContent = 'Scanned ' + new Date(data.scannedAt).toLocaleTimeString() + (data.cached ? ' (cached)' : '');
+    scanTime.textContent = 'Last scanned ' + new Date(data.scannedAt).toLocaleTimeString() + (data.cached ? ' (cached)' : '');
   }
 
   if (data.managed) {
     const mb = document.getElementById('ss-managed-badge');
     if (mb) mb.style.display = '';
-    const mbox = document.getElementById('ss-managed-box');
-    if (mbox) {
-      mbox.style.display = '';
-      const mg = document.getElementById('ss-managed-grade');
-      if (mg) { mg.textContent = data.grade; mg.style.color = color; }
-      const mp = document.getElementById('ss-managed-points');
-      if (mp) mp.textContent = data.numericScore + '/100';
-    }
   }
 
-  const baseScore = data.managed ? Math.max(0, data.numericScore - (data.managedBonus || 0)) : data.numericScore;
-  const afterScore = Math.min(100, baseScore + 35);
-  if (baseScore < 90) {
-    const baSection = document.getElementById('ss-before-after');
-    if (baSection) {
-      baSection.style.display = '';
-      const beforeGradeEl = document.getElementById('ss-before-grade');
-      if (beforeGradeEl) { beforeGradeEl.textContent = _ssGrade(baseScore); beforeGradeEl.style.color = _SS_GRADE_COLORS[_ssGrade(baseScore)] || '#dc2626'; }
-      const beforeScoreEl = document.getElementById('ss-before-score');
-      if (beforeScoreEl) beforeScoreEl.textContent = baseScore + '/100';
-      const afterGradeEl = document.getElementById('ss-after-grade');
-      if (afterGradeEl) afterGradeEl.textContent = _ssGrade(afterScore);
-      const afterScoreEl = document.getElementById('ss-after-score');
-      if (afterScoreEl) afterScoreEl.textContent = afterScore + '/100';
-      const impEl = document.getElementById('ss-improvement');
-      if (impEl) impEl.textContent = '+' + (afterScore - baseScore) + ' pts';
-    }
-  }
 
   const bSection = document.getElementById('ss-breakdown-section');
   if (bSection) bSection.style.display = '';
+  const bCard = document.getElementById('ss-breakdown-card');
+  if (bCard) bCard.style.display = '';
   const bBody = document.getElementById('ss-breakdown-body');
   if (bBody && data.breakdown) {
     bBody.innerHTML = Object.values(data.breakdown).map(b => {
       const pct = b.score / b.max;
-      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#d97706' : '#dc2626';
-      return `<div style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-          <span style="font-size:13px;color:var(--text)">${b.label}</span>
-          <span style="font-size:13px;font-weight:700;color:${c}">${b.score}/${b.max}</span>
+      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#ea580c' : '#dc2626';
+      const statusLabel = pct >= 0.8 ? 'Good' : pct >= 0.5 ? 'Needs work' : 'Poor';
+      return `<div style="padding:14px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700;color:var(--text)">${b.label}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:700;color:${c};background:${c}18;padding:2px 8px;border-radius:5px">${statusLabel}</span>
+            <span style="font-size:13px;font-weight:700;color:${c}">${b.score}/${b.max}</span>
+          </div>
         </div>
-        <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(pct*100)}%;background:${c};border-radius:3px;transition:width 0.7s ease"></div>
+        <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;width:${Math.round(pct*100)}%;background:${c};border-radius:4px;transition:width 0.7s ease"></div>
         </div>
+        ${b.about ? `<div style="font-size:12px;color:var(--muted);line-height:1.6">${b.about}</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -610,9 +587,9 @@ function _renderSecurityScore(data) {
   const iBody  = document.getElementById('ss-issues-body');
   const iTitle = document.getElementById('ss-issues-title');
   if (iBody) {
-    if (iTitle) iTitle.textContent = data.issues.length ? `Issues Found (${data.issues.length})` : 'Issues';
+    if (iTitle) iTitle.textContent = data.issues.length ? `Things to fix (${data.issues.length})` : 'Things to fix';
     iBody.innerHTML = !data.issues.length
-      ? '<div style="color:#16a34a;font-size:13px;padding:8px 0">✅ No issues found!</div>'
+      ? '<div style="color:#16a34a;font-size:13px;padding:8px 0">✅ Everything looks great! Nothing to fix right now.</div>'
       : data.issues.map(i => `
           <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
             <div style="width:8px;height:8px;border-radius:50%;background:${_SS_SEV_COLORS[i.severity]||'#9ca3af'};flex-shrink:0;margin-top:4px"></div>
@@ -629,11 +606,17 @@ function _renderSecurityScore(data) {
   const pBody = document.getElementById('ss-passed-body');
   if (pBody) {
     pBody.innerHTML = !data.passedChecks.length
-      ? '<div style="color:var(--muted);font-size:13px;padding:8px 0">No checks passed yet.</div>'
+      ? '<div style="color:var(--muted);font-size:13px;padding:8px 0">Still checking...</div>'
       : data.passedChecks.map(c => `
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-            <span style="color:#16a34a;font-size:14px">${c.icon||'✓'}</span>
-            <span style="color:var(--text)">${_escapeHtml(c.label)}</span>
+          <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(22,163,74,0.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${c.icon||'✓'}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:7px">
+                ${_escapeHtml(c.label)}
+                <span style="font-size:10px;font-weight:700;color:#16a34a;background:rgba(22,163,74,0.1);padding:2px 7px;border-radius:4px">✓ Active</span>
+              </div>
+              ${c.desc ? `<div style="font-size:12px;color:var(--muted);line-height:1.6">${c.desc}</div>` : ''}
+            </div>
           </div>`).join('');
   }
 
@@ -694,5 +677,87 @@ async function submitTicket() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Submit Request →';
+  }
+}
+
+// ── DARK WEB MONITOR ─────────────────────────────────────────────────────────
+let _dwLoaded = false;
+async function loadDarkWebScan(force = false) {
+  if (_dwLoaded && !force) return;
+  _dwLoaded = true;
+
+  const btn = document.getElementById('dw-scan-btn');
+  const timeEl = document.getElementById('dw-scan-time');
+  if (btn) { btn.disabled = true; btn.textContent = 'Scanning…'; }
+
+  safeSet('dw-count-emails', '…');
+  safeSet('dw-count-breaches', '…');
+  safeSet('dw-status-text', 'Checking…');
+
+  const hide = id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; };
+  hide('dw-results-card');
+  hide('dw-clear-card');
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const headers = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+
+    const res = await fetch(`${_SERVER}/api/darkweb-scan`, { headers });
+    const data = await res.json();
+
+    if (data.notConfigured) {
+      safeSet('dw-count-emails', '—');
+      safeSet('dw-count-breaches', '—');
+      safeSet('dw-status-text', 'Not set up');
+      if (timeEl) timeEl.textContent = '⚙️ ' + data.error;
+      return;
+    }
+    if (data.error) {
+      safeSet('dw-count-emails', '—');
+      safeSet('dw-count-breaches', '—');
+      safeSet('dw-status-text', '—');
+      if (timeEl) timeEl.textContent = '⚠️ ' + data.error;
+      return;
+    }
+
+    safeSet('dw-count-emails', data.totalAffectedEmails);
+    safeSet('dw-count-breaches', data.totalBreaches);
+
+    if (timeEl) timeEl.textContent = 'Last scanned ' + new Date(data.scannedAt).toLocaleString();
+
+    if (data.totalAffectedEmails === 0) {
+      safeSet('dw-status-text', 'All Clear ✓');
+      document.getElementById('dw-status-text').style.color = 'var(--green)';
+      const c = document.getElementById('dw-clear-card');
+      if (c) c.style.display = '';
+    } else {
+      safeSet('dw-status-text', 'Action Needed');
+      document.getElementById('dw-status-text').style.color = '#dc2626';
+
+      const card = document.getElementById('dw-results-card');
+      const body = document.getElementById('dw-results-body');
+      const emailLabel = document.getElementById('dw-email-label');
+      if (emailLabel) emailLabel.textContent = data.email || '';
+      if (card) card.style.display = '';
+      if (body) {
+        body.innerHTML = (data.breachDetails || []).map(b => `
+          <div style="padding:14px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+              <span style="font-size:14px">⚠️</span>
+              <span style="font-size:13px;font-weight:700;color:var(--text)">${_escapeHtml(b.name)}</span>
+              <span style="font-size:11px;color:var(--muted)">${b.date ? b.date.slice(0,4) : ''}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;padding-left:26px;margin-bottom:6px">
+              ${(b.dataClasses||[]).map(d => `<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--muted)">${_escapeHtml(d)}</span>`).join('')}
+            </div>
+          </div>`).join('');
+      }
+    }
+  } catch(e) {
+    safeSet('dw-status-text', 'Error');
+    if (timeEl) timeEl.textContent = '⚠️ Could not complete scan. Please try again.';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Scan Now'; }
   }
 }
