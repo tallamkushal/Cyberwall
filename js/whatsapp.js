@@ -1,31 +1,24 @@
 // ============================================
 // CYBERWALL — WhatsApp Alerts
-// This file sends real WhatsApp messages
-// to clients and admin using Twilio API
+// Sends WhatsApp messages via the ProCyberWall
+// backend (server.js → Twilio API).
+// Credentials never exposed to the browser.
 // ============================================
 
-const TWILIO_SID   = "ACe4cee4b4db65de112cd6a26156994c8b";
-const TWILIO_TOKEN = "83bd0490a83a0c5420b5d08f9902720e";
-const TWILIO_FROM  = "whatsapp:+14155238886"; // Twilio sandbox number
-
-// ============================================
-// NOTE: In production, NEVER put API keys in
-// frontend JS. These should be in a backend.
-// For now this calls a Netlify serverless
-// function which keeps keys safe.
-// ============================================
+var SERVER = window.location.hostname === 'localhost'
+  ? 'http://localhost:3001'
+  : 'https://cyberwall.onrender.com';
 
 // ---- SEND WHATSAPP MESSAGE ----
 async function sendWhatsApp(toPhone, message) {
   try {
-    const base = '';
-    const response = await fetch(`${base}/.netlify/functions/send-whatsapp`, {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const headers = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+    const response = await fetch(`${SERVER}/api/whatsapp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: toPhone,
-        message: message
-      })
+      headers,
+      body: JSON.stringify({ to: toPhone, message })
     });
     const data = await response.json();
     return data.success ? { success: true } : { success: false, error: data.error };
@@ -39,7 +32,7 @@ async function sendWhatsApp(toPhone, message) {
 
 // Sent to CLIENT when a serious attack is blocked
 function alertClientThreat(clientName, domain, threatType, count) {
-  return `🛡 *CyberWall Alert*
+  return `🛡 *ProCyberWall Alert*
 
 Hi ${clientName}!
 
@@ -51,12 +44,12 @@ No action needed from your side. We're on it 24/7.
 
 _View details: ${window.location.origin}/dashboard.html_
 
-— CyberWall Team 🇮🇳`;
+— ProCyberWall Team 🇮🇳`;
 }
 
 // Sent to CLIENT when their monthly report is ready
 function alertClientReport(clientName, month) {
-  return `📄 *CyberWall Monthly Report*
+  return `📄 *ProCyberWall Monthly Report*
 
 Hi ${clientName}!
 
@@ -66,16 +59,16 @@ Log in to download your report and see a full summary of threats blocked this mo
 
 _Download: ${window.location.origin}/dashboard.html_
 
-— CyberWall Team 🇮🇳`;
+— ProCyberWall Team 🇮🇳`;
 }
 
 // Sent to CLIENT when setup is complete
 function alertClientSetupDone(clientName, domain) {
-  return `🎉 *CyberWall is Live!*
+  return `🎉 *ProCyberWall is Live!*
 
 Hi ${clientName}!
 
-Great news — your website *${domain}* is now protected by CyberWall WAF!
+Great news — your website *${domain}* is now protected by ProCyberWall WAF!
 
 ✅ WAF rules active
 ✅ SSL monitoring active  
@@ -86,13 +79,13 @@ You can now view your security dashboard anytime.
 
 _Dashboard: ${window.location.origin}/dashboard.html_
 
-Welcome to CyberWall! 🛡🇮🇳`;
+Welcome to ProCyberWall! 🛡🇮🇳`;
 }
 
 // Sent to ADMIN when a new client signs up
 function alertAdminNewSignup(clientName, email, plan, domain) {
   plan = plan || 'starter';
-  return `🆕 *New CyberWall Signup!*
+  return `🆕 *New ProCyberWall Signup!*
 
 *Name:* ${clientName}
 *Email:* ${email}
@@ -106,7 +99,7 @@ function alertAdminNewSignup(clientName, email, plan, domain) {
 
 _Admin panel: ${window.location.origin}/admin.html_
 
-— CyberWall System`;
+— ProCyberWall System`;
 }
 
 // Sent to ADMIN when payment fails
@@ -119,7 +112,7 @@ function alertAdminPaymentFailed(clientName, email, amount) {
 
 Please follow up with client on WhatsApp.
 
-— CyberWall System`;
+— ProCyberWall System`;
 }
 
 // ---- SEND ALERT BUTTONS (called from admin panel) ----
@@ -146,8 +139,4 @@ async function sendReportReadyAlert(clientPhone, clientName, month) {
   return result;
 }
 
-async function notifyAdminNewSignup(clientName, email, plan, domain) {
-  const adminPhone = '+919844482193'; // Kushal's WhatsApp
-  const message = alertAdminNewSignup(clientName, email, plan, domain);
-  return await sendWhatsApp(adminPhone, message);
-}
+// Admin signup notification is now handled server-side in /api/create-profile.

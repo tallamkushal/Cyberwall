@@ -11,12 +11,15 @@
       position: fixed; bottom: 88px; right: 24px; z-index: 9999;
       width: 52px; height: 52px; border-radius: 50%;
       background: linear-gradient(135deg, #1a47e8, #7c3aed);
-      color: white; border: none; cursor: pointer;
+      color: white; border: none; cursor: grab;
       box-shadow: 0 4px 20px rgba(26,71,232,0.4);
       display: flex; align-items: center; justify-content: center;
-      font-size: 22px; transition: all 0.25s;
+      font-size: 22px; transition: transform 0.25s, box-shadow 0.25s;
+      touch-action: none; user-select: none;
     }
     #cw-chat-btn:hover { transform: scale(1.1); box-shadow: 0 8px 28px rgba(26,71,232,0.5); }
+    #cw-chat-btn.cw-dragging,
+    #cw-chat-btn.cw-dragging:hover { cursor: grabbing; transform: scale(1.08); transition: none; }
     #cw-chat-btn .cw-notif {
       position: absolute; top: -3px; right: -3px;
       width: 14px; height: 14px; border-radius: 50%;
@@ -178,7 +181,7 @@
   const btn = document.createElement('button');
   btn.id = 'cw-chat-btn';
   btn.innerHTML = '🛡<span class="cw-notif"></span>';
-  btn.title = 'Chat with Wally — CyberWall AI';
+  btn.title = 'Chat with Wally — ProCyberWall AI';
   document.body.appendChild(btn);
 
   const panel = document.createElement('div');
@@ -187,7 +190,7 @@
     <div class="cw-header">
       <div class="cw-avatar">🛡</div>
       <div class="cw-header-info">
-        <div class="cw-header-name">Wally — CyberWall AI</div>
+        <div class="cw-header-name">Wally — ProCyberWall AI</div>
         <div class="cw-header-status"><span class="cw-status-dot"></span> Online · replies instantly</div>
       </div>
       <button class="cw-close" id="cw-close-btn">✕</button>
@@ -206,19 +209,161 @@
   `;
   document.body.appendChild(panel);
 
+  btn.title = 'Chat with Wally · Drag to reposition';
+
+  // ── DRAG & REPOSITION ──────────────────────────────────────────────────────
+  let hasDragged = false;
+  let dragState  = null;
+
+  function applyBtnPos(left, top) {
+    const bw = btn.offsetWidth  || 52;
+    const bh = btn.offsetHeight || 52;
+    left = Math.max(8, Math.min(left, window.innerWidth  - bw - 8));
+    top  = Math.max(8, Math.min(top,  window.innerHeight - bh - 8));
+    btn.style.left   = left + 'px';
+    btn.style.top    = top  + 'px';
+    btn.style.right  = 'auto';
+    btn.style.bottom = 'auto';
+  }
+
+  function repositionPanel() {
+    if (window.innerWidth <= 480) {
+      // Let CSS media query handle the mobile full-screen layout
+      panel.style.left = panel.style.top = panel.style.right = panel.style.bottom = '';
+      return;
+    }
+    const r  = btn.getBoundingClientRect();
+    const pw = 360, ph = 520, gap = 12;
+    const vw = window.innerWidth, vh = window.innerHeight;
+
+    // Horizontal: prefer left of button → right → centred
+    let left = r.left - pw - gap;
+    if (left < 8) left = r.right + gap;
+    if (left + pw > vw - 8) left = r.left + r.width / 2 - pw / 2;
+    left = Math.max(8, Math.min(left, vw - pw - 8));
+
+    // Vertical: prefer above → below
+    let top = r.top - ph - gap;
+    if (top < 8) top = r.bottom + gap;
+    top = Math.max(8, Math.min(top, vh - ph - 8));
+
+    panel.style.left   = left + 'px';
+    panel.style.top    = top  + 'px';
+    panel.style.right  = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  function positionGreeting(el) {
+    if (window.innerWidth <= 480) return;
+    const r  = btn.getBoundingClientRect();
+    const eh = el.offsetHeight || 44;
+    el.style.bottom = 'auto';
+    el.style.right  = 'auto';
+    el.style.top    = Math.max(8, r.top - eh - 10) + 'px';
+    el.style.left   = Math.max(8, r.left - 90 + r.width / 2) + 'px';
+  }
+
+  // Restore saved position on load
+  const savedPos = JSON.parse(localStorage.getItem('cw-wally-pos') || 'null');
+  if (savedPos) applyBtnPos(savedPos.left, savedPos.top);
+
+  // Re-clamp button on viewport resize
+  window.addEventListener('resize', () => {
+    if (btn.style.left) applyBtnPos(parseFloat(btn.style.left), parseFloat(btn.style.top));
+    if (isOpen) repositionPanel();
+  });
+
+  let isDragging = false;
+
+  function onDragMove(e) {
+    if (!isDragging || !dragState) return;
+    if (e.cancelable) e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = clientX - dragState.startX;
+    const dy = clientY - dragState.startY;
+    if (!hasDragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+    hasDragged = true;
+    btn.classList.add('cw-dragging');
+    applyBtnPos(dragState.btnX + dx, dragState.btnY + dy);
+    if (isOpen) repositionPanel();
+  }
+
+  function onDragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    btn.classList.remove('cw-dragging');
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup',   onDragEnd);
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('touchend',  onDragEnd);
+    if (hasDragged) {
+      localStorage.setItem('cw-wally-pos', JSON.stringify({
+        left: parseFloat(btn.style.left),
+        top:  parseFloat(btn.style.top),
+      }));
+      repositionPanel();
+    }
+    dragState = null;
+  }
+
+  function onDragStart(e) {
+    if (e.button != null && e.button !== 0) return; // left mouse button only
+    hasDragged = false;
+    isDragging = true;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const r = btn.getBoundingClientRect();
+    dragState = { startX: clientX, startY: clientY, btnX: r.left, btnY: r.top };
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup',   onDragEnd);
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend',  onDragEnd);
+  }
+
+  btn.addEventListener('mousedown',  onDragStart);
+  btn.addEventListener('touchstart', onDragStart, { passive: true });
+
   // ── LOGIC ────────────────────────────────────────────────────────────────
   const msgContainer = document.getElementById('cw-messages');
   const input = document.getElementById('cw-input');
   const sendBtn = document.getElementById('cw-send');
   const suggestions = document.getElementById('cw-suggestions');
 
+  const MSG_LIMIT = 5;
+  let userMsgCount = parseInt(sessionStorage.getItem('cw-msg-count') || '0', 10);
+
+  function showWhatsAppCTA() {
+    const row = document.querySelector('.cw-input-row');
+    if (!row || row.dataset.cta) return;
+    row.dataset.cta = '1';
+    row.innerHTML = `
+      <div style="width:100%;text-align:center;padding:4px 0 2px">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Want to keep chatting? Continue on WhatsApp 👇</div>
+        <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20I%20have%20some%20questions." target="_blank"
+          style="display:flex;align-items:center;justify-content:center;gap:8px;background:#25d366;color:white;font-weight:700;
+          font-size:13.5px;padding:10px 18px;border-radius:12px;text-decoration:none;font-family:'DM Sans',sans-serif;
+          transition:background 0.2s;width:100%"
+          onmouseover="this.style.background='#1ebe5d'" onmouseout="this.style.background='#25d366'">
+          <span style="font-size:18px">💬</span> Chat with us on WhatsApp
+        </a>
+        <div style="font-size:11px;color:#9ca3af;margin-top:6px">We typically reply within a few minutes</div>
+      </div>`;
+  }
+
   function openPanel() {
     if (isOpen) return;
     isOpen = true;
+    repositionPanel();
     panel.classList.add('open');
     btn.querySelector('.cw-notif')?.remove();
     if (messages.length === 0) {
-      setTimeout(() => addBotMessage("Hi there! 👋 I'm Wally, CyberWall's AI assistant. Ask me anything — pricing, how it works, what attacks we block. I'm here to help!"), 400);
+      setTimeout(() => {
+        addBotMessage("Hi there! 👋 I'm Wally, ProCyberWall's AI assistant. Ask me anything — pricing, how it works, what attacks we block. I'm here to help!");
+        if (userMsgCount >= MSG_LIMIT) setTimeout(showWhatsAppCTA, 600);
+      }, 400);
+    } else if (userMsgCount >= MSG_LIMIT) {
+      setTimeout(showWhatsAppCTA, 200);
     }
     input.focus();
   }
@@ -244,7 +389,10 @@
   function addUserMessage(text) {
     const wrap = document.createElement('div');
     wrap.className = 'cw-bubble-wrap user';
-    wrap.innerHTML = `<div class="cw-bubble user">${text}</div>`;
+    const bubble = document.createElement('div');
+    bubble.className = 'cw-bubble user';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
     msgContainer.appendChild(wrap);
     msgContainer.scrollTop = msgContainer.scrollHeight;
   }
@@ -264,9 +412,19 @@
 
   async function sendMessage(text) {
     if (!text.trim() || isTyping) return;
+
+    // Enforce session message limit
+    if (userMsgCount >= MSG_LIMIT) {
+      showWhatsAppCTA();
+      return;
+    }
+
     isTyping = true;
     sendBtn.disabled = true;
     suggestions.style.display = 'none';
+
+    userMsgCount++;
+    sessionStorage.setItem('cw-msg-count', userMsgCount);
 
     addUserMessage(text);
     messages.push({ role: 'user', content: text });
@@ -301,7 +459,15 @@
           try {
             const data = JSON.parse(line.slice(6));
             if (data.text) { fullText += data.text; bubble.textContent = fullText; msgContainer.scrollTop = msgContainer.scrollHeight; }
-            if (data.done) { messages.push({ role: 'assistant', content: fullText }); }
+            if (data.done) {
+              messages.push({ role: 'assistant', content: fullText });
+              if (userMsgCount >= MSG_LIMIT) {
+                setTimeout(() => {
+                  addBotMessage("That's all I can share here — but I'd love to keep helping! 😊 Tap below to continue on WhatsApp.");
+                  showWhatsAppCTA();
+                }, 500);
+              }
+            }
           } catch {}
         }
       }
@@ -317,13 +483,14 @@
   // Greeting bubble on page load
   const greeting = document.createElement('div');
   greeting.id = 'cw-greeting';
-  greeting.textContent = 'Hi! I\'m Wally, your CyberWall AI assistant 👋';
+  greeting.textContent = 'Hi! I\'m Wally, your ProCyberWall AI assistant 👋';
   document.body.appendChild(greeting);
+  requestAnimationFrame(() => positionGreeting(greeting));
   greeting.addEventListener('click', () => { greeting.remove(); togglePanel(); });
   setTimeout(() => greeting.remove(), 6000);
 
   // Events
-  btn.addEventListener('click', togglePanel);
+  btn.addEventListener('click', () => { if (hasDragged) { hasDragged = false; return; } togglePanel(); });
   document.getElementById('cw-close-btn').addEventListener('click', togglePanel);
 
   sendBtn.addEventListener('click', () => sendMessage(input.value));

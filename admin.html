@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
+    <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a47e8"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
+  <link rel="apple-touch-icon" href="/icons/icon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CyberWall — Admin</title>
+  <title>ProCyberWall — Admin</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
-    body { display: flex; min-height: 100vh; overflow: hidden; }
+    body { display: flex; height: 100vh; overflow: hidden; }
 
     /* ---- SIDEBAR ---- */
     .sidebar {
@@ -79,7 +86,8 @@
     .main {
       margin-left: 220px; flex: 1;
       display: flex; flex-direction: column;
-      min-height: 100vh; overflow-y: auto;
+      height: 100vh; overflow-y: auto;
+      overflow-x: hidden;
     }
 
     /* ---- TOPBAR ---- */
@@ -165,6 +173,10 @@
     .action-view:hover { background: var(--accent); color: white; }
     .action-warn { background: var(--red-light); color: var(--red); }
     .action-warn:hover { background: var(--red); color: white; }
+    .action-ok { background: #dcfce7; color: var(--green); }
+    .action-ok:hover { background: var(--green); color: white; }
+    .action-del { background: #f1f5f9; color: var(--muted); }
+    .action-del:hover { background: var(--red-light); color: var(--red); }
 
     /* ---- MRR BREAKDOWN ---- */
     .mrr-row {
@@ -246,7 +258,7 @@
 <nav class="sidebar">
   <div class="sidebar-logo">
     <div class="sidebar-logo-icon">⚙</div>
-    <span class="sidebar-logo-text">CyberWall</span>
+    <span class="sidebar-logo-text">ProCyberWall</span>
   </div>
   <div class="admin-badge">Admin Panel</div>
 
@@ -268,14 +280,14 @@
     <div class="sidebar-section-label">Operations</div>
     <a class="sidebar-item" onclick="showPanel('tasks', this)">
       <span class="sidebar-item-icon">✅</span> Tasks
-      <span class="sidebar-notif" style="background:var(--orange)">4</span>
+      <span class="sidebar-notif" id="tasks-count-badge" style="background:var(--orange)"></span>
     </a>
     <a class="sidebar-item" onclick="showPanel('add', this)">
       <span class="sidebar-item-icon">➕</span> Add Client
     </a>
     <a class="sidebar-item" onclick="showPanel('support', this)">
       <span class="sidebar-item-icon">💬</span> Support
-      <span class="sidebar-notif">2</span>
+      <span class="sidebar-notif" id="support-count-badge" style="background:var(--red);display:none"></span>
     </a>
   </div>
 
@@ -349,7 +361,7 @@
         <!-- Revenue Chart -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">MRR Growth — Last 6 Months</span>
+            <span class="card-title">MRR by Plan</span>
             <span class="card-action" onclick="showPanel('revenue', null)">Full report →</span>
           </div>
           <div class="card-body">
@@ -369,16 +381,16 @@
           <div class="card-header"><span class="card-title">Plan Breakdown</span></div>
           <div class="card-body">
             <div class="mrr-row">
-              <div><div class="mrr-plan">Starter</div><div class="mrr-count">$29/mo each</div></div>
-              <div class="mrr-amount">—</div>
+              <div><div class="mrr-plan">Starter</div><div class="mrr-count" id="mrr-count-starter">—</div></div>
+              <div class="mrr-amount" id="mrr-amount-starter">—</div>
             </div>
             <div class="mrr-row">
-              <div><div class="mrr-plan">Pro</div><div class="mrr-count">$59/mo each</div></div>
-              <div class="mrr-amount">—</div>
+              <div><div class="mrr-plan">Pro</div><div class="mrr-count" id="mrr-count-pro">—</div></div>
+              <div class="mrr-amount" id="mrr-amount-pro">—</div>
             </div>
             <div class="mrr-row">
-              <div><div class="mrr-plan">Business</div><div class="mrr-count">$99/mo each</div></div>
-              <div class="mrr-amount">—</div>
+              <div><div class="mrr-plan">Business</div><div class="mrr-count" id="mrr-count-business">—</div></div>
+              <div class="mrr-amount" id="mrr-amount-business">—</div>
             </div>
             <div class="mrr-row" style="border-top:2px solid var(--border);margin-top:8px;padding-top:12px">
               <div><div class="mrr-plan" style="font-size:14px">Total MRR</div></div>
@@ -394,31 +406,8 @@
           <span class="card-title">🔴 Pending Action Items</span>
           <span class="card-action" onclick="showPanel('tasks', null)">View all →</span>
         </div>
-        <div class="card-body">
-          <div class="task-item">
-            <div class="task-dot dot-high"></div>
-            <div>
-              <div class="task-title">Onboard new client — WAF setup pending</div>
-              <div class="task-desc">Configure Cloudflare WAF, update DNS, verify protection is live.</div>
-            </div>
-            <span class="task-time" style="color:var(--red)">Overdue</span>
-          </div>
-          <div class="task-item">
-            <div class="task-dot dot-high"></div>
-            <div>
-              <div class="task-title">Follow up: overdue payment</div>
-              <div class="task-desc">Payment failed. Send WhatsApp reminder.</div>
-            </div>
-            <span class="task-time">3 days late</span>
-          </div>
-          <div class="task-item">
-            <div class="task-dot dot-med"></div>
-            <div>
-              <div class="task-title">Send monthly security reports to all clients</div>
-              <div class="task-desc">Generate PDFs and send via WhatsApp + email.</div>
-            </div>
-            <span class="task-time">Today</span>
-          </div>
+        <div class="card-body" id="overview-tasks">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading tasks...</div>
         </div>
       </div>
     </div>
@@ -477,64 +466,51 @@
 
     <!-- ===== TASKS ===== -->
     <div class="panel" id="panel-tasks">
+      <!-- Action Items (auto-generated) -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <span class="card-title">⚡ Action Items</span>
+          <span style="font-size:12px;color:var(--muted)">Auto-generated</span>
+        </div>
+        <div class="card-body" id="action-items-list">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Custom Tasks -->
       <div class="card">
-        <div class="card-header"><span class="card-title">All Tasks & Action Items</span></div>
-        <div class="card-body">
+        <div class="card-header">
+          <span class="card-title">📋 My Tasks</span>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="toggleNewTaskForm()">+ New Task</button>
+        </div>
 
-          <div class="section-tag" style="color:var(--red)">🔴 High Priority</div>
-          <div class="task-item">
-            <div class="task-dot dot-high"></div>
-            <div>
-              <div class="task-title">Onboard new client — WAF setup pending</div>
-              <div class="task-desc">Configure Cloudflare WAF, update DNS records, verify protection is active.</div>
+        <!-- Inline create form (hidden by default) -->
+        <div id="new-task-form" style="display:none;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg);border-radius:0">
+          <div class="form-row" style="margin-bottom:10px">
+            <div class="form-group" style="flex:2;margin-bottom:0">
+              <input class="form-input" id="new-task-title" placeholder="Task title..."/>
             </div>
-            <span class="task-time" style="color:var(--red)">Overdue</span>
-          </div>
-          <div class="task-item">
-            <div class="task-dot dot-high"></div>
-            <div>
-              <div class="task-title">Payment follow-up — overdue client</div>
-              <div class="task-desc">March payment failed 3 days ago. Send WhatsApp reminder. Escalate if no response in 48hrs.</div>
+            <div class="form-group" style="flex:1;margin-bottom:0">
+              <select class="form-input" id="new-task-priority">
+                <option value="high">🔴 High</option>
+                <option value="med" selected>🟠 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
             </div>
-            <span class="task-time">3 days late</span>
+            <div class="form-group" style="flex:1;margin-bottom:0">
+              <input type="date" class="form-input" id="new-task-due"/>
+            </div>
           </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="new-task-desc" placeholder="Description (optional)" style="flex:1"/>
+            <button class="btn btn-primary" style="flex-shrink:0" onclick="createTask()">Add</button>
+            <button class="btn btn-ghost" style="flex-shrink:0" onclick="toggleNewTaskForm()">Cancel</button>
+          </div>
+          <div id="new-task-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+        </div>
 
-          <div class="section-tag" style="color:var(--orange);margin-top:20px">🟡 Medium Priority</div>
-          <div class="task-item">
-            <div class="task-dot dot-med"></div>
-            <div>
-              <div class="task-title">Generate & send monthly security reports</div>
-              <div class="task-desc">Generate PDFs using report template, send via WhatsApp + email to all active clients.</div>
-            </div>
-            <span class="task-time">Today</span>
-          </div>
-          <div class="task-item">
-            <div class="task-dot dot-med"></div>
-            <div>
-              <div class="task-title">Fix missing DMARC record for client</div>
-              <div class="task-desc">Client flagged missing DMARC. Configure on Cloudflare DNS, verify with mail-tester.com</div>
-            </div>
-            <span class="task-time">This week</span>
-          </div>
-
-          <div class="section-tag" style="color:var(--green);margin-top:20px">🟢 Low Priority</div>
-          <div class="task-item">
-            <div class="task-dot dot-low"></div>
-            <div>
-              <div class="task-title task-done">Set up WhatsApp alert for new client</div>
-              <div class="task-desc task-done">Completed — alerts active</div>
-            </div>
-            <span class="task-time">✓ Done</span>
-          </div>
-          <div class="task-item">
-            <div class="task-dot dot-low"></div>
-            <div>
-              <div class="task-title">Upsell trial client from Starter → Pro</div>
-              <div class="task-desc">Good engagement. Send case study showing value of real-time alerts.</div>
-            </div>
-            <span class="task-time">This week</span>
-          </div>
-
+        <div class="card-body" id="tasks-list">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading tasks...</div>
         </div>
       </div>
     </div>
@@ -617,49 +593,25 @@
 
     <!-- ===== SUPPORT ===== -->
     <div class="panel" id="panel-support">
+      <!-- Open Tickets -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header">
+          <span class="card-title">🎫 Support Tickets</span>
+          <span id="open-ticket-count" style="font-size:12px;color:var(--muted)">Loading...</span>
+        </div>
+        <div class="card-body" id="tickets-list">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading tickets...</div>
+        </div>
+      </div>
+
+      <!-- Contact Clients -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">Client Messages</span>
-          <span class="card-action">Open WhatsApp Business →</span>
+          <span class="card-title">📱 Contact Clients</span>
+          <span class="card-action" onclick="window.open('https://wa.me/', '_blank')">Open WhatsApp →</span>
         </div>
-        <div class="card-body">
-
-          <div class="support-item">
-            <div class="support-avatar" style="background:var(--accent)">RK</div>
-            <div style="flex:1">
-              <div class="support-name">Rahul Khanna <span style="font-size:11px;color:var(--muted);font-weight:400">· shopkaro.in</span></div>
-              <div class="support-msg">"Hey, I'm seeing the DMARC warning still. Has it been fixed yet?"</div>
-              <div class="support-time">2 hours ago</div>
-            </div>
-            <div class="support-reply">
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
-            </div>
-          </div>
-
-          <div class="support-item">
-            <div class="support-avatar" style="background:var(--green)">DN</div>
-            <div style="flex:1">
-              <div class="support-name">Deepa Nair <span style="font-size:11px;color:var(--muted);font-weight:400">· deepaclinic.in</span></div>
-              <div class="support-msg">"Can you explain what SQL injection means in my last report?"</div>
-              <div class="support-time">Yesterday</div>
-            </div>
-            <div class="support-reply">
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
-            </div>
-          </div>
-
-          <div class="support-item">
-            <div class="support-avatar" style="background:var(--orange)">MI</div>
-            <div style="flex:1">
-              <div class="support-name">Meera Iyer <span style="font-size:11px;color:var(--muted);font-weight:400">· meeracoaching.in</span></div>
-              <div class="support-msg">"Thank you for the February report! Very helpful. 🙏"</div>
-              <div class="support-time">2 days ago</div>
-            </div>
-            <div class="support-reply">
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px">Reply</button>
-            </div>
-          </div>
-
+        <div class="card-body" id="support-list">
+          <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading clients...</div>
         </div>
       </div>
     </div>
@@ -671,14 +623,14 @@
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
             <div style="width:42px;height:42px;border-radius:12px;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:20px">🤖</div>
             <div>
-              <div style="font-weight:700;font-size:16px">CyberWall Admin AI</div>
+              <div style="font-weight:700;font-size:16px">ProCyberWall Admin AI</div>
               <div style="font-size:12px;color:var(--muted)">Ask about clients, revenue, tasks, or operations</div>
             </div>
           </div>
 
           <div id="ai-messages" style="height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg);border-radius:12px;border:1px solid var(--border);margin-bottom:16px">
             <div class="ai-msg ai-msg-bot">
-              <div class="ai-bubble">👋 Hey! I'm your CyberWall Admin AI. Ask me about clients, revenue, tasks, or anything operations-related.</div>
+              <div class="ai-bubble">👋 Hey! I'm your ProCyberWall Admin AI. Ask me about clients, revenue, tasks, or anything operations-related.</div>
             </div>
           </div>
 
@@ -915,5 +867,10 @@
   }
 </script>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    }
+  </script>
 </body>
 </html>

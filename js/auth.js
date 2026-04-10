@@ -38,9 +38,6 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     const profileData = await profileRes.json();
     if (!profileData.success) throw new Error(profileData.error || 'Profile creation failed');
 
-    // Notify admin on WhatsApp (non-blocking)
-    try { await notifyAdminNewSignup(fullName, email, plan, domain); } catch (e) { console.error('WhatsApp notify failed:', e); }
-
     return { success: true, user: data.user };
   } catch (error) {
     return { success: false, error: error.message };
@@ -76,14 +73,12 @@ async function requireAuth() {
 async function getCurrentProfile() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) return null;
-  // Retry up to 3 times to handle slow Supabase responses
-  for (let i = 0; i < 3; i++) {
+  // Retry up to 5 times — PGRST116 can fire even when profile exists due to Supabase replication lag
+  for (let i = 0; i < 5; i++) {
     const { data: profile, error } = await supabaseClient
       .from('profiles').select('*').eq('id', session.user.id).single();
     if (profile) return profile;
-    // Only retry on network errors, not "no rows found"
-    if (error?.code === 'PGRST116') return null; // genuinely no profile
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 600));
   }
   return null;
 }
@@ -93,6 +88,26 @@ async function resetPassword(email) {
     redirectTo: window.location.origin + '/auth.html'
   });
   return error ? { success: false, error: error.message } : { success: true };
+}
+
+async function verifyEmailOtp(email, token) {
+  try {
+    const { error } = await supabaseClient.auth.verifyOtp({ email, token, type: 'signup' });
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function resendEmailConfirmation(email) {
+  try {
+    const { error } = await supabaseClient.auth.resend({ type: 'signup', email });
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 function showToast(message, type = 'default') {
