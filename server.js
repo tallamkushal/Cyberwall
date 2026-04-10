@@ -142,6 +142,10 @@ async function requireAuth(req) {
 }
 
 // ── RATE LIMITER ──────────────────────────────────────────────────────────────
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  return (forwarded ? forwarded.split(',')[0].trim() : null) || req.socket.remoteAddress;
+}
 const _rateLimits = new Map();
 function checkRateLimit(ip, endpoint, maxReqs, windowMs) {
   const key = `${ip}:${endpoint}`;
@@ -482,7 +486,7 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Unauthorized' }));
       return;
     }
-    const ip = req.socket.remoteAddress;
+    const ip = getClientIp(req);
     if (!checkRateLimit(ip, '/api/whatsapp', 10, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests' }));
@@ -505,7 +509,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/api/ai-chat') {
-    if (!checkRateLimit(req.socket.remoteAddress, '/api/ai-chat', 20, 60000)) {
+    if (!checkRateLimit(getClientIp(req), '/api/ai-chat', 20, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
@@ -567,7 +571,7 @@ Rules:
   }
 
   if (req.method === 'POST' && req.url === '/api/admin-ai-chat') {
-    if (!checkRateLimit(req.socket.remoteAddress, '/api/admin-ai-chat', 20, 60000)) {
+    if (!checkRateLimit(getClientIp(req), '/api/admin-ai-chat', 20, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
@@ -631,7 +635,7 @@ Rules:
 
   // ── LANDING PAGE CHAT ─────────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/landing-chat') {
-    if (!checkRateLimit(req.socket.remoteAddress, '/api/landing-chat', 15, 60000)) {
+    if (!checkRateLimit(getClientIp(req), '/api/landing-chat', 15, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests' }));
       return;
@@ -1654,7 +1658,7 @@ Rules:
       res.end(JSON.stringify({ error: 'domain parameter required' }));
       return;
     }
-    const ip = req.socket.remoteAddress;
+    const ip = getClientIp(req);
     if (!checkRateLimit(ip, '/api/security-scan', 5, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Too many requests. Please wait a minute and try again.' }));
