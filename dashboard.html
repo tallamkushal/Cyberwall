@@ -977,7 +977,7 @@
 
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
             <button class="copy-btn" onclick="askSuggestion('Am I fully protected?')">Am I protected?</button>
-            <button class="copy-btn" onclick="askSuggestion('What is SQL injection?')">What is SQL injection?</button>
+            <button class="copy-btn" onclick="askSuggestion('Are AI-powered attacks targeting my website?')">AI attacks on my site?</button>
             <button class="copy-btn" onclick="askSuggestion('What does a firewall do?')">What does a firewall do?</button>
             <button class="copy-btn" onclick="askSuggestion('How do I improve my security score?')">Improve my score</button>
           </div>
@@ -1152,18 +1152,18 @@
           <button class="btn btn-primary" style="font-size:12px;padding:7px 16px" onclick="loadDarkWebScan(true)" id="dw-scan-btn">🔍 Scan Now</button>
         </div>
         <div class="card-body">
-          <div id="dw-summary" style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:18px">
-            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
-              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:var(--accent)" id="dw-count-emails">—</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Emails Exposed</div>
+          <div id="dw-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px">
+            <div style="flex:1;background:var(--bg);border-radius:12px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90px">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:var(--accent);line-height:1" id="dw-count-emails">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:6px">Emails Exposed</div>
             </div>
-            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
-              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:#ea580c" id="dw-count-breaches">—</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Total Breach Events</div>
+            <div style="flex:1;background:var(--bg);border-radius:12px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90px">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:800;color:#ea580c;line-height:1" id="dw-count-breaches">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:6px">Total Breach Events</div>
             </div>
-            <div style="flex:1;min-width:0;background:var(--bg);border-radius:12px;padding:16px;text-align:center">
-              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:var(--green)" id="dw-status-text">—</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px">Status</div>
+            <div style="flex:1;background:var(--bg);border-radius:12px;padding:16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90px">
+              <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:var(--green);line-height:1.2" id="dw-status-text">—</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:6px">Status</div>
             </div>
           </div>
           <div style="font-size:11px;color:var(--muted-light)" id="dw-scan-time"></div>

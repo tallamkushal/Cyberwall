@@ -129,7 +129,8 @@
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
     }
     .hero p { font-size:18px;color:var(--muted);line-height:1.75;max-width:540px;margin:0 auto 36px;animation:fadeUp 0.6s ease 0.2s both; }
-    .hero-ctas { display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;animation:fadeUp 0.6s ease 0.3s both; }
+    .hero-ctas { display:flex;align-items:stretch;justify-content:center;gap:12px;animation:fadeUp 0.6s ease 0.3s both;max-width:560px;margin:0 auto; }
+    .hero-ctas .btn { flex:1;text-align:center;justify-content:center; }
     .hero-sub { font-size:13px;color:var(--muted-light);margin-top:16px;animation:fadeUp 0.6s ease 0.4s both; }
 
     /* floating shield visual */
@@ -382,8 +383,8 @@
       .hero h1{font-size:28px;}
       .hero p{font-size:14px;}
       .hero{padding:44px 4% 32px;}
-      .hero-ctas{flex-direction:column;align-items:stretch;}
-      .hero-ctas .btn{text-align:center;justify-content:center;}
+      .hero-ctas{flex-direction:column;align-items:stretch;max-width:100%;}
+      .hero-ctas .btn{flex:none;text-align:center;justify-content:center;}
       .nav{padding:0 4% env(safe-area-inset-bottom,0px);height:56px;}
       .nav-logo-text{font-size:16px;}
       .nav-login{padding:6px 10px;font-size:13px;}
@@ -419,13 +420,12 @@
       <span class="live-dot"></span> 2,400+ attacks blocked today
     </div>
     <h1>Your website is being<br/>attacked right now.</h1>
-    <p style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px">Enterprise-grade firewall protection for small businesses — <span style="color:var(--accent)">without the enterprise price tag.</span></p>
-    <p>ProCyberWall gives your business enterprise-grade firewall protection — fully managed, no technical knowledge needed.</p>
+    <p>Enterprise-grade firewall protection — <strong style="color:var(--accent)">without the enterprise price tag.</strong><br/>Fully managed. Zero technical knowledge needed.</p>
     <div class="hero-ctas">
       <a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a>
       <a href="#scanner" class="btn btn-ghost btn-xl" style="display:flex;align-items:center;gap:8px;border:2px solid var(--accent);color:var(--accent);background:transparent;position:relative;overflow:hidden;">
         <span style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(26,71,232,0.1) 50%,transparent 100%);transform:translateX(-100%);animation:cw-sheen 2.2s ease-in-out infinite;pointer-events:none"></span>
-        🎯 <span>Check your <strong>website security score</strong> — Free</span>
+        🎯 <span><strong>Check security score</strong> — Free</span>
       </a>
     </div>
     <p class="hero-sub">No credit card required &nbsp;·&nbsp; Setup in 24 hours &nbsp;·&nbsp; Cancel anytime</p>
@@ -477,7 +477,7 @@
   <div class="section-center reveal">
     <div class="section-tag">Free Security Check · No Signup Needed</div>
     <h2 class="section-title" style="color:white">Find out your website's<br/>security score in 10 seconds.</h2>
-    <p class="section-sub">Most small business sites score C or below. See where yours stands — free, instant, no credit card.</p>
+    <p class="section-sub">Most business websites score C or below. See where yours stands — free, instant, no credit card.</p>
   </div>
   <div class="scanner-widget reveal">
     <div class="scanner-trust">
@@ -533,15 +533,55 @@
   <div class="section-center reveal">
     <div class="section-tag">Features</div>
     <h2 class="section-title">Everything your website needs</h2>
-    <p class="section-sub">Enterprise-grade security, built for small businesses worldwide.</p>
+    <p class="section-sub">Enterprise-grade security, built for every business worldwide.</p>
   </div>
   <div class="features-grid">
     <div class="feature-card reveal"><div class="feature-icon">🛡</div><div class="feature-title">Managed Firewall</div><div class="feature-desc">We configure enterprise firewall rules to block SQL injection, XSS, DDoS and more.</div></div>
     <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">📊</div><div class="feature-title">Live Dashboard</div><div class="feature-desc">See every blocked threat in real time. Watch your security score grow.</div></div>
     <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">💬</div><div class="feature-title">WhatsApp Alerts</div><div class="feature-desc">Instant WhatsApp notifications when something serious happens. No app needed.</div></div>
-    <div class="feature-card reveal"><div class="feature-icon">📄</div><div class="feature-title">Monthly Reports</div><div class="feature-desc">Plain-English PDF report every month. Show your clients you take security seriously.</div></div>
+    <div class="feature-card reveal" style="border:1.5px solid rgba(239,68,68,0.25);background:linear-gradient(135deg,rgba(239,68,68,0.04),transparent)"><div class="feature-icon">🤖</div><div class="feature-title">AI Attack Protection</div><div class="feature-desc">AI-driven bots now craft smarter attacks. Our rules detect and block AI-generated threats, automated exploits, and bot farms — before they touch your site.</div></div>
     <div class="feature-card reveal reveal-delay-1"><div class="feature-icon">🔐</div><div class="feature-title">SSL Monitoring</div><div class="feature-desc">We track SSL, SPF, DKIM, DMARC and alert you before anything expires.</div></div>
     <div class="feature-card reveal reveal-delay-2"><div class="feature-icon">🌍</div><div class="feature-title">GDPR & PCI Ready</div><div class="feature-desc">Fully aligned with GDPR, PCI-DSS and global data protection standards.</div></div>
+  </div>
+</section>
+
+<!-- AI THREAT SECTION -->
+<section class="section" style="background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);color:white;overflow:hidden;position:relative">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(239,68,68,0.08) 0%,transparent 60%);pointer-events:none"></div>
+  <div class="section-center reveal" style="position:relative;z-index:1">
+    <div class="section-tag" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">⚠ New Threat</div>
+    <h2 class="section-title" style="color:white">AI is making cyberattacks<br/>smarter and faster</h2>
+    <p class="section-sub" style="color:rgba(255,255,255,0.6)">Hackers now use AI to scan thousands of websites in seconds, craft targeted phishing emails, bypass basic security, and launch attacks that look completely human.</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:900px;margin:0 auto 40px;padding:0 5%;position:relative;z-index:1">
+    <div class="reveal" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px 20px">
+      <div style="font-size:28px;margin-bottom:10px">🔍</div>
+      <div style="font-weight:700;color:white;margin-bottom:6px;font-size:15px">AI-Powered Scanning</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6">AI tools scan your entire website for vulnerabilities in seconds — far faster than any human hacker could.</div>
+    </div>
+    <div class="reveal reveal-delay-1" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px 20px">
+      <div style="font-size:28px;margin-bottom:10px">🎭</div>
+      <div style="font-weight:700;color:white;margin-bottom:6px;font-size:15px">Human-Like Bot Attacks</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6">AI bots mimic real user behaviour to slip past basic defences — filling forms, clicking links, and hiding in normal traffic.</div>
+    </div>
+    <div class="reveal reveal-delay-2" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px 20px">
+      <div style="font-size:28px;margin-bottom:10px">✉️</div>
+      <div style="font-weight:700;color:white;margin-bottom:6px;font-size:15px">AI-Generated Phishing</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6">AI writes hyper-personalised phishing emails targeting your customers and staff — no spelling mistakes, no obvious red flags.</div>
+    </div>
+    <div class="reveal reveal-delay-3" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:22px 20px">
+      <div style="font-size:28px;margin-bottom:10px">⚡</div>
+      <div style="font-weight:700;color:white;margin-bottom:6px;font-size:15px">Automated Exploits</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6">AI identifies a vulnerability and launches an exploit within minutes of it being discovered — before you even know it exists.</div>
+    </div>
+  </div>
+  <div class="reveal" style="max-width:620px;margin:0 auto;padding:0 5%;position:relative;z-index:1;text-align:center">
+    <div style="background:linear-gradient(135deg,rgba(26,71,232,0.3),rgba(26,71,232,0.15));border:1.5px solid rgba(26,71,232,0.4);border-radius:18px;padding:28px 32px">
+      <div style="font-size:32px;margin-bottom:12px">🛡</div>
+      <div style="font-size:18px;font-weight:800;color:white;margin-bottom:8px">ProCyberWall detects AI attacks too</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.65);line-height:1.7;margin-bottom:20px">Our firewall rules are continuously updated to recognise AI-driven attack patterns — automated scanners, credential stuffing bots, AI-generated payloads, and more. Every business deserves the same protection as enterprises.</div>
+      <a href="auth.html" class="btn btn-primary" style="font-size:14px;padding:12px 28px">Start 7-Day Free Trial →</a>
+    </div>
   </div>
 </section>
 

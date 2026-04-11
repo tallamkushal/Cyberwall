@@ -652,12 +652,20 @@ ProCyberWall is a managed firewall service for small businesses worldwide — po
 
 What ProCyberWall does:
 - Protects any website from SQL injection, XSS, DDoS, bots, brute force attacks
+- Protects against AI-powered attacks: AI-driven bots, automated vulnerability scanners, AI-generated exploit payloads, credential stuffing, and human-like bot traffic
 - Fully managed setup — no technical knowledge needed
 - 24/7 monitoring with WhatsApp alerts when threats are blocked
 - Monthly plain-English security reports (PDF)
 - SSL, SPF, DKIM, DMARC monitoring
 - GDPR and PCI-DSS aligned
 - Setup completed within 24 hours
+
+The AI threat problem (important topic to address when visitors ask):
+- Hackers now use AI to scan thousands of websites in seconds
+- AI bots mimic real user behaviour to bypass basic defences
+- AI generates personalised phishing emails targeting customers and staff
+- AI identifies and exploits vulnerabilities within minutes of discovery
+- ProCyberWall's firewall rules are continuously updated to detect and block AI-driven attack patterns
 
 Pricing (USD):
 - Starter: $29/month — 1 website, firewall, SSL monitoring, monthly report, WhatsApp support

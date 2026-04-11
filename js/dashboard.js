@@ -162,11 +162,20 @@ async function handleLogout() { await logOut(); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function getInitials(name) { return name ? name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'U'; }
 
-window.addEventListener('DOMContentLoaded', function () {
-  // Seed initial history entry so the first back press stays on the dashboard
+window.addEventListener('DOMContentLoaded', async function () {
   const initial = location.hash.replace('#', '') || 'overview';
   history.replaceState({ panel: initial }, '', '#' + initial);
-  loadDashboard();
+
+  // Instantly flip the correct panel before any async work so there's no flash
+  if (initial !== 'overview') {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const target = document.getElementById('panel-' + initial);
+    if (target) target.classList.add('active');
+  }
+
+  await loadDashboard();
+  // Full switch — sets nav highlight and triggers panel-specific data loads
+  if (initial !== 'overview') showPanel(initial, null, false);
 });
 
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }

@@ -5,7 +5,87 @@
 // - Logging in existing users
 // - Logging out
 // - Checking if someone is logged in
+// - Session guards (bfcache, inactivity, PWA keepalive)
 // ============================================
+
+// ── PWA detection ─────────────────────────────────────────────────────────
+function isPWA() {
+  return window.matchMedia('(display-mode: standalone)').matches
+      || navigator.standalone === true;
+}
+
+// ── Bfcache guard ─────────────────────────────────────────────────────────
+// Fires when browser restores a page from back/forward cache without re-running JS.
+// Re-checks session so a logged-out user can't see protected pages via back button.
+function _setupBfcacheGuard() {
+  window.addEventListener('pageshow', async (e) => {
+    if (e.persisted) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) window.location.replace('auth.html');
+    }
+  });
+}
+
+// ── Inactivity auto-logout (browser only — PWA stays logged in) ───────────
+const _INACTIVITY_MS  = 30 * 60 * 1000; // 30 min idle → logout
+const _WARNING_BEFORE =  2 * 60 * 1000; // warn 2 min before logout
+let _idleTimer = null, _warnTimer = null;
+
+function _dismissWarning() {
+  const el = document.getElementById('_idle_warning');
+  if (el) el.remove();
+}
+
+function _showIdleWarning() {
+  _dismissWarning();
+  const div = document.createElement('div');
+  div.id = '_idle_warning';
+  div.style.cssText = [
+    'position:fixed','bottom:90px','left:50%','transform:translateX(-50%)',
+    'z-index:9999','background:#1e1e2e','border:1.5px solid rgba(251,191,36,0.4)',
+    'border-radius:14px','padding:14px 18px','display:flex','align-items:center',
+    'gap:14px','box-shadow:0 8px 32px rgba(0,0,0,0.35)','min-width:280px',
+    'max-width:90vw','font-family:"DM Sans",sans-serif'
+  ].join(';');
+  div.innerHTML = `
+    <span style="font-size:22px">⏱</span>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:white">Logging out in 2 minutes</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Tap anywhere to stay logged in</div>
+    </div>
+    <button id="_idle_stay" style="background:#1a47e8;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">Stay in</button>
+  `;
+  document.body.appendChild(div);
+  document.getElementById('_idle_stay').onclick = _resetIdleTimer;
+}
+
+function _resetIdleTimer() {
+  clearTimeout(_idleTimer);
+  clearTimeout(_warnTimer);
+  _dismissWarning();
+  _warnTimer = setTimeout(_showIdleWarning, _INACTIVITY_MS - _WARNING_BEFORE);
+  _idleTimer  = setTimeout(() => logOut(), _INACTIVITY_MS);
+}
+
+function _setupInactivityTimer() {
+  if (isPWA()) return; // PWA users stay logged in indefinitely
+  ['mousemove','keydown','touchstart','click','scroll'].forEach(ev =>
+    document.addEventListener(ev, _resetIdleTimer, { passive: true })
+  );
+  _resetIdleTimer();
+}
+
+// ── PWA foreground keepalive ──────────────────────────────────────────────
+// When the installed app is reopened from background, silently refresh the session.
+function _setupPWAKeepalive() {
+  if (!isPWA()) return;
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) window.location.replace('auth.html');
+    }
+  });
+}
 
 async function signUp(email, password, fullName, phone, businessName, domain, plan) {
   try {
@@ -60,13 +140,23 @@ async function logIn(email, password) {
 }
 
 async function logOut() {
+  // Clear inactivity timers before redirect
+  clearTimeout(_idleTimer);
+  clearTimeout(_warnTimer);
+  _dismissWarning();
   await supabaseClient.auth.signOut();
-  window.location.href = 'auth.html';
+  window.location.replace('auth.html');
 }
 
 async function requireAuth() {
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) { window.location.href = 'auth.html'; return null; }
+  if (!session) { window.location.replace('auth.html'); return null; }
+
+  // Wire up all session guards (safe to call multiple times — guards check isPWA internally)
+  _setupBfcacheGuard();
+  _setupInactivityTimer();
+  _setupPWAKeepalive();
+
   return session.user;
 }
 
