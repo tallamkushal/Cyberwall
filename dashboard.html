@@ -449,7 +449,7 @@
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <a href="dashboard.html" class="sidebar-logo">
-    <div class="sidebar-logo-icon">🛡</div>
+    <img src="/icons/logo.png" class="sidebar-logo-icon" alt="ProCyberWall" style="object-fit:cover;"/>
     <span class="sidebar-logo-text">ProCyberWall</span>
   </a>
 
@@ -545,7 +545,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <a href="index.html" class="topbar-logo-link" style="display:none;align-items:center;gap:7px;text-decoration:none;flex-shrink:0">
-        <div style="width:28px;height:28px;border-radius:7px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:14px">🛡</div>
+        <img src="/icons/logo.png" alt="ProCyberWall" style="width:28px;height:28px;border-radius:7px;object-fit:cover;display:block;"/>
         <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:-0.3px">ProCyberWall</span>
       </a>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
@@ -1225,8 +1225,8 @@
   <a class="mobile-nav-item" onclick="showPanel('threats', this)" data-panel="threats">
     <span>🚨</span><span>Threats</span>
   </a>
-  <a class="mobile-nav-item" onclick="showPanel('ai', this)" data-panel="ai" data-requires="pro">
-    <span>🤖</span><span>AI</span>
+  <a class="mobile-nav-item" onclick="showPanel('ssl', this)" data-panel="ssl" data-requires="pro">
+    <span>🛡️</span><span>Protection</span>
   </a>
   <a class="mobile-nav-item" onclick="showPanel('alerts', this)" data-panel="alerts" data-requires="pro">
     <span>🔔</span><span>Alerts</span>
@@ -1245,8 +1245,8 @@
     <button class="more-menu-item" onclick="moreNav('security-score')">
       <span>🎯</span><span>Security<br>Score</span>
     </button>
-    <button class="more-menu-item" onclick="moreNav('ssl')">
-      <span>🛡️</span><span>Protection<br>Status</span>
+    <button class="more-menu-item" onclick="moreNav('ai')" data-requires="pro">
+      <span>🤖</span><span>AI<br>Assistant</span>
     </button>
     <button class="more-menu-item" onclick="moreNav('cyber-news')">
       <span>📰</span><span>Cyber<br>News</span>

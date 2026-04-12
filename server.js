@@ -480,6 +480,13 @@ const server = http.createServer(async (req, res) => {
 
   console.log(`→ ${req.method} ${req.url}`);
 
+  // ── HEALTH CHECK (used by UptimeRobot to keep Render awake) ──────────────
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', ts: Date.now() }));
+    return;
+  }
+
   if (req.method === 'POST' && (req.url === '/api/whatsapp' || req.url === '/.netlify/functions/send-whatsapp')) {
     const authUser = await requireAuth(req);
     if (!authUser) {
@@ -635,92 +642,6 @@ Rules:
   }
 
   // ── LANDING PAGE CHAT ─────────────────────────────────────────────────────
-  if (req.method === 'POST' && req.url === '/api/landing-chat') {
-    if (!checkRateLimit(getClientIp(req), '/api/landing-chat', 15, 60000)) {
-      res.writeHead(429, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Too many requests' }));
-      return;
-    }
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      try {
-        const { messages } = JSON.parse(body);
-
-        const systemPrompt = `You are Wally, the friendly AI assistant on the ProCyberWall website.
-ProCyberWall is a managed firewall service for small businesses worldwide — powered by Cloudflare under the hood, fully managed by the ProCyberWall team.
-
-What ProCyberWall does:
-- Protects any website from SQL injection, XSS, DDoS, bots, brute force attacks
-- Protects against AI-powered attacks: AI-driven bots, automated vulnerability scanners, AI-generated exploit payloads, credential stuffing, and human-like bot traffic
-- Fully managed setup — no technical knowledge needed
-- 24/7 monitoring with WhatsApp alerts when threats are blocked
-- Monthly plain-English security reports (PDF)
-- SSL, SPF, DKIM, DMARC monitoring
-- GDPR and PCI-DSS aligned
-- Setup completed within 24 hours
-
-The AI threat problem (important topic to address when visitors ask):
-- Hackers now use AI to scan thousands of websites in seconds
-- AI bots mimic real user behaviour to bypass basic defences
-- AI generates personalised phishing emails targeting customers and staff
-- AI identifies and exploits vulnerabilities within minutes of discovery
-- ProCyberWall's firewall rules are continuously updated to detect and block AI-driven attack patterns
-
-Pricing (USD):
-- Starter: $29/month — 1 website, firewall, SSL monitoring, monthly report, WhatsApp support
-- Pro: $59/month — everything in Starter + real-time dashboard, instant WhatsApp alerts, email security, priority support, weekly summaries
-- Business: $99/month — up to 5 websites, everything in Pro + dark web monitoring, DMARC config, custom firewall rules, dedicated account manager
-- All plans: 7-day free trial, no credit card required
-
-Pricing (INR, for Indian customers — inclusive of 18% GST):
-- Starter: ₹2,879/month
-- Pro: ₹5,856/month
-- Business: ₹9,822/month
-- GST invoice provided for all Indian customers
-- Indian customers are billed in INR at checkout
-
-How it works:
-1. Sign up and share your domain
-2. ProCyberWall team configures your firewall within 24 hours
-3. You get protected 24/7 — WhatsApp alerts when anything is blocked
-4. Monthly report every month in plain English
-
-Rules:
-- Be friendly, warm, and concise — 2 to 4 sentences max per reply
-- Use plain everyday English, no jargon
-- 1 emoji per message max
-- If someone asks about pricing in INR or seems to be from India, give them the INR prices (with GST included) and mention a GST invoice is provided
-- If someone asks about pricing otherwise, give the USD prices
-- If someone seems ready to sign up, encourage them and mention the free trial
-- If asked something completely unrelated, gently redirect to ProCyberWall topics
-- Never make up features that don't exist above`;
-
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
-        });
-
-        const stream = anthropic.messages.stream({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
-          system: systemPrompt,
-          messages
-        });
-
-        stream.on('text', text => res.write(`data: ${JSON.stringify({ text })}\n\n`));
-        stream.on('finalMessage', () => { res.write(`data: ${JSON.stringify({ done: true })}\n\n`); res.end(); });
-        stream.on('error', err => { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); });
-
-      } catch (err) {
-        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-        res.end();
-      }
-    });
-    return;
-  }
-
   // ── AI AGENT ──────────────────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/ai-agent') {
     let body = '';

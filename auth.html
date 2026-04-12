@@ -204,16 +204,26 @@
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
     @media (max-width: 768px) {
+      body { flex-direction: column; overflow-x: hidden; }
       .left { display: none; }
-      .right { padding: 24px 20px; align-items: flex-start; padding-top: 36px; }
-      .auth-box { max-width: 100%; }
+      .right {
+        width: 100%;
+        flex: 1;
+        display: block;
+        padding: 36px 20px 48px;
+        overflow-y: visible;
+        min-height: 100vh;
+        background: var(--surface);
+      }
+      .auth-box { width: 100%; max-width: 100%; }
       .auth-title { font-size: 20px; }
       .plan-opt { padding: 10px 12px; }
       .plan-opt-name { font-size: 13px; }
       .social { flex-direction: column; }
+      .dial-dropdown { width: min(260px, calc(100vw - 40px)); }
     }
     @media (max-width: 480px) {
-      .right { padding: 20px 16px; }
+      .right { padding: 28px 16px 48px; }
       .tabs .tab { font-size: 13px; padding: 8px 4px; }
       .form-row { grid-template-columns: 1fr; }
     }
@@ -285,7 +295,7 @@
 <!-- LEFT PANEL -->
 <div class="left">
   <a href="#" id="logo-link" class="left-logo" style="text-decoration:none;">
-    <div class="left-logo-icon">🛡</div>
+    <img src="/icons/logo.png" class="left-logo-icon" alt="ProCyberWall" style="object-fit:cover;"/>
     <span class="left-logo-text">ProCyberWall</span>
   </a>
   <button onclick="toggleTheme()" style="position:absolute;top:20px;right:20px;background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted)" title="Toggle theme">
