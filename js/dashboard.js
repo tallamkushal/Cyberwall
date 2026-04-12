@@ -81,7 +81,7 @@ async function loadDashboard() {
   const sideAlert   = document.getElementById('onboarding-alert');
 
   if (!profile.domain) {
-    // State 1: no domain at all — prompt to complete setup
+    // State 1: no domain — user skipped onboarding entirely
     if (setupBanner) setupBanner.classList.remove('hidden');
     if (protBadge)   protBadge.style.display = 'none';
     if (sideAlert)   sideAlert.style.display = 'block';
@@ -106,12 +106,9 @@ async function loadDashboard() {
       sideAlert.querySelector('.onboard-alert-sub').textContent   = 'Update your nameservers to activate protection →';
     }
 
-  } else {
-    // State 3: domain set, no zone yet — shouldn't happen in normal flow
-    if (setupBanner) setupBanner.classList.remove('hidden');
-    if (protBadge)   protBadge.style.display = 'none';
-    if (sideAlert)   sideAlert.style.display = 'block';
   }
+  // State 3: domain set, no cf_zone_id — team is handling Cloudflare setup manually,
+  // or migration hasn't been run yet. Show nothing — user has completed their part.
 
   window._currentProfile = profile;
   applyPlanGating(profile.plan || 'starter');

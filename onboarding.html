@@ -692,10 +692,21 @@
     const user = await requireAuth();
     if (!user) return;
     const profile = await getCurrentProfile();
-    // If client already completed onboarding (has a domain), send to dashboard
+    // If client already has a domain, pre-fill it and jump to the DNS step
+    // so they can see their nameservers — don't silently bounce them back
     if (profile?.domain) {
-      window.location.href = 'dashboard.html';
-      return;
+      clientDomain = profile.domain;
+      document.getElementById('domain-input').value = profile.domain;
+      // If zone already exists, show real nameservers
+      if (profile.nameservers) {
+        const ns = profile.nameservers.split(',');
+        if (ns[0]) document.getElementById('ns1').textContent = ns[0];
+        if (ns[1]) document.getElementById('ns2').textContent = ns[1];
+        if (ns[0]) document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(ns[0], document.querySelectorAll('.copy-btn')[0]);
+        if (ns[1]) document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(ns[1], document.querySelectorAll('.copy-btn')[1]);
+      }
+      // Skip straight to DNS step
+      goTo(3);
     }
   });
 
