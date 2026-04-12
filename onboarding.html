@@ -692,21 +692,41 @@
     const user = await requireAuth();
     if (!user) return;
     const profile = await getCurrentProfile();
-    // If client already has a domain, pre-fill it and jump to the DNS step
-    // so they can see their nameservers — don't silently bounce them back
+
+    // If client already has a domain (e.g. came from email signup), skip to DNS step
     if (profile?.domain) {
       clientDomain = profile.domain;
       document.getElementById('domain-input').value = profile.domain;
-      // If zone already exists, show real nameservers
-      if (profile.nameservers) {
-        const ns = profile.nameservers.split(',');
-        if (ns[0]) document.getElementById('ns1').textContent = ns[0];
-        if (ns[1]) document.getElementById('ns2').textContent = ns[1];
-        if (ns[0]) document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(ns[0], document.querySelectorAll('.copy-btn')[0]);
-        if (ns[1]) document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(ns[1], document.querySelectorAll('.copy-btn')[1]);
-      }
-      // Skip straight to DNS step
       goTo(3);
+
+      if (profile.nameservers) {
+        // Zone already exists — show stored nameservers immediately
+        const ns = profile.nameservers.split(',');
+        if (ns[0]) { document.getElementById('ns1').textContent = ns[0]; document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(ns[0], document.querySelectorAll('.copy-btn')[0]); }
+        if (ns[1]) { document.getElementById('ns2').textContent = ns[1]; document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(ns[1], document.querySelectorAll('.copy-btn')[1]); }
+      } else {
+        // Zone not created yet — create it now in the background
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+          try {
+            const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+            const cfRes  = await fetch(`${SERVER}/api/cf/setup-zone`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+              body: JSON.stringify({ domain: profile.domain })
+            });
+            const cfData = await cfRes.json();
+            if (cfData.nameservers?.length >= 2) {
+              document.getElementById('ns1').textContent = cfData.nameservers[0];
+              document.getElementById('ns2').textContent = cfData.nameservers[1];
+              document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(cfData.nameservers[0], document.querySelectorAll('.copy-btn')[0]);
+              document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(cfData.nameservers[1], document.querySelectorAll('.copy-btn')[1]);
+            }
+          } catch(e) {
+            console.error('Zone setup error:', e);
+          }
+        }
+      }
     }
   });
 

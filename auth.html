@@ -1084,8 +1084,8 @@
 
     if (result.success) {
       if (!result.needsConfirmation) {
-        // Session exists — go straight to dashboard
-        window.location.href = 'dashboard.html';
+        // Session exists — go to onboarding so zone is created and nameservers are shown
+        window.location.href = 'onboarding.html';
         return;
       }
       // Email confirmation required — show success screen with login button
