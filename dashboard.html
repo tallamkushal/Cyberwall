@@ -230,12 +230,33 @@
       border-radius: 10px; border: 1px solid var(--border);
       background: var(--bg); margin-bottom: 10px;
     }
-    .alert-item.high   { border-color: #fecaca; background: var(--red-light); }
-    .alert-item.medium { border-color: #fed7aa; background: var(--orange-light); }
+    .alert-item.high     { border-color: #fecaca; background: var(--red-light); }
+    .alert-item.medium   { border-color: #fed7aa; background: var(--orange-light); }
+    .alert-item.resolved { opacity: 0.55; border-color: var(--border); background: var(--bg); }
     .alert-icon  { font-size: 18px; flex-shrink: 0; }
     .alert-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
     .alert-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
     .alert-time  { font-size: 11px; color: var(--muted-light); margin-top: 5px; }
+    .alert-action-tip {
+      margin-top: 8px; padding: 8px 10px;
+      background: var(--surface); border-radius: 7px;
+      font-size: 12px; color: var(--text); line-height: 1.5;
+      border-left: 3px solid var(--accent);
+    }
+    .alert-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .alert-btn-link {
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      background: none; border: none; padding: 0; cursor: pointer;
+      font-family: inherit; text-decoration: underline; text-underline-offset: 2px;
+    }
+    .alert-btn-link:hover { color: var(--accent-dark, var(--accent)); }
+    .alert-btn-resolve {
+      font-size: 12px; font-weight: 600; color: var(--green);
+      background: none; border: 1.5px solid var(--green); border-radius: 6px;
+      padding: 5px 12px; cursor: pointer; font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+    }
+    .alert-btn-resolve:hover { background: var(--green); color: #fff; }
 
     /* ---- REPORTS ---- */
     .news-filter-btn { font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;transition:all 0.15s; }
@@ -325,8 +346,12 @@
       display: none;
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
       background: var(--surface); border-top: 1px solid var(--border);
-      padding: 6px 0 env(safe-area-inset-bottom, 6px);
+      padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
       justify-content: space-around;
+      /* GPU layer prevents iOS Safari URL-bar-triggered jumping */
+      transform: translateZ(0);
+      -webkit-transform: translateZ(0);
+      will-change: transform;
     }
     .mobile-nav-item {
       display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -344,7 +369,7 @@
       .mobile-nav { display: flex; }
       .main {
         margin-left: 0;
-        padding-bottom: 80px;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         height: auto;
         overflow: visible;
         -webkit-overflow-scrolling: touch;
@@ -353,8 +378,12 @@
       .grid-2, .grid-3-1, .grid-3-col { grid-template-columns: 1fr; }
       .content { padding: 16px 14px; }
 
-      /* Topbar — black status bar handles safe area, no need for env() */
-      .topbar { padding: 0 14px; height: 52px; flex-wrap: nowrap; overflow: hidden; }
+      /* Topbar — restore safe-area so logo clears Dynamic Island */
+      .topbar {
+        padding: env(safe-area-inset-top, 0px) 14px 0;
+        height: calc(52px + env(safe-area-inset-top, 0px));
+        flex-wrap: nowrap; overflow: hidden;
+      }
       .topbar-title { display: none; }
       .topbar-logo-link { display: flex !important; }
       #protection-status { display: none !important; }
@@ -382,7 +411,12 @@
       /* Misc */
       .billing-plan { flex-direction: column; gap: 6px; }
       .billing-plan-price { font-size: 22px; }
-      .alert-item { padding: 10px; }
+      .alert-item { padding: 10px; gap: 10px; }
+      .alert-icon { font-size: 16px; }
+      .alert-action-tip { padding: 7px 9px; font-size: 11px; }
+      .alert-actions { gap: 6px; margin-top: 8px; }
+      .alert-btn-resolve { padding: 6px 14px; font-size: 12px; }
+      .alert-btn-link { font-size: 12px; padding: 6px 0; }
       .score-grade { font-size: 40px; }
 
       /* Pull-to-refresh indicator */
@@ -485,6 +519,7 @@
     </a>
     <a class="sidebar-item" onclick="showPanel('alerts', this)" style="cursor:pointer" data-requires="pro">
       <span class="sidebar-item-icon">🔔</span> Alerts
+      <span class="sidebar-notif" id="alerts-badge" style="display:none">0</span>
       <span class="sidebar-notif">3</span>
     </a>
   </div>
@@ -545,7 +580,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <a href="index.html" class="topbar-logo-link" style="display:none;align-items:center;gap:7px;text-decoration:none;flex-shrink:0">
-        <div style="width:28px;height:28px;border-radius:7px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:14px">🛡</div>
+        <div style="width:34px;height:34px;border-radius:9px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:18px">🛡</div>
         <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:-0.3px">ProCyberWall</span>
       </a>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
@@ -824,12 +859,12 @@
     <!-- ===== ALERTS ===== -->
     <div class="panel" id="panel-alerts">
       <div class="card">
-        <div class="card-header"><span class="card-title">Security Alerts</span></div>
-        <div class="card-body">
-          <div class="alert-item high"><span class="alert-icon">🚨</span><div><div class="alert-title">DDoS Attack Detected & Blocked</div><div class="alert-desc">198 requests/sec from 45 IPs. Automatically mitigated by ProCyberWall.</div><div class="alert-time">Today, 2:34 PM</div></div></div>
-          <div class="alert-item medium"><span class="alert-icon">⚠️</span><div><div class="alert-title">Brute Force Login Attempt</div><div class="alert-desc">47 failed login attempts from IP 77.88.xx.xx (Ukraine). IP permanently blocked.</div><div class="alert-time">Today, 11:12 AM</div></div></div>
-          <div class="alert-item"><span class="alert-icon">📄</span><div><div class="alert-title">February Report Ready</div><div class="alert-desc">Your February 2025 security report is ready to download.</div><div class="alert-time">Mar 1, 2025</div></div></div>
-          <div class="alert-item"><span class="alert-icon">✅</span><div><div class="alert-title">SSL Certificate Renewed</div><div class="alert-desc">Your SSL certificate was automatically renewed. Valid for 289 more days.</div><div class="alert-time">Feb 28, 2025</div></div></div>
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+          <span class="card-title">Security Alerts</span>
+          <button onclick="loadAlerts(true)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
+        </div>
+        <div class="card-body" id="alerts-list">
+          <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Loading alerts…</div>
         </div>
       </div>
     </div>

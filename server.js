@@ -184,6 +184,49 @@ function sendTwilioMessage(to, message) {
   });
 }
 
+// ── ALERTS HELPER ─────────────────────────────────────────────────────────────
+// Writes one alert record to Supabase.
+// dedupDays=1 (default) → once per day. dedupDays=7 → once per week.
+// Fires a WhatsApp message for high/medium severity only.
+async function createAlert(userId, type, severity, title, description = '', dedupDays = 1) {
+  try {
+    const cutoff = new Date(Date.now() - (dedupDays - 1) * 86400000).toISOString().slice(0, 10);
+    const existing = await supabaseRequest('GET',
+      `alerts?user_id=eq.${encodeURIComponent(userId)}&type=eq.${encodeURIComponent(type)}&created_at=gte.${cutoff}T00:00:00Z&select=id`,
+      null
+    );
+    const rows = JSON.parse(existing.body);
+    if (Array.isArray(rows) && rows.length > 0) return; // already alerted within dedup window
+
+    // Write alert record
+    await supabaseRequest('POST', 'alerts',
+      { user_id: userId, type, severity, title, description, whatsapp_sent: false }
+    );
+
+    // Send WhatsApp for high/medium severity
+    if ((severity === 'high' || severity === 'medium') && TWILIO_SID && TWILIO_TOKEN) {
+      const profileRes = await supabaseRequest('GET',
+        `profiles?id=eq.${encodeURIComponent(userId)}&select=phone,full_name`,
+        null
+      );
+      const profiles = JSON.parse(profileRes.body);
+      const phone = Array.isArray(profiles) && profiles[0]?.phone;
+      if (phone) {
+        const icon = severity === 'high' ? '🚨' : '⚠️';
+        const msg = `${icon} *ProCyberWall Alert*\n\n*${title}*\n\n${description}\n\nLog in to your dashboard to view details.\n\n— ProCyberWall`;
+        sendTwilioMessage(phone, msg).catch(() => {});
+        // Mark whatsapp_sent
+        await supabaseRequest('PATCH',
+          `alerts?user_id=eq.${encodeURIComponent(userId)}&type=eq.${encodeURIComponent(type)}&created_at=gte.${today}T00:00:00Z`,
+          { whatsapp_sent: true }
+        ).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error('createAlert error:', e.message);
+  }
+}
+
 // ── SECURITY SCANNER ──────────────────────────────────────────────────────────
 const _secScanCache = new Map();
 
@@ -479,11 +522,102 @@ const server = http.createServer(async (req, res) => {
   }
 
   console.log(`→ ${req.method} ${req.url}`);
+  const parsedUrl = new URL(req.url, 'http://localhost');
 
   // ── HEALTH CHECK (used by UptimeRobot to keep Render awake) ──────────────
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', ts: Date.now() }));
+    return;
+  }
+
+  // ── GET ALERTS ────────────────────────────────────────────────────────────
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/alerts') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    try {
+      const showResolved = parsedUrl.searchParams.get('show_resolved') === 'true';
+      const resolvedFilter = showResolved ? '' : '&is_resolved=eq.false';
+      const result = await supabaseRequest('GET',
+        `alerts?user_id=eq.${encodeURIComponent(authUser.id)}${resolvedFilter}&order=created_at.desc&limit=50&select=*`,
+        null
+      );
+      const alerts = JSON.parse(result.body);
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ alerts: Array.isArray(alerts) ? alerts : [] }));
+    } catch (e) {
+      res.writeHead(500, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── NEW LOGIN NOTIFICATION ────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/login-notify') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    res.writeHead(200, {'Content-Type':'application/json'});
+    res.end(JSON.stringify({ ok: true }));
+    // Fire-and-forget: check if IP has changed
+    (async () => {
+      try {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+        const profRes = await supabaseRequest('GET', `profiles?id=eq.${authUser.id}&select=last_login_ip`, null);
+        const [prof]  = JSON.parse(profRes.body);
+        const lastIp  = prof?.last_login_ip;
+        // Update stored IP
+        await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { last_login_ip: ip, last_login_at: new Date().toISOString() });
+        // Alert if IP is different from last time (and we had a previous login)
+        if (lastIp && lastIp !== ip) {
+          createAlert(authUser.id, 'login', 'low',
+            'Dashboard accessed from a new location',
+            `Your ProCyberWall dashboard was accessed from a new IP address. If this was not you, contact ProCyberWall support immediately to secure your account.`
+          ).catch(() => {});
+        }
+      } catch (e) { console.error('Login notify error:', e.message); }
+    })();
+    return;
+  }
+
+  // ── MARK ALL ALERTS READ ──────────────────────────────────────────────────
+  if (req.method === 'POST' && req.url === '/api/alerts/read') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    try {
+      await supabaseRequest('PATCH',
+        `alerts?user_id=eq.${encodeURIComponent(authUser.id)}&is_read=eq.false`,
+        { is_read: true }
+      );
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ success: true }));
+    } catch (e) {
+      res.writeHead(500, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  // ── RESOLVE A SINGLE ALERT ────────────────────────────────────────────────
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/alerts/resolve') {
+    const authUser = await requireAuth(req);
+    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return; }
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { id } = JSON.parse(body);
+        if (!id) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Missing id'})); return; }
+        await supabaseRequest('PATCH',
+          `alerts?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(authUser.id)}`,
+          { is_resolved: true, is_read: true, resolved_at: new Date().toISOString() }
+        );
+        res.writeHead(200, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ success: true }));
+      } catch (e) {
+        res.writeHead(500, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
     return;
   }
 
@@ -1451,10 +1585,12 @@ Rules:
 
       const totalBreaches = breaches.length;
 
-      if (totalBreaches > 0 && profile.phone && TWILIO_SID) {
+      if (totalBreaches > 0) {
         const preview = breaches.slice(0, 3).map(b => `• ${b.Title} (${b.BreachDate?.slice(0,4) || '?'})`).join('\n');
-        const msg = `🕵️ *Dark Web Alert*\n\nYour email *${email}* was found in ${totalBreaches} data breach${totalBreaches>1?'es':''}:\n\n${preview}${totalBreaches>3?`\n+${totalBreaches-3} more`:''}\n\nLog in to your ProCyberWall dashboard for the full report.\n\n— ProCyberWall`;
-        sendTwilioMessage(profile.phone, msg).catch(() => {});
+        const alertTitle = `Your email found in ${totalBreaches} data breach${totalBreaches > 1 ? 'es' : ''}`;
+        const alertDesc  = `${email} was found in the following breach${totalBreaches > 1 ? 'es' : ''}:\n${preview}${totalBreaches > 3 ? `\n+${totalBreaches - 3} more` : ''}\n\nChange your passwords immediately and enable two-factor authentication.`;
+        // Write alert to DB (deduped, sends WhatsApp automatically via createAlert)
+        createAlert(authUser.id, 'darkweb', 'high', alertTitle, alertDesc).catch(() => {});
       }
 
       res.writeHead(200, {'Content-Type':'application/json'});
@@ -1581,6 +1717,8 @@ Rules:
   if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
     const domain = new URL('http://x' + req.url).searchParams.get('domain');
     if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return; }
+    // Start auth check early (runs in parallel with CF API calls)
+    const _cfAuthPromise = requireAuth(req).catch(() => null);
     try {
       const zoneId = await cfGetZoneId(domain);
       if (!zoneId) { res.writeHead(404, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain not found in Cloudflare'})); return; }
@@ -1669,6 +1807,7 @@ Rules:
       let sslStatusStr = activePack ? '✓ Valid' : '—';
 
       // Always do a direct TLS probe — gets expiry, issuer, and validates cert independently
+      let _sslDaysLeft = null;
       try {
         const tlsCheck = await probeDomain(domain.replace(/^https?:\/\//, '').split('/')[0], true);
         if (tlsCheck.certInfo) {
@@ -1680,6 +1819,7 @@ Rules:
             const exp = new Date(tlsCheck.certInfo.validTo);
             if (!isNaN(exp)) {
               const days = Math.round((exp - now) / 86400000);
+              _sslDaysLeft = days;
               certExpiresStr = exp.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) + ` (${days} days)`;
             }
           }
@@ -1739,6 +1879,91 @@ Rules:
           https:     httpsEnforced ? 'Enforced' : 'Not enforced',
         },
       }));
+
+      // ── Auto-create alerts (fire-and-forget, response already sent) ──────
+      _cfAuthPromise.then(authUser => {
+        if (!authUser) return;
+        // ── WhatsApp alerts (high severity — critical events only) ────────────
+
+        // Threat spike — include country & attack type in description, not as separate alerts
+        if (threatsToday >= 10) {
+          const cCounts = {};
+          evts.forEach(t => { const c = t.clientCountryName || t.country; if (c) cCounts[c] = (cCounts[c] || 0) + 1; });
+          const topCountry = Object.entries(cCounts).sort((a, b) => b[1] - a[1])[0];
+          const countryStr = topCountry ? ` Most attacks came from ${topCountry[0]}.` : '';
+          const typeStr    = attackTypeLabels.length > 0 ? ` Main attack type: ${attackTypeLabels[0]}.` : '';
+          createAlert(authUser.id, 'threat', 'high',
+            `${threatsToday.toLocaleString()} attacks blocked today`,
+            `ProCyberWall automatically blocked ${threatsToday.toLocaleString()} attack${threatsToday > 1 ? 's' : ''} targeting ${domain} today.${countryStr}${typeStr} Your website stayed online and protected throughout.`
+          ).catch(() => {});
+        }
+
+        // SSL expired — critical, WhatsApp warranted
+        if (_sslDaysLeft !== null && _sslDaysLeft <= 0) {
+          createAlert(authUser.id, 'ssl', 'high',
+            'SSL certificate has expired',
+            `The SSL certificate for ${domain} has expired. Visitors are seeing browser security warnings. Contact ProCyberWall support immediately to restore secure connections.`
+          ).catch(() => {});
+        }
+
+        // SSL expiring ≤7 days — critical, WhatsApp warranted
+        if (_sslDaysLeft !== null && _sslDaysLeft > 0 && _sslDaysLeft <= 7) {
+          createAlert(authUser.id, 'ssl', 'high',
+            `SSL certificate expires in ${_sslDaysLeft} day${_sslDaysLeft === 1 ? '' : 's'}`,
+            `Your SSL certificate for ${domain} expires in ${_sslDaysLeft} day${_sslDaysLeft === 1 ? '' : 's'}. Contact ProCyberWall support immediately to avoid visitors seeing security warnings.`
+          ).catch(() => {});
+        }
+
+        // Traffic spike — abnormal volume, WhatsApp warranted
+        if (chartData.length >= 2) {
+          const todayVal = chartData[chartData.length - 1];
+          const prevDays = chartData.slice(0, -1).filter(v => v > 0);
+          if (prevDays.length > 0) {
+            const avg = prevDays.reduce((a, b) => a + b, 0) / prevDays.length;
+            if (avg > 0 && todayVal > avg * 5) {
+              createAlert(authUser.id, 'traffic', 'high',
+                `Attack spike: ${todayVal.toLocaleString()} attacks today`,
+                `Today's attack volume on ${domain} is ${Math.round(todayVal / avg)}× above your 7-day average. ProCyberWall is monitoring the situation in real time — no action needed from you.`
+              ).catch(() => {});
+            }
+          }
+        }
+
+        // ── In-app only alerts (low severity — no WhatsApp) ────────────────────
+
+        // SSL expiring 8–30 days — informational, weekly reminder is enough
+        if (_sslDaysLeft !== null && _sslDaysLeft > 7 && _sslDaysLeft <= 30) {
+          createAlert(authUser.id, 'ssl', 'low',
+            `SSL certificate expires in ${_sslDaysLeft} days`,
+            `Your SSL certificate for ${domain} will expire in ${_sslDaysLeft} days. ProCyberWall will handle the renewal — no action needed from you right now.`,
+            7 // remind once a week, not every day
+          ).catch(() => {});
+        }
+
+        // Email security — once a week, in-app only
+        if (!hasDMARC) {
+          createAlert(authUser.id, 'email', 'low',
+            'DMARC record not configured',
+            `Your domain ${domain} is missing a DMARC record. This makes it easier for attackers to spoof your business email. Contact ProCyberWall to get this configured.`,
+            7
+          ).catch(() => {});
+        } else if (!hasSPF) {
+          // Only check SPF if DMARC is fine (avoid two email alerts in same week)
+          createAlert(authUser.id, 'email', 'low',
+            'SPF record not configured',
+            `Your domain ${domain} is missing an SPF record. This can affect email deliverability and allow spoofing. Contact ProCyberWall to resolve this.`,
+            7
+          ).catch(() => {});
+        } else if (!hasDKIM) {
+          createAlert(authUser.id, 'email', 'low',
+            'DKIM not configured',
+            `Your domain ${domain} does not have DKIM set up. DKIM helps verify your emails are genuinely from you. Contact ProCyberWall to enable it.`,
+            7
+          ).catch(() => {});
+        }
+
+      }).catch(() => {});
+
     } catch (err) {
       res.writeHead(500, {'Content-Type':'application/json'});
       res.end(JSON.stringify({error: err.message}));
@@ -1885,6 +2110,115 @@ if (missing.length) {
   console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
   process.exit(1);
 }
+
+// ── SCHEDULED JOBS ────────────────────────────────────────────────────────────
+
+// Ping every customer domain — fire a 'downtime' alert if unreachable
+async function checkDomainUptime() {
+  try {
+    const result = await supabaseRequest('GET',
+      `profiles?domain=not.is.null&status=in.(trial,active)&select=id,domain`, null);
+    const profiles = JSON.parse(result.body);
+    if (!Array.isArray(profiles)) return;
+    for (const p of profiles) {
+      if (!p.domain) continue;
+      const host = p.domain.replace(/https?:\/\//, '').split('/')[0];
+      await new Promise((resolve) => {
+        const r = https.get({ hostname: host, path: '/', method: 'HEAD', timeout: 10000 }, res => {
+          resolve(res.statusCode);
+        });
+        r.on('error', () => {
+          createAlert(p.id, 'downtime', 'high',
+            'Your website appears to be down',
+            `ProCyberWall could not reach ${p.domain}. We are investigating immediately. If this persists, contact ProCyberWall support right away.`
+          ).catch(() => {});
+          resolve(null);
+        });
+        r.on('timeout', () => {
+          r.destroy();
+          createAlert(p.id, 'downtime', 'high',
+            'Your website is not responding',
+            `ProCyberWall detected that ${p.domain} is not responding to requests. This may indicate downtime or a server issue. We are on it — contact us if you need immediate assistance.`
+          ).catch(() => {});
+          resolve(null);
+        });
+      });
+    }
+  } catch (e) { console.error('Uptime check error:', e.message); }
+}
+setInterval(checkDomainUptime, 5 * 60 * 1000); // every 5 minutes
+
+// Check for trials ending in 2 days — fire once per day via dedup
+async function checkTrialExpiry() {
+  try {
+    const result = await supabaseRequest('GET',
+      `profiles?status=eq.trial&select=id,domain,created_at`, null);
+    const profiles = JSON.parse(result.body);
+    if (!Array.isArray(profiles)) return;
+    const now = Date.now();
+    for (const p of profiles) {
+      const trialEnd  = new Date(p.created_at).getTime() + 7 * 24 * 60 * 60 * 1000;
+      const daysLeft  = Math.ceil((trialEnd - now) / 86400000);
+      if (daysLeft <= 2 && daysLeft >= 0) {
+        const msg = daysLeft === 0
+          ? 'Your free trial has ended. To keep your website protected, please upgrade your plan. Contact ProCyberWall to continue without interruption.'
+          : `Your 7-day ProCyberWall trial ends in ${daysLeft} day${daysLeft > 1 ? 's' : ''}. Upgrade now to keep your website protected. Contact us to activate your plan.`;
+        createAlert(p.id, 'system', 'medium',
+          daysLeft === 0 ? 'Your free trial has ended' : `Trial ending in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`,
+          msg
+        ).catch(() => {});
+      }
+    }
+  } catch (e) { console.error('Trial check error:', e.message); }
+}
+setInterval(checkTrialExpiry, 6 * 60 * 60 * 1000); // every 6 hours
+checkTrialExpiry();
+
+// Weekly security digest — fires every Monday
+async function sendWeeklyDigest() {
+  if (new Date().getDay() !== 1) return; // Monday only
+  try {
+    const result = await supabaseRequest('GET',
+      `profiles?status=in.(trial,active)&select=id,domain`, null);
+    const profiles = JSON.parse(result.body);
+    if (!Array.isArray(profiles)) return;
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    for (const p of profiles) {
+      if (!p.domain) continue;
+      const alertRes = await supabaseRequest('GET',
+        `alerts?user_id=eq.${p.id}&type=eq.threat&created_at=gte.${weekAgo}&select=id`, null);
+      const weekAlerts = JSON.parse(alertRes.body);
+      const count = Array.isArray(weekAlerts) ? weekAlerts.length : 0;
+      createAlert(p.id, 'report', 'info',
+        'Weekly security summary',
+        `This week ProCyberWall protected ${p.domain}${count > 0 ? ` and generated ${count} threat alert${count > 1 ? 's' : ''}` : ' with no major threats detected'}. Your website remained fully protected throughout the week. Full details are in your Reports section.`
+      ).catch(() => {});
+    }
+  } catch (e) { console.error('Weekly digest error:', e.message); }
+}
+setInterval(sendWeeklyDigest, 24 * 60 * 60 * 1000); // checked daily, only runs on Monday
+sendWeeklyDigest();
+
+// Monthly report reminder — fires on the 1st of each month
+async function sendMonthlyReportReminder() {
+  if (new Date().getDate() !== 1) return; // 1st of month only
+  try {
+    const result = await supabaseRequest('GET',
+      `profiles?status=in.(trial,active)&select=id,domain`, null);
+    const profiles = JSON.parse(result.body);
+    if (!Array.isArray(profiles)) return;
+    const monthName = new Date().toLocaleString('en-IN', { month: 'long' });
+    for (const p of profiles) {
+      if (!p.domain) continue;
+      createAlert(p.id, 'report', 'info',
+        `Your ${monthName} security report is ready`,
+        `Your monthly ProCyberWall security report for ${p.domain} is now available. Download it from the Reports section for a full summary of threats blocked, SSL status, and email security this month.`
+      ).catch(() => {});
+    }
+  } catch (e) { console.error('Monthly report error:', e.message); }
+}
+setInterval(sendMonthlyReportReminder, 24 * 60 * 60 * 1000); // checked daily, only runs on 1st
+sendMonthlyReportReminder();
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

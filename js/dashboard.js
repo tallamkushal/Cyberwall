@@ -92,7 +92,10 @@ async function loadDashboard() {
   loadCloudflareForProfile(profile);
   loadCyberNews();
   loadMyTickets();
+  loadAlertsBadge();
   loadSecurityScore(); // populate stat card on overview without needing to open the panel
+  // Track login location — fires a new-location alert if IP differs from last session
+  _getAuthHeaders().then(h => fetch(`${_SERVER}/api/login-notify`, { method: 'POST', headers: h })).catch(() => {});
 }
 
 function loadStats(profile) {
@@ -148,6 +151,7 @@ function showPanel(name, el, pushState = true) {
   if (mainEl) mainEl.scrollTop = 0;
   if (name === 'darkweb') loadDarkWebScan(false);
   if (name === 'cybernews' && !_allNewsItems.length) loadCyberNews();
+  if (name === 'alerts') loadAlerts();
   document.getElementById('topbar-title').textContent = titles[name] || name;
   if (pushState) history.pushState({ panel: name }, '', '#' + name);
 }
@@ -855,4 +859,154 @@ async function loadDarkWebScan(force = false) {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🔍 Scan Now'; }
   }
+}
+
+// ── ALERTS ────────────────────────────────────────────────────────────────────
+const ALERT_ICONS = {
+  threat: '🚨', ssl: '🔐', darkweb: '🕵️', report: '📄', system: '✅',
+  traffic: '📈', downtime: '🔴', login: '🔑', email: '✉️'
+};
+const ALERT_SEVERITY_CLASS = { high: 'high', medium: 'medium', low: '', info: '' };
+
+// What to do for each alert type — framed as ProCyberWall taking care of it
+const ALERT_ACTION = {
+  threat:   'ProCyberWall has automatically blocked these attacks. No action needed — we are actively monitoring your domain.',
+  ssl:      'Contact ProCyberWall support to renew your SSL certificate and avoid any downtime.',
+  darkweb:  'Change passwords on any affected accounts and enable two-factor authentication immediately.',
+  report:   'Download your security report from the Reports section for a full monthly summary.',
+  system:   'Contact ProCyberWall to keep your protection active without interruption.',
+  traffic:  'ProCyberWall is monitoring the spike and blocking all threats in real time. No action needed from you.',
+  downtime: 'ProCyberWall is investigating. Contact us immediately if your site is still unreachable.',
+  login:    'If this was not you, contact ProCyberWall support immediately to secure your account.',
+  email:    'Contact ProCyberWall to fix your email security configuration and prevent spoofing.'
+};
+
+// Which dashboard panel each alert type links to
+const ALERT_PANEL = {
+  threat: 'threats', ssl: 'ssl', darkweb: 'darkweb', report: 'reports',
+  system: 'overview', traffic: 'threats', downtime: 'ssl', login: 'overview', email: 'ssl'
+};
+const ALERT_PANEL_LABEL = {
+  threat: 'View Threats', ssl: 'View SSL Status', darkweb: 'View Dark Web Scan',
+  report: 'View Reports', system: 'Go to Overview', traffic: 'View Threats',
+  downtime: 'View Protection Status', login: 'Go to Overview', email: 'View Protection Status'
+};
+
+let _alertsShowResolved = false;
+
+async function loadAlerts(forceRefresh = false) {
+  const list = document.getElementById('alerts-list');
+  if (!list) return;
+  if (!forceRefresh) list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Loading alerts…</div>';
+
+  try {
+    const headers = await _getAuthHeaders();
+    const url = `${_SERVER}/api/alerts${_alertsShowResolved ? '?show_resolved=true' : ''}`;
+    const res  = await fetch(url, { headers });
+    const data = await res.json();
+    const alerts = data.alerts || [];
+
+    // Update unread badge
+    const unread = alerts.filter(a => !a.is_read && !a.is_resolved).length;
+    const badge  = document.getElementById('alerts-badge');
+    if (badge) {
+      badge.textContent = unread;
+      badge.style.display = unread > 0 ? '' : 'none';
+    }
+
+    const active   = alerts.filter(a => !a.is_resolved);
+    const resolved = alerts.filter(a => a.is_resolved);
+
+    if (active.length === 0 && resolved.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:48px 24px">
+          <div style="font-size:48px;margin-bottom:12px">✅</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No alerts yet</div>
+          <div style="font-size:13px;color:var(--muted)">You'll be notified here (and on WhatsApp) when ProCyberWall detects a threat, SSL issue, or data breach.</div>
+        </div>`;
+      return;
+    }
+
+    function renderAlertCard(a) {
+      const icon       = ALERT_ICONS[a.type] || '🔔';
+      const cls        = a.is_resolved ? 'resolved' : (ALERT_SEVERITY_CLASS[a.severity] || '');
+      const time       = new Date(a.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const resolvedAt = a.resolved_at ? new Date(a.resolved_at).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : null;
+      const unreadDot  = !a.is_read && !a.is_resolved ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:6px;flex-shrink:0;margin-top:3px;vertical-align:middle"></span>' : '';
+      const action     = ALERT_ACTION[a.type] || '';
+      const panelKey   = ALERT_PANEL[a.type] || 'overview';
+      const panelLabel = ALERT_PANEL_LABEL[a.type] || 'View Details';
+      const bgStyle    = !a.is_read && !a.is_resolved ? 'background:var(--accent-light)' : '';
+
+      return `<div class="alert-item ${cls}" style="${bgStyle}" id="alert-card-${a.id}">
+        <span class="alert-icon">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div class="alert-title" style="display:flex;align-items:flex-start">${unreadDot}${_escapeHtml(a.title)}</div>
+          <div class="alert-desc">${_escapeHtml(a.description)}</div>
+          ${action && !a.is_resolved ? `<div class="alert-action-tip"><span style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.4px">What to do</span><br>${_escapeHtml(action)}</div>` : ''}
+          <div class="alert-time">${time}${a.whatsapp_sent ? ' · WhatsApp sent ✓' : ''}${resolvedAt ? ' · Resolved ' + resolvedAt : ''}</div>
+          ${!a.is_resolved ? `<div class="alert-actions">
+            <button class="alert-btn-link" onclick="showPanel('${panelKey}')">${panelLabel} →</button>
+            <button class="alert-btn-resolve" onclick="resolveAlert('${a.id}')">Mark Resolved ✓</button>
+          </div>` : ''}
+        </div>
+      </div>`;
+    }
+
+    let html = active.map(renderAlertCard).join('');
+
+    // "Show resolved" toggle at the bottom
+    if (_alertsShowResolved && resolved.length > 0) {
+      html += `<div style="margin:16px 0 8px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Resolved (${resolved.length})</div>`;
+      html += resolved.map(renderAlertCard).join('');
+      html += `<div style="text-align:center;margin-top:12px"><button class="alert-btn-link" onclick="_toggleResolvedAlerts()">Hide resolved</button></div>`;
+    } else if (resolved.length > 0) {
+      html += `<div style="text-align:center;margin-top:16px"><button class="alert-btn-link" onclick="_toggleResolvedAlerts()">Show ${resolved.length} resolved alert${resolved.length > 1 ? 's' : ''}</button></div>`;
+    }
+
+    list.innerHTML = html;
+
+    // Mark all active as read after viewing
+    if (unread > 0) {
+      fetch(`${_SERVER}/api/alerts/read`, { method: 'POST', headers }).catch(() => {});
+      if (badge) { badge.style.display = 'none'; }
+    }
+
+  } catch (e) {
+    list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Could not load alerts. Please try again.</div>';
+  }
+}
+
+async function resolveAlert(id) {
+  const card = document.getElementById('alert-card-' + id);
+  if (card) card.style.opacity = '0.5';
+  try {
+    const headers = await _getAuthHeaders();
+    headers['Content-Type'] = 'application/json';
+    await fetch(`${_SERVER}/api/alerts/resolve`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ id })
+    });
+    loadAlerts(true);
+  } catch (e) {
+    if (card) card.style.opacity = '1';
+  }
+}
+
+function _toggleResolvedAlerts() {
+  _alertsShowResolved = !_alertsShowResolved;
+  loadAlerts(true);
+}
+
+// Load unread count on dashboard init (shows badge without opening the panel)
+async function loadAlertsBadge() {
+  try {
+    const headers = await _getAuthHeaders();
+    const res  = await fetch(`${_SERVER}/api/alerts`, { headers });
+    const data = await res.json();
+    const unread = (data.alerts || []).filter(a => !a.is_read && !a.is_resolved).length;
+    const badge  = document.getElementById('alerts-badge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+  } catch(e) {}
 }

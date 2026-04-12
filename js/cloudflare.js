@@ -14,7 +14,10 @@ function escapeHtml(str) {
 async function loadCloudflareData(domain) {
   showCFLoading(true);
   try {
-    const res  = await fetch(`/api/cf/overview?domain=${encodeURIComponent(domain)}`);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const cfHeaders = {};
+    if (session?.access_token) cfHeaders['Authorization'] = 'Bearer ' + session.access_token;
+    const res  = await fetch(`/api/cf/overview?domain=${encodeURIComponent(domain)}`, { headers: cfHeaders });
     const data = await res.json();
 
     if (data.error) {
