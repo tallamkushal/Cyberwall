@@ -154,9 +154,16 @@ async function logIn(email, password) {
     if (error) throw error;
 
     const { data: profile } = await supabaseClient
-      .from('profiles').select('role').eq('id', data.user.id).single();
+      .from('profiles').select('*').eq('id', data.user.id).single();
 
-    window.location.href = profile?.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    if (profile?.role === 'admin') {
+      window.location.href = 'admin.html';
+    } else if (!profile?.cf_zone_id) {
+      // Onboarding not complete — Cloudflare zone not set up yet
+      window.location.href = 'onboarding.html';
+    } else {
+      window.location.href = 'dashboard.html';
+    }
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

@@ -932,13 +932,9 @@ async function loadAlerts(forceRefresh = false) {
     const data = await res.json();
     const alerts = data.alerts || [];
 
-    // Update unread badge
+    // Update unread badges (sidebar + mobile nav)
     const unread = alerts.filter(a => !a.is_read && !a.is_resolved).length;
-    const badge  = document.getElementById('alerts-badge');
-    if (badge) {
-      badge.textContent = unread;
-      badge.style.display = unread > 0 ? '' : 'none';
-    }
+    _setAlertsBadge(unread);
 
     const active   = alerts.filter(a => !a.is_resolved);
     const resolved = alerts.filter(a => a.is_resolved);
@@ -1025,6 +1021,14 @@ function _toggleResolvedAlerts() {
   loadAlerts(true);
 }
 
+// Sync both sidebar and mobile nav alert count badges
+function _setAlertsBadge(count) {
+  const sidebar = document.getElementById('alerts-badge');
+  const mobile  = document.getElementById('alerts-badge-mobile');
+  if (sidebar) { sidebar.textContent = count; sidebar.style.display = count > 0 ? '' : 'none'; }
+  if (mobile)  { mobile.textContent  = count; mobile.style.display  = count > 0 ? '' : 'none'; }
+}
+
 // Load unread count on dashboard init (shows badge without opening the panel)
 async function loadAlertsBadge() {
   try {
@@ -1032,7 +1036,6 @@ async function loadAlertsBadge() {
     const res  = await fetch(`${_SERVER}/api/alerts`, { headers });
     const data = await res.json();
     const unread = (data.alerts || []).filter(a => !a.is_read && !a.is_resolved).length;
-    const badge  = document.getElementById('alerts-badge');
-    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+    _setAlertsBadge(unread);
   } catch(e) {}
 }

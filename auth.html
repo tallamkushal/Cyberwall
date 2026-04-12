@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="css/style.css"/>
   <script src="js/theme.js"></script>
   <style>
-    body { display: flex; min-height: 100vh; }
+    body { display: flex; min-height: 100vh; overflow-x: hidden; }
 
     /* LEFT PANEL */
     .left {
@@ -315,9 +315,20 @@
     }
   </script>
 
+<!-- MOBILE HEADER (only visible on mobile) -->
+<header class="mobile-auth-header">
+  <a href="index.html" class="mobile-auth-logo">
+    <div class="mobile-auth-logo-icon">🛡</div>
+    <span class="mobile-auth-logo-text">ProCyberWall</span>
+  </a>
+  <button onclick="toggleTheme()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:white" title="Toggle theme">
+    <span class="theme-toggle-icon">🌙</span>
+  </button>
+</header>
+
 <!-- LEFT PANEL -->
 <div class="left">
-  <a href="#" id="logo-link" class="left-logo" style="text-decoration:none;">
+  <a href="index.html" id="logo-link" class="left-logo" style="text-decoration:none;">
     <div class="left-logo-icon">🛡</div>
     <span class="left-logo-text">ProCyberWall</span>
   </a>
@@ -548,17 +559,6 @@
   }
 })();
 </script>
-
-<!-- MOBILE HEADER (only visible on mobile) -->
-<header class="mobile-auth-header">
-  <a href="index.html" class="mobile-auth-logo">
-    <div class="mobile-auth-logo-icon">🛡</div>
-    <span class="mobile-auth-logo-text">ProCyberWall</span>
-  </a>
-  <button onclick="toggleTheme()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:white" title="Toggle theme">
-    <span class="theme-toggle-icon">🌙</span>
-  </button>
-</header>
 
 <!-- RIGHT PANEL -->
 <div class="right">
@@ -1205,9 +1205,15 @@
       return;
     }
     if (!window.location.search.includes('code=') && !window.location.hash.includes('access_token')) {
-      // Already logged in — go straight to dashboard (covers back-button via bfcache too)
-      const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', data.session.user.id).single();
-      window.location.replace(profile?.role === 'admin' ? 'admin.html' : 'dashboard.html');
+      // Already logged in — route based on onboarding completion
+      const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.session.user.id).single();
+      if (profile?.role === 'admin') {
+        window.location.replace('admin.html');
+      } else if (!profile?.cf_zone_id) {
+        window.location.replace('onboarding.html');
+      } else {
+        window.location.replace('dashboard.html');
+      }
     }
   }
 
