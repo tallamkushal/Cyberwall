@@ -210,6 +210,7 @@ h1, h2, h3, h4, h5 {
 .badge-red    { background: var(--red-light);    color: var(--red); }
 .badge-orange { background: var(--orange-light); color: var(--orange); }
 .badge-blue   { background: var(--accent-light); color: var(--accent); }
+.badge-yellow { background: #fef3c7; color: #92400e; }
 
 /* Live dot */
 .live-dot {

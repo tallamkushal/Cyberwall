@@ -87,6 +87,21 @@ function _setupPWAKeepalive() {
   });
 }
 
+async function _createProfile(userId, email, fullName, phone, businessName, domain, plan) {
+  const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+  const res = await fetch(`${SERVER}/api/create-profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: userId, full_name: fullName, email, phone,
+      business_name: businessName, domain, plan,
+      status: 'trial', role: 'client', created_at: new Date()
+    })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Profile creation failed');
+}
+
 async function signUp(email, password, fullName, phone, businessName, domain, plan) {
   try {
     const { data, error } = await supabaseClient.auth.signUp({
@@ -95,30 +110,39 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
     });
     if (error) throw error;
 
-    // Wait for user to be fully created
     const userId = data?.user?.id || data?.session?.user?.id;
     if (!userId) throw new Error('User creation failed. Please try again.');
 
-    // Create profile via server (bypasses RLS using service key)
-    const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-    const profileRes = await fetch(`${SERVER}/api/create-profile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: userId,
-        full_name: fullName,
-        email, phone,
-        business_name: businessName,
-        domain, plan,
-        status: 'trial',
-        role: 'client',
-        created_at: new Date()
-      })
-    });
-    const profileData = await profileRes.json();
-    if (!profileData.success) throw new Error(profileData.error || 'Profile creation failed');
+    // Fast path: session exists (email confirmation is disabled in Supabase)
+    if (data.session) {
+      await _createProfile(userId, email, fullName, phone, businessName, domain, plan);
+      return { success: true, user: data.user };
+    }
 
-    return { success: true, user: data.user };
+    // No session — email confirmation is required OR this is a re-signup to an existing email.
+    // Supabase returns a fake user ID (email enumeration protection) for existing emails,
+    // which would cause a FK violation when inserting the profile.
+    // Try signing in to determine which case this is.
+    const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (signInData?.session) {
+      // Confirmation was actually off — sign-in succeeded right away
+      await _createProfile(signInData.user.id, email, fullName, phone, businessName, domain, plan);
+      return { success: true, user: signInData.user };
+    }
+
+    const signInMsg = (signInError?.message || '').toLowerCase();
+
+    if (signInMsg.includes('not confirmed') || signInMsg.includes('email not confirmed')) {
+      // Real new user — email is in auth.users, FK will be valid
+      await _createProfile(userId, email, fullName, phone, businessName, domain, plan);
+      return { success: true, user: data.user, needsConfirmation: true };
+    }
+
+    // Sign-in failed for an unrelated reason — likely Supabase returned a fake response
+    // because an account with this email already exists. Don't attempt profile creation.
+    throw new Error('An account with this email already exists. Please log in, or check your inbox for a confirmation link.');
+
   } catch (error) {
     return { success: false, error: error.message };
   }

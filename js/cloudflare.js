@@ -29,11 +29,37 @@ async function loadCloudflareData(domain) {
     const s = data.stats;
 
     // ── Stat cards ────────────────────────────────────────────────────────────
-    safeSet('stat-blocked',  s.threatsBlocked30d.toLocaleString('en-IN'));
-    safeSet('stat-uptime',   '99.9%');
-    // Estimate response time from total request volume — sites with CDN typically < 50ms
-    const avgMs = s.totalRequests30d > 0 ? Math.max(18, Math.min(120, Math.round(50 - (s.totalRequests30d / 50000)))) : 38;
-    safeSet('stat-response', avgMs + 'ms');
+    safeSet('stat-blocked', s.threatsBlocked30d.toLocaleString('en-IN'));
+    safeSet('stat-uptime',  s.uptime || '—');
+    safeSet('stat-response', s.responseMs != null ? s.responseMs + 'ms' : '—');
+
+    // ── Trend badge on Attacks Blocked card ───────────────────────────────────
+    const trendBadge = document.getElementById('stat-trend-badge');
+    if (trendBadge && data.chart7d?.data?.length >= 2) {
+      const todayVal = data.chart7d.data[data.chart7d.data.length - 1];
+      const prevVals = data.chart7d.data.slice(0, -1).filter(v => v >= 0);
+      const avg = prevVals.length > 0 ? prevVals.reduce((a, b) => a + b, 0) / prevVals.length : 0;
+      if (avg === 0 && todayVal === 0) {
+        trendBadge.style.display = 'none';
+      } else if (avg === 0) {
+        trendBadge.textContent = '↑ New activity';
+        trendBadge.className = 'badge badge-red';
+        trendBadge.style.display = '';
+      } else {
+        const pct = Math.round(((todayVal - avg) / avg) * 100);
+        if (Math.abs(pct) < 5) {
+          trendBadge.style.display = 'none';
+        } else if (pct > 0) {
+          trendBadge.textContent = `↑ ${pct}% today`;
+          trendBadge.className = 'badge badge-red';
+          trendBadge.style.display = '';
+        } else {
+          trendBadge.textContent = `↓ ${Math.abs(pct)}% today`;
+          trendBadge.className = 'badge badge-green';
+          trendBadge.style.display = '';
+        }
+      }
+    }
     // Security grade is set by the real scan in loadSecurityScore() — leave stat-score alone here
 
     // ── Threats panel stats ───────────────────────────────────────────────────
@@ -45,7 +71,7 @@ async function loadCloudflareData(domain) {
     // score-grade is set by loadSecurityScore() to keep it in sync with the real scan
     safeSet('score-waf',   data.security.waf);
     safeSet('score-ssl',   data.security.ssl);
-    safeSet('score-spf',   data.email.spf.includes('Pass') ? 'Pass' : 'Fail');
+    safeSet('score-spf',   data.email.spf);
     safeSet('score-bot',   data.security.botShield);
     safeSet('score-https', data.security.https);
 
@@ -143,7 +169,7 @@ function showCFNotSetup() {
 }
 
 function showCFLoading(show) {
-  const msg = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Loading threat data from Cloudflare...</td></tr>`;
+  const msg = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Loading threat logs...</td></tr>`;
   ['threats-tbody', 'threats-full-tbody'].forEach(id => {
     const el = document.getElementById(id);
     if (el && show) el.innerHTML = msg;

@@ -1066,10 +1066,13 @@ Rules:
           created_at:    raw.created_at    || new Date(),
         };
         const result = await supabaseRequest('POST', 'profiles', profile);
-        if (result.status >= 400) {
+        // Treat duplicate key (409) as success — profile already exists for this user
+        const bodyStr = typeof result.body === 'string' ? result.body : JSON.stringify(result.body);
+        const isDuplicate = result.status === 409 || (result.status >= 400 && (bodyStr.includes('duplicate') || bodyStr.includes('already exists') || bodyStr.includes('unique')));
+        if (result.status >= 400 && !isDuplicate) {
           console.error('Profile creation failed:', result.status, result.body);
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: result.body || 'Profile creation failed' }));
+          res.end(JSON.stringify({ error: bodyStr || 'Profile creation failed' }));
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
@@ -1713,6 +1716,116 @@ Rules:
     return;
   }
 
+  // ── CLOUDFLARE: CLIENT SELF-SERVE ZONE SETUP ─────────────────────────────
+  // Called from onboarding. Authenticated as the client (not admin).
+  // Creates the zone, saves nameservers + zoneId to the profile, notifies admin.
+  if (req.method === 'POST' && req.url === '/api/cf/setup-zone') {
+    const authUser = await requireAuth(req);
+    if (!authUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { domain } = JSON.parse(body);
+        if (!domain) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'domain required' }));
+          return;
+        }
+
+        const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+
+        // Add zone to Cloudflare
+        const cfPayload = JSON.stringify({ name: clean, jump_start: true });
+        const result = await new Promise((resolve, reject) => {
+          const opts = {
+            hostname: 'api.cloudflare.com',
+            path: '/client/v4/zones',
+            method: 'POST',
+            headers: {
+              'X-Auth-Email': CF_EMAIL,
+              'X-Auth-Key': CF_API_KEY,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(cfPayload)
+            }
+          };
+          const r = https.request(opts, resp => {
+            let raw = '';
+            resp.on('data', c => raw += c);
+            resp.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('CF parse error')); } });
+          });
+          r.on('error', reject);
+          r.setTimeout(15000, () => { r.destroy(); reject(new Error('CF timeout')); });
+          r.write(cfPayload);
+          r.end();
+        });
+
+        let nameservers = [];
+        let zoneId = null;
+        let alreadyExists = false;
+
+        if (!result.success) {
+          // Zone already exists in our CF account — fetch its nameservers
+          if (result.errors?.[0]?.code === 1061) {
+            const existing = await cfGet(`/zones?name=${encodeURIComponent(clean)}`);
+            if (existing.success && existing.result?.length) {
+              nameservers = existing.result[0].name_servers || [];
+              zoneId      = existing.result[0].id;
+              alreadyExists = true;
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Zone already exists but could not retrieve nameservers' }));
+              return;
+            }
+          } else {
+            const msg = result.errors?.[0]?.message || 'Cloudflare error';
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: msg }));
+            return;
+          }
+        } else {
+          nameservers = result.result?.name_servers || [];
+          zoneId      = result.result?.id;
+        }
+
+        // Persist zoneId + nameservers to the client's profile
+        if (zoneId) {
+          await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, {
+            cf_zone_id:   zoneId,
+            nameservers:  nameservers.join(','),
+            domain:       clean
+          }).catch(() => {});
+        }
+
+        // Notify admin via WhatsApp
+        if (ADMIN_PHONE) {
+          const profRes = await supabaseRequest('GET', `profiles?id=eq.${authUser.id}&select=full_name,email`, null).catch(() => null);
+          let clientName = authUser.email;
+          if (profRes) {
+            try {
+              const rows = JSON.parse(profRes.body);
+              if (rows?.[0]?.full_name) clientName = rows[0].full_name;
+            } catch(e) {}
+          }
+          const status = alreadyExists ? '(zone already existed)' : '✅ New zone created';
+          const msg = `🌐 *Cloudflare Zone Setup*\n\n*Client:* ${clientName}\n*Domain:* ${clean}\n*Status:* ${status}\n*Nameservers:*\n• ${nameservers.join('\n• ')}\n\nClient has been shown their nameservers and is updating DNS.\n\n— ProCyberWall System`;
+          sendTwilioMessage(ADMIN_PHONE, msg).catch(() => {});
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ nameservers, zoneId, alreadyExists }));
+      } catch(err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // ── CLOUDFLARE PROXY: FULL OVERVIEW DATA ─────────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
     const domain = new URL('http://x' + req.url).searchParams.get('domain');
@@ -1729,7 +1842,25 @@ Rules:
       const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const until = now.toISOString();
 
-      const [a30, a7, aToday, events, httpsSet, sslSet, tlsSet, dnsAll, certPacks] = await Promise.allSettled([
+      // Profile query (last_downtime_at) runs in parallel with CF calls
+      const profilePromise = _cfAuthPromise.then(async user => {
+        if (!user) return null;
+        const r = await supabaseRequest('GET', `profiles?id=eq.${encodeURIComponent(user.id)}&select=last_downtime_at`, null);
+        const rows = JSON.parse(r.body);
+        return Array.isArray(rows) ? rows[0] : null;
+      }).catch(() => null);
+
+      // Real ping — measures actual response time to the customer's domain
+      const pingPromise = new Promise(resolve => {
+        const host = domain.replace(/^https?:\/\//, '').split('/')[0];
+        const t0 = Date.now();
+        const r = https.request({ hostname: host, path: '/', method: 'HEAD', timeout: 6000 }, () => resolve(Date.now() - t0));
+        r.on('error', () => resolve(null));
+        r.on('timeout', () => { r.destroy(); resolve(null); });
+        r.end();
+      });
+
+      const [a30, a7, aToday, events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet] = await Promise.allSettled([
         cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since30d}&until=${until}&continuous=true`),
         cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since7d}&until=${until}&continuous=true`),
         cfGet(`/zones/${zoneId}/analytics/dashboard?since=${sinceToday}&until=${until}&continuous=true`),
@@ -1739,7 +1870,11 @@ Rules:
         cfGet(`/zones/${zoneId}/settings/min_tls_version`),
         cfGet(`/zones/${zoneId}/dns_records?per_page=100`),
         cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
+        cfGet(`/zones/${zoneId}/settings/waf`),
+        cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
       ]);
+
+      const [profile, responseMs] = await Promise.all([profilePromise, pingPromise]);
 
       const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
 
@@ -1788,13 +1923,45 @@ Rules:
       const httpsEnforced = ok(httpsSet)?.result?.value === 'on';
       const sslMode       = ok(sslSet)?.result?.value || 'full';
       const tlsVersion    = ok(tlsSet)?.result?.value || '1.2';
+      const wafEnabled    = ok(wafSet)?.result?.value === 'on';
+      const botEnabled    = ok(botSet)?.result?.value === 'on';
+
+      // --- Uptime from last recorded downtime ---
+      let uptimePercent = '100%';
+      if (profile?.last_downtime_at) {
+        const daysSince = (Date.now() - new Date(profile.last_downtime_at).getTime()) / 86400000;
+        uptimePercent = daysSince <= 30 ? '99.9%' : '100%';
+      }
 
       // --- DNS records ---
       const dnsRecords = ok(dnsAll)?.result || [];
-      const hasSPF    = dnsRecords.some(r => r.type === 'TXT' && r.content?.includes('v=spf1'));
-      const hasDKIM   = dnsRecords.some(r => r.type === 'TXT' && r.name?.includes('_domainkey'));
-      const hasDMARC  = dnsRecords.some(r => r.type === 'TXT' && r.name?.startsWith('_dmarc'));
-      const hasMX     = dnsRecords.some(r => r.type === 'MX');
+
+      // SPF — check record exists AND uses -all (hardfail) to actually block spoofed senders
+      const spfRecord   = dnsRecords.find(r => r.type === 'TXT' && r.content?.includes('v=spf1'));
+      const spfContent  = spfRecord?.content || '';
+      const hasSPF      = !!spfRecord;
+      const spfHardfail = spfContent.includes('-all');
+      const spfStatus   = !hasSPF         ? '✗ Not protected'
+                        : spfHardfail     ? '✓ Protected'
+                        :                   '⚠ Partially protected';
+
+      // DKIM — existence is sufficient to confirm signing is configured
+      const hasDKIM  = dnsRecords.some(r => r.type === 'TXT' && r.name?.includes('_domainkey'));
+      const dkimStatus = hasDKIM ? '✓ Pass' : '✗ Not found';
+
+      // DMARC — check policy: p=none = monitoring only (not blocking), p=quarantine/reject = blocking
+      const dmarcRecord  = dnsRecords.find(r => r.type === 'TXT' && r.name?.startsWith('_dmarc'));
+      const dmarcContent = dmarcRecord?.content || '';
+      const dmarcPolicy  = (dmarcContent.match(/p=(none|quarantine|reject)/i)?.[1] || '').toLowerCase();
+      const hasDMARC     = !!dmarcRecord;
+      const dmarcBlocking = dmarcPolicy === 'reject' || dmarcPolicy === 'quarantine';
+      const dmarcStatus  = !hasDMARC              ? '✗ Not configured'
+                         : dmarcPolicy === 'reject'     ? '✓ Pass'
+                         : dmarcPolicy === 'quarantine' ? '⚠ Quarantine only'
+                         : dmarcPolicy === 'none'       ? '⚠ Monitor only — not blocking'
+                         :                               '⚠ Policy not set';
+
+      const hasMX = dnsRecords.some(r => r.type === 'MX');
 
       // --- SSL cert ---
       const packs = ok(certPacks)?.result || [];
@@ -1840,10 +2007,10 @@ Rules:
       let score = 60;
       if (sslMode === 'full' || sslMode === 'strict') score += 10;
       if (httpsEnforced) score += 10;
-      if (hasSPF)   score += 5;
-      if (hasDKIM)  score += 5;
-      if (hasDMARC) score += 5;
-      if (hasMX)    score += 5;
+      if (spfHardfail)    score += 5; else if (hasSPF) score += 2; // partial credit for soft SPF
+      if (hasDKIM)        score += 5;
+      if (dmarcBlocking)  score += 5; else if (hasDMARC) score += 2; // partial credit for p=none
+      if (hasMX)          score += 5;
       const scoreGrade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C';
 
       res.writeHead(200, {'Content-Type':'application/json'});
@@ -1855,6 +2022,8 @@ Rules:
           totalRequests30d,
           securityScore: score,
           scoreGrade,
+          uptime:     uptimePercent,
+          responseMs: responseMs,
         },
         chart7d:     { labels: chartLabels, data: chartData },
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
@@ -1867,15 +2036,15 @@ Rules:
           httpsEnforced,
         },
         email: {
-          spf:   hasSPF   ? '✓ Pass' : '✗ Not found',
-          dkim:  hasDKIM  ? '✓ Pass' : '✗ Not found',
-          dmarc: hasDMARC ? '✓ Pass' : '⚠ Not configured',
-          mx:    hasMX    ? '✓ Configured' : '✗ Not found',
+          spf:   spfStatus,
+          dkim:  dkimStatus,
+          dmarc: dmarcStatus,
+          mx:    hasMX ? '✓ Configured' : '✗ Not found',
         },
         security: {
-          waf:       'Active',
+          waf:       wafEnabled    ? 'Active' : 'Inactive',
           ssl:       sslMode,
-          botShield: 'Active',
+          botShield: botEnabled    ? 'Active' : 'Inactive',
           https:     httpsEnforced ? 'Enforced' : 'Not enforced',
         },
       }));
@@ -1940,18 +2109,29 @@ Rules:
           ).catch(() => {});
         }
 
-        // Email security — once a week, in-app only
+        // Email security — check actual enforcement, once a week, in-app only
         if (!hasDMARC) {
           createAlert(authUser.id, 'email', 'low',
             'DMARC record not configured',
-            `Your domain ${domain} is missing a DMARC record. This makes it easier for attackers to spoof your business email. Contact ProCyberWall to get this configured.`,
+            `Your domain ${domain} is missing a DMARC record. Without it, attackers can send fake emails pretending to be from your business. Contact ProCyberWall to set this up.`,
+            7
+          ).catch(() => {});
+        } else if (!dmarcBlocking) {
+          createAlert(authUser.id, 'email', 'low',
+            'DMARC is set to monitor only — not blocking fake emails',
+            `Your domain ${domain} has DMARC set to "p=none", which only monitors emails and does not block spoofed messages. Contact ProCyberWall to enforce rejection.`,
             7
           ).catch(() => {});
         } else if (!hasSPF) {
-          // Only check SPF if DMARC is fine (avoid two email alerts in same week)
           createAlert(authUser.id, 'email', 'low',
             'SPF record not configured',
-            `Your domain ${domain} is missing an SPF record. This can affect email deliverability and allow spoofing. Contact ProCyberWall to resolve this.`,
+            `Your domain ${domain} is missing an SPF record. This can allow spoofed emails to be sent on your behalf. Contact ProCyberWall to resolve this.`,
+            7
+          ).catch(() => {});
+        } else if (hasSPF && !spfHardfail) {
+          createAlert(authUser.id, 'email', 'low',
+            'SPF is not fully enforced',
+            `Your domain ${domain} has SPF configured but uses a soft block (~all), meaning spoofed emails may still reach inboxes. Contact ProCyberWall to tighten this to a hard block (-all).`,
             7
           ).catch(() => {});
         } else if (!hasDKIM) {
@@ -2128,6 +2308,7 @@ async function checkDomainUptime() {
           resolve(res.statusCode);
         });
         r.on('error', () => {
+          supabaseRequest('PATCH', `profiles?id=eq.${p.id}`, { last_downtime_at: new Date().toISOString() }).catch(() => {});
           createAlert(p.id, 'downtime', 'high',
             'Your website appears to be down',
             `ProCyberWall could not reach ${p.domain}. We are investigating immediately. If this persists, contact ProCyberWall support right away.`
@@ -2136,6 +2317,7 @@ async function checkDomainUptime() {
         });
         r.on('timeout', () => {
           r.destroy();
+          supabaseRequest('PATCH', `profiles?id=eq.${p.id}`, { last_downtime_at: new Date().toISOString() }).catch(() => {});
           createAlert(p.id, 'downtime', 'high',
             'Your website is not responding',
             `ProCyberWall detected that ${p.domain} is not responding to requests. This may indicate downtime or a server issue. We are on it — contact us if you need immediate assistance.`

@@ -41,5 +41,8 @@ CREATE POLICY IF NOT EXISTS "users_resolve_own_alerts" ON public.alerts
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- ── Migration: add login tracking columns to profiles ────────────────────────
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_login_ip   text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_login_at   timestamptz;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_login_ip    text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_login_at    timestamptz;
+
+-- ── Migration: add downtime tracking column to profiles ──────────────────────
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_downtime_at timestamptz;

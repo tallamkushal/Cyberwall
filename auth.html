@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
   <link rel="apple-touch-icon" href="/icons/icon.svg"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>ProCyberWall — Login / Sign Up</title>
   <link rel="stylesheet" href="css/style.css"/>
   <script src="js/theme.js"></script>
@@ -72,8 +72,10 @@
 
     /* SOCIAL */
     .social { display: flex; gap: 10px; margin-bottom: 18px; }
-    .social-btn { flex: 1; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; }
-    .social-btn:hover { background: var(--bg); }
+    .social-btn { flex: 1; padding: 10px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all 0.2s; color: var(--text); }
+    .social-btn:hover { border-color: var(--accent); background: var(--bg); }
+    html[data-theme="dark"] .social-btn { background: #2a2a28; border-color: #555550; }
+    html[data-theme="dark"] .social-btn:hover { background: #333330; border-color: var(--accent); }
 
     /* DIVIDER */
     .divider { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
@@ -203,16 +205,37 @@
     @keyframes authSpin { to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
+    .mobile-auth-header { display: none; }
+
     @media (max-width: 768px) {
       body { flex-direction: column; overflow-x: hidden; }
       .left { display: none; }
+      .mobile-auth-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 14px;
+        background: var(--accent);
+        position: sticky; top: 0; z-index: 10;
+      }
+      .mobile-auth-logo {
+        display: flex; align-items: center; gap: 9px;
+        text-decoration: none;
+      }
+      .mobile-auth-logo-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: rgba(255,255,255,0.2);
+        display: flex; align-items: center; justify-content: center; font-size: 16px;
+      }
+      .mobile-auth-logo-text {
+        font-family: 'Bricolage Grotesque', sans-serif;
+        font-weight: 800; font-size: 17px; color: white; letter-spacing: -0.3px;
+      }
       .right {
         width: 100%;
         flex: 1;
         display: block;
-        padding: 36px 20px 48px;
+        padding: 28px 20px 48px;
         overflow-y: visible;
-        min-height: 100vh;
+        min-height: calc(100vh - 60px);
         background: var(--surface);
       }
       .auth-box { width: 100%; max-width: 100%; }
@@ -223,7 +246,7 @@
       .dial-dropdown { width: min(260px, calc(100vw - 40px)); }
     }
     @media (max-width: 480px) {
-      .right { padding: 28px 16px 48px; }
+      .right { padding: 24px 16px 48px; }
       .tabs .tab { font-size: 13px; padding: 8px 4px; }
       .form-row { grid-template-columns: 1fr; }
     }
@@ -526,6 +549,17 @@
 })();
 </script>
 
+<!-- MOBILE HEADER (only visible on mobile) -->
+<header class="mobile-auth-header">
+  <a href="index.html" class="mobile-auth-logo">
+    <div class="mobile-auth-logo-icon">🛡</div>
+    <span class="mobile-auth-logo-text">ProCyberWall</span>
+  </a>
+  <button onclick="toggleTheme()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:white" title="Toggle theme">
+    <span class="theme-toggle-icon">🌙</span>
+  </button>
+</header>
+
 <!-- RIGHT PANEL -->
 <div class="right">
   <div class="auth-box">
@@ -763,7 +797,7 @@
         <h3 style="font-size:20px;margin-bottom:8px">You're all set!</h3>
         <p style="font-size:13px;color:var(--muted);line-height:1.7">Welcome to ProCyberWall! Check your email to verify your account.<br/><br/>Our team will set up your firewall within <strong>24 hours</strong> and WhatsApp you when it's live.</p>
         <br/>
-        <button class="btn btn-primary btn-full btn-large" onclick="window.location.href='onboarding.html'">Go to Dashboard →</button>
+        <button class="btn btn-primary btn-full btn-large" id="s-success-btn" onclick="window.location.href='dashboard.html'">Go to Dashboard →</button>
       </div>
 
     </div>
@@ -773,10 +807,6 @@
 </div>
 
 <!-- Supabase SDK -->
-<script>
-  // Clear stale Supabase session BEFORE the SDK loads so it never reads bad state
-  Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase.js"></script>
 <script src="js/whatsapp.js"></script>
@@ -923,7 +953,10 @@
   function _sanitizeLoginErr(msg) {
     if (!msg) return 'Login failed. Please try again.';
     const m = msg.toLowerCase();
-    if (m.includes('invalid') || m.includes('credentials') || m.includes('wrong') || m.includes('not found') || m.includes('not confirmed')) {
+    if (m.includes('not confirmed') || m.includes('email not confirmed')) {
+      return 'Please confirm your email before logging in. Check your inbox for a verification link.';
+    }
+    if (m.includes('invalid') || m.includes('credentials') || m.includes('wrong') || m.includes('not found')) {
       return 'Incorrect email or password.';
     }
     if (m.includes('too many') || m.includes('rate limit') || m.includes('exceeded')) {
@@ -1050,10 +1083,20 @@
     );
 
     if (result.success) {
-      // OTP verification disabled — go straight to success
+      if (!result.needsConfirmation) {
+        // Session exists — go straight to dashboard
+        window.location.href = 'dashboard.html';
+        return;
+      }
+      // Email confirmation required — show success screen with login button
       document.getElementById('s3').classList.add('hidden');
       document.getElementById('si-3').className = 'step-item done';
       document.getElementById('si-3').querySelector('.step-dot').textContent = '✓';
+      const successBtn = document.getElementById('s-success-btn');
+      if (successBtn) {
+        successBtn.textContent = 'Go to Login →';
+        successBtn.onclick = () => switchTab('login');
+      }
       document.getElementById('s-success').classList.remove('hidden');
       btn.disabled = false;
       btn.classList.remove('loading');

@@ -60,12 +60,6 @@ async function loadDashboard() {
   document.getElementById('user-domain').textContent   = profile.domain || 'Not configured';
   document.getElementById('user-initials').textContent = getInitials(profile.full_name);
 
-  // Show onboarding alert if domain not set
-  if (!profile.domain) {
-    const alert = document.getElementById('onboarding-alert');
-    if (alert) alert.style.display = 'block';
-  }
-
   // Populate settings fields
   const setName    = document.getElementById('set-name');
   const setCompany = document.getElementById('set-company');
@@ -80,9 +74,44 @@ async function loadDashboard() {
   const planBadge = document.getElementById('plan-badge');
   if (planBadge) planBadge.textContent = capitalize(profile.plan || 'starter') + ' Plan';
 
-  // Show onboarding banner if the user hasn't connected a domain yet
-  const banner = document.getElementById('onboarding-banner');
-  if (banner && !profile.domain) banner.classList.remove('hidden');
+  // ── Setup state banners ──────────────────────────────────────────────────
+  const setupBanner = document.getElementById('onboarding-banner');
+  const dnsBanner   = document.getElementById('dns-pending-banner');
+  const protBadge   = document.getElementById('protection-status');
+  const sideAlert   = document.getElementById('onboarding-alert');
+
+  if (!profile.domain) {
+    // State 1: no domain at all — prompt to complete setup
+    if (setupBanner) setupBanner.classList.remove('hidden');
+    if (protBadge)   protBadge.style.display = 'none';
+    if (sideAlert)   sideAlert.style.display = 'block';
+
+  } else if (profile.cf_zone_id && profile.nameservers) {
+    // State 2: Cloudflare zone created, waiting for DNS to propagate
+    if (dnsBanner) {
+      const ns = profile.nameservers.split(',');
+      const ns1El = document.getElementById('dash-ns1');
+      const ns2El = document.getElementById('dash-ns2');
+      if (ns1El) ns1El.textContent = ns[0] || '—';
+      if (ns2El) ns2El.textContent = ns[1] || '—';
+      dnsBanner.classList.add('visible');
+    }
+    if (protBadge) {
+      protBadge.className = 'badge badge-yellow';
+      protBadge.innerHTML = '⏳ DNS Pending';
+    }
+    if (sideAlert) {
+      sideAlert.style.display = 'block';
+      sideAlert.querySelector('.onboard-alert-title').textContent = '⏳ DNS Update Pending';
+      sideAlert.querySelector('.onboard-alert-sub').textContent   = 'Update your nameservers to activate protection →';
+    }
+
+  } else {
+    // State 3: domain set, no zone yet — shouldn't happen in normal flow
+    if (setupBanner) setupBanner.classList.remove('hidden');
+    if (protBadge)   protBadge.style.display = 'none';
+    if (sideAlert)   sideAlert.style.display = 'block';
+  }
 
   window._currentProfile = profile;
   applyPlanGating(profile.plan || 'starter');

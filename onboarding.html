@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
   <link rel="apple-touch-icon" href="/icons/icon.svg"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>ProCyberWall — Getting Started</title>
   <link rel="stylesheet" href="css/style.css"/>
   <style>
@@ -20,7 +20,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
     }
 
     /* ---- PROGRESS BAR ---- */
@@ -639,7 +639,7 @@
 <!-- end card -->
 
 <p style="font-size:12px;color:var(--muted-light);margin-top:20px;text-align:center">
-  Need help? WhatsApp us at +91 99999 99999 · Available 9am–9pm IST
+  Need help? WhatsApp us at +91 98444 82193 · Available 9am–9pm IST
 </p>
 
 <!-- AI HELP BUTTON -->
@@ -787,42 +787,38 @@
     err.classList.add('hidden');
     clientDomain = domain;
 
-    btn.textContent = 'Connecting to Cloudflare...';
+    btn.textContent = 'Setting up Cloudflare...';
     btn.disabled = true;
 
-    // Save domain to Supabase — upsert handles both new (Google) and existing users
+    // Get session token for authenticated server call
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      const u = session.user;
-      await supabaseClient.from('profiles').upsert({
-        id: u.id,
-        email: u.email,
-        full_name: u.user_metadata?.full_name || u.email.split('@')[0],
-        domain,
-        plan: 'starter',
-        status: 'trial',
-        role: 'client'
-      }, { onConflict: 'id' });
-    }
+    if (!session) { window.location.href = 'auth.html'; return; }
 
-    // Add domain to Cloudflare and get real nameservers
+    // Create Cloudflare zone + save to profile + notify admin
     try {
       const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
-      const res  = await fetch(`${SERVER}/api/cf/activate`, {
+      const cfRes  = await fetch(`${SERVER}/api/cf/setup-zone`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ domain })
       });
-      const data = await res.json();
-      if (data.nameservers && data.nameservers.length >= 2) {
-        document.getElementById('ns1').textContent = data.nameservers[0];
-        document.getElementById('ns2').textContent = data.nameservers[1];
-        // Update copy buttons
-        document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(data.nameservers[0], document.querySelectorAll('.copy-btn')[0]);
-        document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(data.nameservers[1], document.querySelectorAll('.copy-btn')[1]);
+      const cfData = await cfRes.json();
+      if (cfData.nameservers && cfData.nameservers.length >= 2) {
+        document.getElementById('ns1').textContent = cfData.nameservers[0];
+        document.getElementById('ns2').textContent = cfData.nameservers[1];
+        document.querySelectorAll('.copy-btn')[0].onclick = () => copyText(cfData.nameservers[0], document.querySelectorAll('.copy-btn')[0]);
+        document.querySelectorAll('.copy-btn')[1].onclick = () => copyText(cfData.nameservers[1], document.querySelectorAll('.copy-btn')[1]);
+      } else if (cfData.error) {
+        // Show error but still allow proceeding — admin can fix manually
+        console.error('Cloudflare setup error:', cfData.error);
+        document.getElementById('domain-error').textContent = `Note: Cloudflare setup hit an issue (${cfData.error}). Our team has been notified and will configure it manually.`;
+        document.getElementById('domain-error').classList.remove('hidden');
       }
     } catch(e) {
-      console.error('Cloudflare activation error:', e);
+      console.error('Cloudflare setup error:', e);
     }
 
     btn.textContent = 'Confirm Domain →';

@@ -92,3 +92,11 @@ CREATE POLICY "Clients insert own tickets"
   WITH CHECK (auth.uid() = client_id);
 
 -- Admin can see/update all tickets (via service key — bypasses RLS)
+
+-- ============================================
+-- MIGRATION: Cloudflare zone tracking
+-- Run this if the profiles table already exists
+-- ============================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS cf_zone_id  TEXT,
+  ADD COLUMN IF NOT EXISTS nameservers TEXT;  -- comma-separated, e.g. "aida.ns.cloudflare.com,noah.ns.cloudflare.com"
