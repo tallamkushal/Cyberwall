@@ -1739,6 +1739,9 @@ Rules:
 
         const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
 
+        // Save domain to profile first — persisted even if CF zone creation fails
+        await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { domain: clean }).catch(() => {});
+
         // Add zone to Cloudflare
         const cfPayload = JSON.stringify({ name: clean, jump_start: true });
         const result = await new Promise((resolve, reject) => {
@@ -1828,12 +1831,32 @@ Rules:
 
   // ── CLOUDFLARE PROXY: FULL OVERVIEW DATA ─────────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
-    const domain = new URL('http://x' + req.url).searchParams.get('domain');
+    const _overviewUrl = new URL('http://x' + req.url);
+    const domain = _overviewUrl.searchParams.get('domain');
     if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return; }
     // Start auth check early (runs in parallel with CF API calls)
     const _cfAuthPromise = requireAuth(req).catch(() => null);
     try {
-      const zoneId = await cfGetZoneId(domain);
+      // Use stored zone_id from profile if provided — avoids a redundant Cloudflare lookup
+      let zoneId = _overviewUrl.searchParams.get('zone_id') || null;
+      let zoneStatus = 'active';
+      if (zoneId) {
+        // Verify the zone and get its status in one call
+        const zoneInfo = await cfGet(`/zones/${zoneId}`).catch(() => null);
+        if (!zoneInfo?.success) {
+          // Stored zone_id invalid — fall back to name lookup
+          zoneId = null;
+        } else {
+          zoneStatus = zoneInfo.result?.status || 'active';
+        }
+      }
+      if (!zoneId) {
+        zoneId = await cfGetZoneId(domain);
+        if (zoneId) {
+          const zoneInfo = await cfGet(`/zones/${zoneId}`).catch(() => null);
+          zoneStatus = zoneInfo?.result?.status || 'active';
+        }
+      }
       if (!zoneId) { res.writeHead(404, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain not found in Cloudflare'})); return; }
 
       const now = new Date();
@@ -2015,6 +2038,8 @@ Rules:
 
       res.writeHead(200, {'Content-Type':'application/json'});
       res.end(JSON.stringify({
+        zoneStatus,
+        zoneActive: zoneStatus === 'active',
         stats: {
           threatsBlocked30d,
           threatsToday,

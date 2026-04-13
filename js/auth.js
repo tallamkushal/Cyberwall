@@ -87,7 +87,7 @@ function _setupPWAKeepalive() {
   });
 }
 
-async function _createProfile(userId, email, fullName, phone, businessName, domain, plan) {
+async function _createProfile({ userId, email, fullName, phone, businessName, domain, plan }) {
   const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
   const res = await fetch(`${SERVER}/api/create-profile`, {
     method: 'POST',
@@ -115,7 +115,7 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
 
     // Fast path: session exists (email confirmation is disabled in Supabase)
     if (data.session) {
-      await _createProfile(userId, email, fullName, phone, businessName, domain, plan);
+      await _createProfile({ userId, email, fullName, phone, businessName, domain, plan });
       return { success: true, user: data.user };
     }
 
@@ -127,15 +127,24 @@ async function signUp(email, password, fullName, phone, businessName, domain, pl
 
     if (signInData?.session) {
       // Confirmation was actually off — sign-in succeeded right away
-      await _createProfile(signInData.user.id, email, fullName, phone, businessName, domain, plan);
+      await _createProfile({ userId: signInData.user.id, email, fullName, phone, businessName, domain, plan });
       return { success: true, user: signInData.user };
     }
 
     const signInMsg = (signInError?.message || '').toLowerCase();
 
     if (signInMsg.includes('not confirmed') || signInMsg.includes('email not confirmed')) {
-      // Real new user — email is in auth.users, FK will be valid
-      await _createProfile(userId, email, fullName, phone, businessName, domain, plan);
+      // New user awaiting confirmation. Use try-catch: Supabase's email enumeration protection
+      // can return a fake user ID for existing unconfirmed emails, causing a FK violation.
+      // If profile creation fails for that reason, silently skip it — the profile already exists.
+      try {
+        await _createProfile({ userId, email, fullName, phone, businessName, domain, plan });
+      } catch (profileErr) {
+        const msg = (profileErr.message || '').toLowerCase();
+        if (!msg.includes('foreign key') && !msg.includes('duplicate') && !msg.includes('already exists') && !msg.includes('profile creation')) {
+          throw profileErr;
+        }
+      }
       return { success: true, user: data.user, needsConfirmation: true };
     }
 
@@ -159,7 +168,7 @@ async function logIn(email, password) {
     if (profile?.role === 'admin') {
       window.location.href = 'admin.html';
     } else if (!profile?.cf_zone_id) {
-      // Onboarding not complete — Cloudflare zone not set up yet
+      // Cloudflare zone not set up yet — send to onboarding
       window.location.href = 'onboarding.html';
     } else {
       window.location.href = 'dashboard.html';
@@ -182,6 +191,15 @@ async function logOut() {
 async function requireAuth() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) { window.location.replace('auth.html'); return null; }
+
+  const { data: profile } = await supabaseClient
+    .from('profiles').select('status').eq('id', session.user.id).single();
+
+  if (profile?.status === 'cancelled') {
+    await supabaseClient.auth.signOut();
+    window.location.replace('auth.html?reason=cancelled');
+    return null;
+  }
 
   // Wire up all session guards (safe to call multiple times — guards check isPWA internally)
   _setupBfcacheGuard();
@@ -208,6 +226,11 @@ async function resetPassword(email) {
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + '/auth.html'
   });
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+async function updatePassword(newPassword) {
+  const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
   return error ? { success: false, error: error.message } : { success: true };
 }
 

@@ -74,41 +74,6 @@ async function loadDashboard() {
   const planBadge = document.getElementById('plan-badge');
   if (planBadge) planBadge.textContent = capitalize(profile.plan || 'starter') + ' Plan';
 
-  // ── Setup state banners ──────────────────────────────────────────────────
-  const setupBanner = document.getElementById('onboarding-banner');
-  const dnsBanner   = document.getElementById('dns-pending-banner');
-  const protBadge   = document.getElementById('protection-status');
-  const sideAlert   = document.getElementById('onboarding-alert');
-
-  if (!profile.domain) {
-    // State 1: no domain — user skipped onboarding entirely
-    if (setupBanner) setupBanner.classList.remove('hidden');
-    if (protBadge)   protBadge.style.display = 'none';
-    if (sideAlert)   sideAlert.style.display = 'block';
-
-  } else if (profile.cf_zone_id && profile.nameservers) {
-    // State 2: Cloudflare zone created, waiting for DNS to propagate
-    if (dnsBanner) {
-      const ns = profile.nameservers.split(',');
-      const ns1El = document.getElementById('dash-ns1');
-      const ns2El = document.getElementById('dash-ns2');
-      if (ns1El) ns1El.textContent = ns[0] || '—';
-      if (ns2El) ns2El.textContent = ns[1] || '—';
-      dnsBanner.classList.add('visible');
-    }
-    if (protBadge) {
-      protBadge.className = 'badge badge-yellow';
-      protBadge.innerHTML = '⏳ DNS Pending';
-    }
-    if (sideAlert) {
-      sideAlert.style.display = 'block';
-      sideAlert.querySelector('.onboard-alert-title').textContent = '⏳ DNS Update Pending';
-      sideAlert.querySelector('.onboard-alert-sub').textContent   = 'Update your nameservers to activate protection →';
-    }
-
-  }
-  // State 3: domain set, no cf_zone_id — team is handling Cloudflare setup manually,
-  // or migration hasn't been run yet. Show nothing — user has completed their part.
 
   window._currentProfile = profile;
   applyPlanGating(profile.plan || 'starter');
@@ -138,20 +103,12 @@ function loadThreats() {
 function loadReports() {
   const list = document.getElementById('reports-list');
   if (!list) return;
-  const reports = [
-    {month:'February 2025', date:'Mar 1, 2025', size:'2.4 MB'},
-    {month:'January 2025',  date:'Feb 1, 2025', size:'2.1 MB'},
-    {month:'December 2024', date:'Jan 1, 2025', size:'1.9 MB'},
-  ];
-  list.innerHTML = reports.map(r => `
-    <div class="report-row">
-      <div class="report-icon">📄</div>
-      <div>
-        <div style="font-size:13px;font-weight:600">${r.month} Security Report</div>
-        <div style="font-size:12px;color:var(--muted)">Generated ${r.date} · ${r.size}</div>
-      </div>
-      <span class="report-dl" style="color:var(--accent);font-weight:600;cursor:pointer;margin-left:auto">↓ PDF</span>
-    </div>`).join('');
+  list.innerHTML = `
+    <div style="text-align:center;padding:40px 24px">
+      <div style="font-size:36px;margin-bottom:12px">📄</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">No reports yet</div>
+      <div style="font-size:13px;color:var(--muted)">Monthly security reports will appear here once your protection is active.</div>
+    </div>`;
 }
 
 function showPanel(name, el, pushState = true) {
@@ -251,8 +208,21 @@ async function savePassword() {
 // ---- LOAD CLOUDFLARE DATA ----
 async function loadCloudflareForProfile(profile) {
   if (profile && profile.domain) {
-    await loadCloudflareData(profile.domain);
+    await loadCloudflareData(profile.domain, profile.cf_zone_id || null);
   }
+}
+
+
+async function refreshCF(btn) {
+  if (btn) { btn.textContent = 'Refreshing…'; btn.disabled = true; }
+  await loadCloudflareForProfile(window._currentProfile);
+  if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; }
+}
+
+async function refreshAlerts(btn) {
+  if (btn) { btn.textContent = 'Refreshing…'; btn.disabled = true; }
+  await loadAlerts(true);
+  if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; }
 }
 
 // ---- SAVE PROFILE SETTINGS ----
@@ -569,8 +539,9 @@ async function loadSecurityScore() {
   } catch(e) { _renderScoreError('Scan failed. Please try again.'); }
 }
 
-async function rerunSecurityScan() {
-  if (!_currentScanDomain) { loadSecurityScore(); return; }
+async function rerunSecurityScan(btn) {
+  if (btn) { btn.textContent = '↻ Scanning…'; btn.disabled = true; }
+  if (!_currentScanDomain) { await loadSecurityScore(); if (btn) { btn.textContent = '↻ Re-scan'; btn.disabled = false; } return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
   _renderScoreLoading(_currentScanDomain);
   try {
@@ -578,11 +549,10 @@ async function rerunSecurityScan() {
     if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
     const res = await fetch(`${_SERVER}/api/security-scan?domain=${encodeURIComponent(_currentScanDomain)}&t=${Date.now()}`, { headers });
     const data = await res.json();
-    if (data.error) { _renderScoreError(data.error); return; }
-    safeSet('stat-score', data.grade);
-    safeSet('score-grade', data.grade);
-    _renderSecurityScore(data);
+    if (data.error) { _renderScoreError(data.error); }
+    else { safeSet('stat-score', data.grade); safeSet('score-grade', data.grade); _renderSecurityScore(data); }
   } catch(e) { _renderScoreError('Scan failed. Please try again.'); }
+  finally { if (btn) { btn.textContent = '↻ Re-scan'; btn.disabled = false; } }
 }
 
 function _ssGrade(score) {

@@ -305,8 +305,10 @@
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </div>
   <script>
-    // Hide login form and show spinner if returning from Google OAuth
-    if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) {
+    // Hide login form and show spinner if returning from Google OAuth or magic link.
+    // Do NOT show spinner for password recovery — we need to show the new-password form instead.
+    const _isRecovery = window.location.hash.includes('type=recovery');
+    if (!_isRecovery && (window.location.search.includes('code=') || window.location.hash.includes('access_token'))) {
       document.getElementById('oauth-loading').style.display = 'flex';
       document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('body > *:not(#oauth-loading)').forEach(el => el.style.display = 'none');
@@ -653,6 +655,34 @@
       </div>
     </div>
 
+    <!-- ===== SET NEW PASSWORD (password reset callback) ===== -->
+    <div id="newpass-form" class="hidden">
+      <h2 class="auth-title">Set new password 🔑</h2>
+      <p class="auth-sub">Enter a new password for your account.</p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="form-input" id="newpass-input" placeholder="At least 8 characters"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="form-input" id="newpass-confirm" placeholder="Repeat your password"/>
+        </div>
+      </div>
+      <div id="newpass-error" class="form-error hidden"></div>
+      <button class="btn btn-primary btn-full btn-large" id="newpass-btn" onclick="handleNewPassword()">Set New Password →</button>
+      <div id="newpass-success" class="success-box hidden">
+        <div class="success-icon">✅</div>
+        <h3 style="font-size:18px;margin-bottom:6px">Password updated!</h3>
+        <p style="font-size:13px;color:var(--muted)">Your password has been changed. You can now log in.</p>
+        <br/><span class="switch-lnk" onclick="switchTo('login')">← Back to login</span>
+      </div>
+    </div>
+
     <!-- ===== SIGNUP FORM ===== -->
     <div id="signup-form" class="hidden">
 
@@ -827,6 +857,9 @@
   function switchTo(view) {
     document.getElementById('login-form').classList.toggle('hidden', view !== 'login');
     document.getElementById('forgot-form').classList.toggle('hidden', view !== 'forgot');
+    document.getElementById('newpass-form').classList.toggle('hidden', view !== 'new-password');
+    // Hide the login/signup tab bar when showing special views
+    document.querySelector('.tabs').classList.toggle('hidden', view === 'new-password');
   }
 
   // ---- SIGNUP STEPS ----
@@ -1421,19 +1454,54 @@
     }
   }
 
+  // ── New password handler (password reset callback) ───────────────────────
+  async function handleNewPassword() {
+    const pass    = document.getElementById('newpass-input').value;
+    const confirm = document.getElementById('newpass-confirm').value;
+    const err     = document.getElementById('newpass-error');
+    const btn     = document.getElementById('newpass-btn');
+
+    if (!pass || pass.length < 8) { showErr(err, 'Password must be at least 8 characters'); return; }
+    if (pass !== confirm) { showErr(err, 'Passwords do not match'); return; }
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> Updating...';
+
+    const result = await updatePassword(pass);
+
+    if (result.success) {
+      btn.classList.add('hidden');
+      document.getElementById('newpass-success').classList.remove('hidden');
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.textContent = 'Set New Password →';
+      showErr(err, result.error);
+    }
+  }
+
   // ── Post-OAuth / magic-link redirect ─────────────────────────────────────
-  // Only fires when returning from Google or a magic-link (URL contains code= or access_token).
+  // Handles Google OAuth callbacks, magic links, and password recovery.
   // Regular email/password login is handled by logIn() in auth.js.
   // Already-logged-in redirects are handled by the getSession() block above.
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      // User clicked a password reset link — show the set-new-password form
+      switchTo('new-password');
+      return;
+    }
+
     const isOAuthCallback = window.location.search.includes('code=') || window.location.hash.includes('access_token');
     if (event === 'SIGNED_IN' && session && isOAuthCallback) {
       const { data: profile } = await supabaseClient
-        .from('profiles').select('role').eq('id', session.user.id).single();
-      if (!profile) {
+        .from('profiles').select('role, cf_zone_id').eq('id', session.user.id).single();
+      if (profile?.role === 'admin') {
+        window.location.href = 'admin.html';
+      } else if (!profile?.cf_zone_id) {
         window.location.href = 'onboarding.html';
       } else {
-        window.location.href = profile.role === 'admin' ? 'admin.html' : 'dashboard.html';
+        window.location.href = 'dashboard.html';
       }
     }
   });

@@ -22,14 +22,22 @@
       width: 240px; background: #0f0f0e;
       display: flex; flex-direction: column;
       position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
-      overflow-y: auto;
+      overflow: hidden;
     }
     .sidebar-logo {
       padding: 20px 18px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.07);
       display: flex; align-items: center; gap: 10px;
       text-decoration: none;
+      flex-shrink: 0;
     }
+    .sidebar-nav {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
     .sidebar-logo-icon {
       width: 34px; height: 34px; border-radius: 8px;
       background: var(--accent);
@@ -69,7 +77,7 @@
       border-top: 1px solid rgba(255,255,255,0.07);
     }
     .onboard-alert {
-      display: none;
+      display: none !important;
       background: #f59e0b;
       border-radius: 10px;
       padding: 10px 12px;
@@ -130,54 +138,32 @@
     .panel { display: none; }
     .panel.active { display: block; animation: slideUp 0.3s ease; }
 
-    /* ---- ONBOARDING BANNER ---- */
-    .onboarding-banner {
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      background: linear-gradient(135deg, #1a47e8 0%, #0f2fa3 100%);
-      border-radius: 12px; padding: 16px 20px; margin-bottom: 22px;
-    }
-    .onboarding-banner.hidden { display: none; }
-    .onboarding-banner-content { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
-    .onboarding-banner-icon { font-size: 28px; flex-shrink: 0; }
-    .onboarding-banner-title { font-size: 14px; font-weight: 700; color: white; margin-bottom: 3px; }
-    .onboarding-banner-sub { font-size: 12px; color: rgba(255,255,255,0.75); }
-    @media (max-width: 600px) {
-      .onboarding-banner { flex-direction: column; align-items: flex-start; }
-      .onboarding-banner .btn { width: 100%; text-align: center; }
-    }
-
-    /* ---- DNS PENDING BANNER ---- */
-    .dns-banner {
-      background: #fffbeb; border: 1.5px solid #fcd34d;
-      border-radius: 12px; padding: 16px 20px; margin-bottom: 22px;
-      display: none;
-    }
-    .dns-banner.visible { display: block; }
-    .dns-banner-top {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
-    }
-    .dns-banner-heading { display: flex; align-items: center; gap: 10px; }
-    .dns-banner-title { font-size: 14px; font-weight: 700; color: #92400e; }
-    .dns-banner-sub { font-size: 12px; color: #b45309; margin-top: 2px; }
+    /* ---- DNS SETUP PANEL ---- */
     .dns-ns-row {
       display: flex; align-items: center; gap: 10px;
-      background: white; border: 1px solid #fde68a;
-      border-radius: 8px; padding: 8px 12px; margin-bottom: 6px;
-      flex-wrap: wrap;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
     }
-    .dns-ns-label { font-size: 11px; font-weight: 600; color: #92400e; width: 32px; flex-shrink: 0; }
-    .dns-ns-val { font-family: monospace; font-size: 13px; color: #1a1a1a; flex: 1; min-width: 0; word-break: break-word; }
+    .dns-ns-label { font-size: 11px; font-weight: 700; color: var(--muted); width: 36px; flex-shrink: 0; text-transform: uppercase; letter-spacing: .5px; }
+    .dns-ns-val { font-family: monospace; font-size: 13px; color: var(--text); flex: 1; min-width: 0; word-break: break-word; font-weight: 600; }
     .dns-copy-btn {
-      padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
-      background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
-      cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+      padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 700;
+      background: var(--accent-light); color: var(--accent); border: 1px solid transparent;
+      cursor: pointer; flex-shrink: 0; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
     }
-    .dns-copy-btn:hover { background: #f59e0b; color: white; border-color: #f59e0b; }
+    .dns-copy-btn:hover { background: var(--accent); color: white; }
+    .dns-step { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+    .dns-step:last-child { border-bottom: none; }
+    .dns-step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: white; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .dns-step-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .dns-step-sub { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .registrar-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .registrar-tab { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+    .registrar-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .registrar-content { display: none; }
+    .registrar-content.active { display: block; }
     @media (max-width: 600px) {
-      .dns-banner-top { flex-direction: column; align-items: flex-start; }
-      .dns-banner { padding: 14px; margin-bottom: 16px; }
-      .dns-ns-row { padding: 8px 10px; }
+      .dns-ns-row { padding: 10px 12px; }
       .dns-ns-val { font-size: 12px; }
     }
 
@@ -522,74 +508,102 @@
     <span class="sidebar-logo-text">ProCyberWall</span>
   </a>
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-label">Overview</div>
-    <a class="sidebar-item active" onclick="showPanel('overview', this)">
-      <span class="sidebar-item-icon">📊</span> Dashboard
-    </a>
-    <a class="sidebar-item" onclick="showPanel('threats', this)">
-      <span class="sidebar-item-icon">🚨</span> Threats
-    </a>
-    <a class="sidebar-item" onclick="showPanel('reports', this)" data-requires="pro">
-      <span class="sidebar-item-icon">📄</span> Reports
-    </a>
-  </div>
+  <div class="sidebar-nav">
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-label">Security</div>
-    <a class="sidebar-item" onclick="showPanel('security-score', this)">
-      <span class="sidebar-item-icon">🎯</span>
-      <span>
-        <span style="display:block">How safe is my website?</span>
-        <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">Your safety score</span>
-      </span>
-    </a>
-    <a class="sidebar-item" onclick="showPanel('ssl', this)" data-requires="pro">
-      <span class="sidebar-item-icon">🟢</span>
-      <span>
-        <span style="display:block">Protection Status</span>
-        <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">What's on &amp; working</span>
-      </span>
-    </a>
-    <a class="sidebar-item" onclick="showPanel('alerts', this)" style="cursor:pointer" data-requires="pro">
-      <span class="sidebar-item-icon">🔔</span> Alerts
-      <span class="sidebar-notif" id="alerts-badge" style="display:none">0</span>
-    </a>
-  </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Overview</div>
+      <a class="sidebar-item active" onclick="showPanel('overview', this)">
+        <span class="sidebar-item-icon">📊</span> Dashboard
+      </a>
+      <a class="sidebar-item" onclick="showPanel('threats', this)">
+        <span class="sidebar-item-icon">🚨</span> Threats
+      </a>
+      <a class="sidebar-item" onclick="showPanel('reports', this)" data-requires="pro">
+        <span class="sidebar-item-icon">📄</span> Reports
+      </a>
+    </div>
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-label">AI</div>
-    <a class="sidebar-item" onclick="showPanel('cybernews', this)">
-      <span class="sidebar-item-icon">🌐</span> Cyber News
-    </a>
-    <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
-      <span class="sidebar-item-icon">🤖</span> AI Assistant
-    </a>
-    <a class="sidebar-item" onclick="showPanel('darkweb', this)" data-requires="business">
-      <span class="sidebar-item-icon">🕵️</span> Dark Web Monitor
-      <span class="lock-icon">🔒</span>
-    </a>
-  </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Security</div>
+      <a class="sidebar-item" onclick="showPanel('security-score', this)">
+        <span class="sidebar-item-icon">🎯</span>
+        <span>
+          <span style="display:block">How safe is my website?</span>
+          <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">Your safety score</span>
+        </span>
+      </a>
+      <a class="sidebar-item" onclick="showPanel('ssl', this)" data-requires="pro">
+        <span class="sidebar-item-icon">🟢</span>
+        <span>
+          <span style="display:block">Protection Status</span>
+          <span style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:400;margin-top:1px">What's on &amp; working</span>
+        </span>
+      </a>
+      <a class="sidebar-item" onclick="showPanel('alerts', this)" style="cursor:pointer" data-requires="pro">
+        <span class="sidebar-item-icon">🔔</span> Alerts
+        <span class="sidebar-notif" id="alerts-badge" style="display:none">0</span>
+      </a>
+    </div>
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-label">Account</div>
-    <a class="sidebar-item" onclick="showPanel('billing', this)">
-      <span class="sidebar-item-icon">💳</span> Billing
-    </a>
-    <a class="sidebar-item" onclick="showPanel('settings', this)">
-      <span class="sidebar-item-icon">⚙️</span> Settings
-    </a>
-    <a class="sidebar-item" onclick="showPanel('support', this)">
-      <span class="sidebar-item-icon">💬</span> Support
-      <span class="sidebar-notif" id="open-tickets-badge" style="display:none"></span>
-    </a>
-  </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">AI</div>
+      <a class="sidebar-item" onclick="showPanel('cybernews', this)">
+        <span class="sidebar-item-icon">🌐</span> Cyber News
+      </a>
+      <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
+        <span class="sidebar-item-icon">🤖</span> AI Assistant
+      </a>
+      <a class="sidebar-item" onclick="showPanel('darkweb', this)" data-requires="business">
+        <span class="sidebar-item-icon">🕵️</span> Dark Web Monitor
+        <span class="lock-icon">🔒</span>
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Account</div>
+      <a class="sidebar-item" onclick="showPanel('billing', this)">
+        <span class="sidebar-item-icon">💳</span> Billing
+      </a>
+      <a class="sidebar-item" onclick="showPanel('settings', this)">
+        <span class="sidebar-item-icon">⚙️</span> Settings
+      </a>
+      <a class="sidebar-item" onclick="showPanel('support', this)">
+        <span class="sidebar-item-icon">💬</span> Support
+        <span class="sidebar-notif" id="open-tickets-badge" style="display:none"></span>
+      </a>
+    </div>
+
+    <!-- Setup Guide card -->
+    <div style="margin:12px 12px 4px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,0.4);margin-bottom:12px">Setup Guide</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:20px;height:20px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;flex-shrink:0;margin-top:1px">✓</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Account created</span></div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">2</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Share your domain</span><br>WhatsApp us your website URL</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">3</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Update nameservers</span><br>We'll send you the values to enter</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">4</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Protection goes live</span><br>We'll WhatsApp you when active</div>
+        </div>
+      </div>
+      <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20My%20website%20is%3A%20" target="_blank"
+         style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;background:#25D366;color:white;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;text-decoration:none;transition:opacity 0.2s"
+         onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        <span>💬</span> WhatsApp Us
+      </a>
+    </div>
+
+  </div><!-- end sidebar-nav -->
 
   <div class="sidebar-footer">
-    <a class="onboard-alert" id="onboarding-alert" href="onboarding.html">
-      <div class="onboard-alert-title">⚠️ Complete Setup</div>
-      <div class="onboard-alert-sub">Your website isn't protected yet. Tap to finish setup →</div>
-    </a>
     <div class="sidebar-user">
       <div class="sidebar-avatar" id="user-initials">U</div>
       <div>
@@ -637,42 +651,6 @@
     <!-- ===== OVERVIEW ===== -->
     <div class="panel active" id="panel-overview">
 
-      <!-- Onboarding incomplete banner (no domain at all) -->
-      <div id="onboarding-banner" class="onboarding-banner hidden">
-        <div class="onboarding-banner-content">
-          <div class="onboarding-banner-icon">🛡️</div>
-          <div>
-            <div class="onboarding-banner-title">Complete your setup to activate protection</div>
-            <div class="onboarding-banner-sub">Your website isn't protected yet. Connect your domain to enable the firewall, SSL monitoring, and alerts.</div>
-          </div>
-        </div>
-        <a href="onboarding.html" class="btn btn-primary" style="flex-shrink:0;font-size:13px">Complete Setup →</a>
-      </div>
-
-      <!-- DNS pending banner (domain + zone created, waiting for DNS propagation) -->
-      <div id="dns-pending-banner" class="dns-banner">
-        <div class="dns-banner-top">
-          <div class="dns-banner-heading">
-            <span style="font-size:22px">⏳</span>
-            <div>
-              <div class="dns-banner-title">DNS update pending — protection not active yet</div>
-              <div class="dns-banner-sub">Update your domain's nameservers at your registrar (GoDaddy, Namecheap, etc.) to the values below. DNS changes can take up to 24 hours.</div>
-            </div>
-          </div>
-          <a href="onboarding.html" style="font-size:12px;color:#b45309;text-decoration:none;white-space:nowrap;font-weight:600">Setup Guide →</a>
-        </div>
-        <div class="dns-ns-row">
-          <span class="dns-ns-label">NS 1</span>
-          <span class="dns-ns-val" id="dash-ns1">—</span>
-          <button class="dns-copy-btn" onclick="dnsCopy('dash-ns1', this)">Copy</button>
-        </div>
-        <div class="dns-ns-row">
-          <span class="dns-ns-label">NS 2</span>
-          <span class="dns-ns-val" id="dash-ns2">—</span>
-          <button class="dns-copy-btn" onclick="dnsCopy('dash-ns2', this)">Copy</button>
-        </div>
-        <div style="font-size:11px;color:#b45309;margin-top:8px">💬 Need help? <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20I%20need%20help%20updating%20my%20DNS%20settings." target="_blank" style="color:#b45309;font-weight:600">WhatsApp us</a> and we'll walk you through it.</div>
-      </div>
 
       <!-- Stats -->
       <div class="stats-grid">
@@ -837,7 +815,7 @@
           </div>
           <div style="flex-shrink:0;text-align:right">
             <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Last checked<br><span id="health-check-time">—</span></div>
-            <button onclick="loadCloudflareForProfile(window._currentProfile)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
+            <button onclick="refreshCF(this)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
           </div>
         </div>
       </div>
@@ -918,7 +896,7 @@
       <div class="card">
         <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
           <span class="card-title">Security Alerts</span>
-          <button onclick="loadAlerts(true)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
+          <button onclick="refreshAlerts(this)" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:'DM Sans',sans-serif">↻ Refresh</button>
         </div>
         <div class="card-body" id="alerts-list">
           <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px">Loading alerts…</div>
@@ -1123,7 +1101,7 @@
           <span id="ss-confidence-badge" style="display:none;font-size:10px;font-weight:600;background:rgba(255,255,255,0.15);color:white;padding:2px 8px;border-radius:5px"></span>
           <span id="ss-managed-badge" style="display:none;font-size:10px;font-weight:600;background:rgba(255,255,255,0.15);color:white;padding:2px 8px;border-radius:5px">🛡️ Managed by CyberWall</span>
           <span style="font-size:11px;color:rgba(255,255,255,0.5)" id="ss-scan-time"></span>
-          <button onclick="rerunSecurityScan()" style="margin-left:auto;font-size:11px;padding:4px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);cursor:pointer;color:white;font-family:'DM Sans',sans-serif" id="ss-rescan-btn">↻ Re-scan</button>
+          <button onclick="rerunSecurityScan(this)" style="margin-left:auto;font-size:11px;padding:4px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);cursor:pointer;color:white;font-family:'DM Sans',sans-serif" id="ss-rescan-btn">↻ Re-scan</button>
         </div>
       </div>
 
@@ -1304,6 +1282,7 @@
 
     </div>
 
+
   </div>
   <!-- end content -->
 </div>
@@ -1480,15 +1459,6 @@
   function askSuggestion(text) {
     document.getElementById('ai-input').value = text;
     sendAiMessage();
-  }
-
-  // ── DNS nameserver copy (pending banner) ─────────────────────────────────
-  function dnsCopy(elId, btn) {
-    const val = document.getElementById(elId)?.textContent;
-    if (!val || val === '—') return;
-    navigator.clipboard.writeText(val);
-    btn.textContent = 'Copied ✓';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
   }
 
   // ── More menu (mobile slide-up) ───────────────────────────────────────────

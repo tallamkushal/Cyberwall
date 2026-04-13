@@ -11,13 +11,15 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-async function loadCloudflareData(domain) {
+async function loadCloudflareData(domain, zoneId) {
   showCFLoading(true);
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const cfHeaders = {};
     if (session?.access_token) cfHeaders['Authorization'] = 'Bearer ' + session.access_token;
-    const res  = await fetch(`/api/cf/overview?domain=${encodeURIComponent(domain)}`, { headers: cfHeaders });
+    let url = `/api/cf/overview?domain=${encodeURIComponent(domain)}`;
+    if (zoneId) url += `&zone_id=${encodeURIComponent(zoneId)}`;
+    const res  = await fetch(url, { headers: cfHeaders });
     const data = await res.json();
 
     if (data.error) {
@@ -25,6 +27,7 @@ async function loadCloudflareData(domain) {
       showCFLoading(false);
       return;
     }
+
 
     const s = data.stats;
 
@@ -222,16 +225,20 @@ function updateHealthPanel(ssl, email) {
   }
 
   // ── Uptime stat card ─────────────────────────────────────────────────────
-  safeSet('health-uptime-val', '99.9%');
+  const uptimeEl  = document.getElementById('stat-uptime');
+  const uptimeTxt = uptimeEl ? uptimeEl.textContent : '—';
+  const uptimeDisplay = (uptimeTxt && uptimeTxt !== '0' && uptimeTxt !== '—') ? uptimeTxt : '—';
+  safeSet('health-uptime-val', uptimeDisplay);
   const uptimeVal = document.getElementById('health-uptime-val');
-  if (uptimeVal) uptimeVal.style.color = 'var(--green)';
+  if (uptimeVal) uptimeVal.style.color = uptimeDisplay !== '—' ? 'var(--green)' : 'var(--muted)';
 
   // ── Response time stat card ──────────────────────────────────────────────
   const responseEl = document.getElementById('stat-response');
   const responseMs = responseEl ? responseEl.textContent : '—';
-  safeSet('health-response-val', responseMs === '—' ? '< 50ms' : responseMs);
+  const responseDisplay = (responseMs && responseMs !== '0' && responseMs !== '—') ? responseMs : '—';
+  safeSet('health-response-val', responseDisplay);
   const responseVal = document.getElementById('health-response-val');
-  if (responseVal) responseVal.style.color = 'var(--green)';
+  if (responseVal) responseVal.style.color = responseDisplay !== '—' ? 'var(--green)' : 'var(--muted)';
 
   // ── Domain stat card ─────────────────────────────────────────────────────
   const httpsEnforced = ssl.httpsEnforced;
