@@ -126,7 +126,7 @@ function showPanel(name, el, pushState = true) {
   // highlight matching mobile nav item
   const mobileMatch = document.querySelector(`.mobile-nav-item[data-panel="${name}"]`);
   if (mobileMatch) mobileMatch.classList.add('active');
-  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News'};
+  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News','onboarding-steps':'Onboarding Steps'};
   if (name === 'security-score' && !_currentScanDomain) loadSecurityScore();
   // Always scroll to top when switching panels
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -902,12 +902,14 @@ async function loadAlerts(forceRefresh = false) {
     const data = await res.json();
     const alerts = data.alerts || [];
 
-    // Update unread badges (sidebar + mobile nav)
-    const unread = alerts.filter(a => !a.is_read && !a.is_resolved).length;
-    _setAlertsBadge(unread);
-
     const active   = alerts.filter(a => !a.is_resolved);
     const resolved = alerts.filter(a => a.is_resolved);
+
+    // Badge = total unresolved count — only decreases when an alert is resolved
+    _setAlertsBadge(active.length);
+
+    // unread is only used below for the mark-as-read call (drives the unread dot on each card)
+    const unread = active.filter(a => !a.is_read).length;
 
     if (active.length === 0 && resolved.length === 0) {
       list.innerHTML = `
@@ -958,10 +960,9 @@ async function loadAlerts(forceRefresh = false) {
 
     list.innerHTML = html;
 
-    // Mark all active as read after viewing
+    // Mark active alerts as read (clears the unread dot on each card)
     if (unread > 0) {
       fetch(`${_SERVER}/api/alerts/read`, { method: 'POST', headers }).catch(() => {});
-      if (badge) { badge.style.display = 'none'; }
     }
 
   } catch (e) {
@@ -1005,7 +1006,7 @@ async function loadAlertsBadge() {
     const headers = await _getAuthHeaders();
     const res  = await fetch(`${_SERVER}/api/alerts`, { headers });
     const data = await res.json();
-    const unread = (data.alerts || []).filter(a => !a.is_read && !a.is_resolved).length;
-    _setAlertsBadge(unread);
+    const unresolved = (data.alerts || []).filter(a => !a.is_resolved).length;
+    _setAlertsBadge(unresolved);
   } catch(e) {}
 }

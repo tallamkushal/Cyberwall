@@ -571,33 +571,8 @@
         <span class="sidebar-item-icon">💬</span> Support
         <span class="sidebar-notif" id="open-tickets-badge" style="display:none"></span>
       </a>
-    </div>
-
-    <!-- Setup Guide card -->
-    <div style="margin:12px 12px 4px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,0.4);margin-bottom:12px">Setup Guide</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="width:20px;height:20px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:white;flex-shrink:0;margin-top:1px">✓</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Account created</span></div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">2</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Share your domain</span><br>WhatsApp us your website URL</div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">3</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Update nameservers</span><br>We'll send you the values to enter</div>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);flex-shrink:0;margin-top:1px">4</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.55);line-height:1.4"><span style="color:rgba(255,255,255,0.85);font-weight:600">Protection goes live</span><br>We'll WhatsApp you when active</div>
-        </div>
-      </div>
-      <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20My%20website%20is%3A%20" target="_blank"
-         style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;background:#25D366;color:white;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;text-decoration:none;transition:opacity 0.2s"
-         onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        <span>💬</span> WhatsApp Us
+      <a class="sidebar-item" onclick="showPanel('onboarding-steps', this)">
+        <span class="sidebar-item-icon">📋</span> Onboarding Steps
       </a>
     </div>
 
@@ -1179,6 +1154,92 @@
       </div>
     </div>
 
+    <!-- ===== ONBOARDING STEPS ===== -->
+    <div class="panel" id="panel-onboarding-steps">
+      <div class="card" style="max-width:720px">
+        <div class="card-header"><span class="card-title">Onboarding Steps</span></div>
+        <div class="card-body" style="font-size:14px;line-height:1.8;color:var(--text)">
+
+          <p style="color:var(--muted);margin-bottom:24px">Follow these steps to connect your website to ProCyberWall protection. Each step is described in full — bookmark this page and work through it at your own pace.</p>
+
+          <!-- Step 1 -->
+          <div style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:28px;height:28px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0">✓</div>
+              <h3 style="font-size:15px;font-weight:700;margin:0;color:var(--green)">Step 1 — Account Created</h3>
+            </div>
+            <p style="margin:0 0 0 38px;color:var(--muted)">Your ProCyberWall account is active. You are logged in and can access this dashboard. No further action is needed for this step.</p>
+          </div>
+
+          <!-- Step 2 -->
+          <div style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-light);border:2px solid #c7d7fb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);flex-shrink:0">2</div>
+              <h3 style="font-size:15px;font-weight:700;margin:0">Step 2 — Share Your Domain With Us</h3>
+            </div>
+            <div style="margin-left:38px">
+              <p style="margin:0 0 10px">WhatsApp us your website domain (e.g. <strong>shopkaro.in</strong>) so we can register it in our system and assign Cloudflare firewall rules.</p>
+              <p style="margin:0 0 10px">Tap the button below to open WhatsApp — just send your domain URL in the message.</p>
+              <a href="https://wa.me/919844482193?text=Hi%20ProCyberWall!%20My%20website%20is%3A%20" target="_blank"
+                 style="display:inline-flex;align-items:center;gap:7px;background:#25D366;color:white;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none">
+                <span>💬</span> WhatsApp Us
+              </a>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-light);border:2px solid #c7d7fb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);flex-shrink:0">3</div>
+              <h3 style="font-size:15px;font-weight:700;margin:0">Step 3 — Update Your Nameservers</h3>
+            </div>
+            <div style="margin-left:38px">
+              <p style="margin:0 0 12px">This step routes your domain's DNS through Cloudflare so ProCyberWall can inspect and filter all traffic before it reaches your website.</p>
+
+              <p style="margin:0 0 8px;font-weight:600">Your ProCyberWall nameservers are:</p>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-family:monospace;font-size:14px;margin-bottom:14px">
+                <div style="margin-bottom:8px"><span style="color:var(--muted);font-size:12px;font-family:inherit">NS 1</span><br/><strong style="color:var(--accent)">aida.ns.cloudflare.com</strong></div>
+                <div><span style="color:var(--muted);font-size:12px;font-family:inherit">NS 2</span><br/><strong style="color:var(--accent)">noah.ns.cloudflare.com</strong></div>
+              </div>
+
+              <p style="margin:0 0 8px;font-weight:600">How to update nameservers (step-by-step):</p>
+              <ol style="margin:0 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:8px">
+                <li>Log in to the registrar where you bought your domain — e.g. <strong>GoDaddy</strong>, <strong>Namecheap</strong>, <strong>BigRock</strong>, <strong>Google Domains</strong>, or <strong>Hostinger</strong>.</li>
+                <li>Navigate to <strong>Domain Management</strong> → find your domain → click <strong>Manage</strong> or <strong>DNS Settings</strong>.</li>
+                <li>Look for a section labelled <strong>Nameservers</strong> or <strong>Custom Nameservers</strong>.</li>
+                <li>Select <strong>"Custom" or "Use my own nameservers"</strong> (instead of the default registrar nameservers).</li>
+                <li>Delete the existing nameserver entries and enter the two values above:<br/>
+                  <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:13px">aida.ns.cloudflare.com</code><br/>
+                  <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:13px">noah.ns.cloudflare.com</code>
+                </li>
+                <li>Save / confirm the changes.</li>
+              </ol>
+              <p style="margin:0;color:var(--muted);font-size:13px">The whole process takes about 2 minutes. If you get stuck, WhatsApp us and we'll walk you through it live.</p>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div style="margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--accent-light);border:2px solid #c7d7fb;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);flex-shrink:0">4</div>
+              <h3 style="font-size:15px;font-weight:700;margin:0">Step 4 — Protection Goes Live</h3>
+            </div>
+            <div style="margin-left:38px">
+              <p style="margin:0 0 10px">After you update your nameservers, DNS propagation across the internet takes anywhere from <strong>10 minutes to 24 hours</strong>. This is normal and outside anyone's control.</p>
+              <p style="margin:0 0 10px">Once propagation is complete:</p>
+              <ul style="margin:0 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+                <li>Your firewall rules are activated automatically.</li>
+                <li>Live threat data will appear on your <strong>Overview</strong> dashboard.</li>
+                <li>We will send you a <strong>WhatsApp confirmation message</strong> the moment everything is live.</li>
+              </ul>
+              <p style="margin:0;color:var(--muted);font-size:13px">You do not need to do anything else. Sit back — we handle the rest.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <!-- ── CYBER NEWS PANEL ─────────────────────────────────────────────── -->
     <div class="panel" id="panel-cybernews">
 
@@ -1333,6 +1394,9 @@
     </button>
     <button class="more-menu-item" onclick="moreNav('support')">
       <span>💬</span><span>Support</span>
+    </button>
+    <button class="more-menu-item" onclick="moreNav('onboarding-steps')">
+      <span>📋</span><span>Onboarding<br>Steps</span>
     </button>
     <button class="more-menu-item" onclick="moreNav('billing')">
       <span>💳</span><span>Billing</span>
