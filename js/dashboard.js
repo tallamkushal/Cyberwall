@@ -57,7 +57,7 @@ async function loadDashboard() {
 
   document.getElementById('user-name').textContent     = profile.full_name || 'User';
   document.getElementById('user-plan').textContent     = capitalize(profile.plan || 'starter') + ' Plan';
-  document.getElementById('user-domain').textContent   = profile.domain || 'Not configured';
+  document.getElementById('user-domain').textContent   = normalizeDomain(profile.domain) || 'Not configured';
   document.getElementById('user-initials').textContent = getInitials(profile.full_name);
 
   // Populate settings fields
@@ -68,7 +68,7 @@ async function loadDashboard() {
   const setEmail   = document.getElementById('set-email');
   if (setName)    setName.value    = profile.full_name || '';
   if (setCompany) setCompany.value = profile.business_name   || '';
-  if (setDomain)  setDomain.value  = profile.domain    || '';
+  if (setDomain)  setDomain.value  = normalizeDomain(profile.domain) || '';
   if (setPhone)   setPhone.value   = profile.phone     || '';
   if (setEmail)   setEmail.value   = profile.email     || '';
   const planBadge = document.getElementById('plan-badge');
@@ -208,7 +208,7 @@ async function savePassword() {
 // ---- LOAD CLOUDFLARE DATA ----
 async function loadCloudflareForProfile(profile) {
   if (profile && profile.domain) {
-    await loadCloudflareData(profile.domain, profile.cf_zone_id || null);
+    await loadCloudflareData(normalizeDomain(profile.domain), profile.cf_zone_id || null);
   }
 }
 
@@ -516,10 +516,17 @@ function renderMyTickets(tickets) {
 // ── SECURITY SCORE ────────────────────────────────────────────────────────────
 let _currentScanDomain = null;
 
+// Strip protocol, www, trailing slashes — never assume HTTPS from the URL prefix
+function normalizeDomain(input) {
+  return (input || '').trim().toLowerCase()
+    .replace(/^https?:\/\//i, '').replace(/^www\./i, '')
+    .replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+}
+
 async function loadSecurityScore() {
   const { data: { session } } = await supabaseClient.auth.getSession();
   const profile = await getCurrentProfile();
-  const domain = profile?.domain;
+  const domain = normalizeDomain(profile?.domain);
 
   if (!domain) { _renderScoreEmpty(); return; }
 

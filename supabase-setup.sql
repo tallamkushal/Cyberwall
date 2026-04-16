@@ -65,8 +65,10 @@ CREATE TABLE tasks (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Only the server (service key) touches tasks — no RLS needed for clients
-ALTER TABLE tasks DISABLE ROW LEVEL SECURITY;
+-- Tasks are admin/server-only. Enable RLS with no client policies so direct
+-- client access is blocked. The service_role key used in server.js bypasses
+-- RLS entirely, so backend access is unaffected.
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
 -- SUPPORT TICKETS TABLE
 -- Clients submit tickets; admin resolves them
