@@ -310,8 +310,9 @@
   <script>
     // Hide login form and show spinner if returning from Google OAuth or magic link.
     // Do NOT show spinner for password recovery — we need to show the new-password form instead.
-    const _isRecovery = window.location.hash.includes('type=recovery');
-    if (!_isRecovery && (window.location.search.includes('code=') || window.location.hash.includes('access_token'))) {
+    const _isRecovery    = window.location.hash.includes('type=recovery');
+    const _isOAuthCallback = !_isRecovery && (window.location.search.includes('code=') || window.location.hash.includes('access_token'));
+    if (_isOAuthCallback) {
       document.getElementById('oauth-loading').style.display = 'flex';
       document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('body > *:not(#oauth-loading)').forEach(el => el.style.display = 'none');
@@ -1668,9 +1669,7 @@
       return;
     }
 
-    const isOAuthCallback = (window.location.search.includes('code=') || window.location.hash.includes('access_token'))
-      && !window.location.hash.includes('type=recovery');
-    if (event === 'SIGNED_IN' && session && isOAuthCallback) {
+    if (event === 'SIGNED_IN' && session && _isOAuthCallback) {
       const { data: profile } = await supabaseClient
         .from('profiles').select('role, cf_zone_id').eq('id', session.user.id).single();
       if (profile?.role === 'admin') {
