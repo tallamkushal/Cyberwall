@@ -11,6 +11,7 @@
   <link rel="apple-touch-icon" href="/icons/icon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>ProCyberWall — Login / Sign Up</title>
+  <link rel="prefetch" href="index.html"/>
   <link rel="stylesheet" href="css/style.css"/>
   <script src="js/theme.js"></script>
   <style>
@@ -43,7 +44,7 @@
     .left-footer { font-size: 12px; color: rgba(255,255,255,0.4); position: relative; z-index: 1; }
 
     /* RIGHT PANEL */
-    .right { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 5%; overflow-y: auto; background: var(--surface); }
+    .right { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 48px 5%; overflow-y: auto; background: var(--surface); }
     .auth-box { width: 100%; max-width: 400px; }
 
     /* TABS */
@@ -628,7 +629,50 @@
         ✅ Magic link sent! Check your email inbox.
       </div>
 
-      <p class="switch-txt">No account? <span class="switch-lnk" onclick="switchTab('signup')">Create one free →</span></p>
+      <div class="divider" style="margin-top:4px;margin-bottom:14px">
+        <div class="div-line"></div><span class="div-text">or sign in with WhatsApp OTP</span><div class="div-line"></div>
+      </div>
+
+      <!-- Phone login — step 1: enter number -->
+      <div id="phone-login-step1">
+        <div class="phone-wrap" id="l-phone-wrap">
+          <button type="button" class="dial-trigger" id="l-dial-trigger" onclick="toggleDial('l')" aria-haspopup="listbox">
+            <span class="dial-flag" id="l-dial-flag">🇮🇳</span>
+            <span class="dial-code" id="l-dial-code">+91</span>
+            <span class="dial-caret">▾</span>
+          </button>
+          <div class="dial-dropdown" id="l-dial-dropdown" role="listbox">
+            <input class="dial-search" id="l-dial-search" placeholder="Search country…" oninput="filterDial('l')" autocomplete="off"/>
+            <div class="dial-list" id="l-dial-list"></div>
+          </div>
+          <input type="hidden" id="l-dialcode" value="+91"/>
+          <input type="tel" class="form-input" id="l-phone" placeholder="10-digit number" style="flex:1" maxlength="10" inputmode="numeric"
+            onkeydown="if(event.key==='Enter')sendLoginOtp()"/>
+        </div>
+        <div id="phone-login-error" class="form-error hidden" style="margin-top:6px"></div>
+        <button class="btn btn-ghost btn-full" id="send-otp-btn" onclick="sendLoginOtp()" style="margin-top:10px">
+          Send OTP via WhatsApp
+        </button>
+      </div>
+
+      <!-- Phone login — step 2: enter OTP -->
+      <div id="phone-login-step2" class="hidden">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Code sent to <strong id="phone-login-display"></strong></p>
+        <div class="otp-wrap">
+          <input class="form-input otp-input" id="login-otp" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
+            autocomplete="one-time-code" onkeydown="if(event.key==='Enter')verifyLoginOtp()"/>
+          <button type="button" class="btn-resend" id="login-resend-btn" onclick="resendLoginOtp()">Resend</button>
+        </div>
+        <div id="phone-otp-error" class="form-error hidden" style="margin-top:6px"></div>
+        <button class="btn btn-primary btn-full" id="verify-otp-btn" onclick="verifyLoginOtp()" style="margin-top:10px">
+          Verify &amp; Login →
+        </button>
+        <button type="button" onclick="showPhoneStep1()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px;width:100%;text-align:center">
+          ← Change number
+        </button>
+      </div>
+
+      <p class="switch-txt" style="margin-top:18px">No account? <span class="switch-lnk" onclick="switchTab('signup')">Create one free →</span></p>
       <div class="trust"><span>🔒 SSL Encrypted</span><span>⚡ 99.9% Uptime SLA</span><span>🤖 AI Threat Protection</span></div>
     </div>
 
@@ -728,6 +772,10 @@
           <div class="strength-bars" id="strength-bars"><div class="s-bar" id="sb1"></div><div class="s-bar" id="sb2"></div><div class="s-bar" id="sb3"></div><div class="s-bar" id="sb4"></div></div>
           <div class="form-hint" id="strength-lbl"></div>
         </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="input-wrapper"><span class="input-icon">🔒</span><input type="password" class="form-input" id="s-pass-confirm" placeholder="Repeat your password"/></div>
+        </div>
         <div id="s1-error" class="form-error hidden"></div>
         <button class="btn btn-primary btn-full btn-large" onclick="goStep(2)">Continue → Business Details</button>
         <p class="switch-txt">Have an account? <span class="switch-lnk" onclick="switchTab('login')">Login →</span></p>
@@ -739,6 +787,7 @@
         <p class="auth-sub">Helps us configure your firewall correctly.</p>
         <div class="form-group"><label class="form-label">Business Name</label><div class="input-wrapper"><span class="input-icon">🏢</span><input class="form-input" id="s-biz" placeholder="Your Company Pvt Ltd"/></div></div>
         <div class="form-group"><label class="form-label">Website URL</label><div class="input-wrapper"><span class="input-icon">🌐</span><input class="form-input" id="s-domain" placeholder="https://yoursite.com"/></div><div class="form-hint">The website you want protected</div></div>
+        <div class="form-group"><label class="form-label">Confirm Website URL</label><div class="input-wrapper"><span class="input-icon">🌐</span><input class="form-input" id="s-domain-confirm" placeholder="https://yoursite.com"/></div></div>
         <div class="form-group"><label class="form-label">Business Type</label>
           <select class="form-input" id="s-biztype">
             <option value="">Select type...</option>
@@ -881,11 +930,12 @@
   }
 
   function validateStep1() {
-    const fname = document.getElementById('s-fname').value.trim();
-    const email = document.getElementById('s-email').value.trim();
-    const phone = document.getElementById('s-phone').value.trim();
-    const pass  = document.getElementById('s-pass').value;
-    const err   = document.getElementById('s1-error');
+    const fname       = document.getElementById('s-fname').value.trim();
+    const email       = document.getElementById('s-email').value.trim();
+    const phone       = document.getElementById('s-phone').value.trim();
+    const pass        = document.getElementById('s-pass').value;
+    const passConfirm = document.getElementById('s-pass-confirm').value;
+    const err         = document.getElementById('s1-error');
 
     const dialCode = document.getElementById('s-dialcode').value;
     const selectedCountry = COUNTRIES.find(c => c.dial === dialCode);
@@ -895,18 +945,22 @@
     if (!phone || phone.replace(/\D/g,'').length !== requiredDigits) { showErr(err, `Please enter a valid ${requiredDigits}-digit phone number`); return false; }
     if (pass.length < 8) { showErr(err, 'Password must be at least 8 characters'); return false; }
     if (_pwScore(pass) < 2) { showErr(err, 'Password is too weak — add uppercase letters, numbers, or symbols'); return false; }
+    if (pass !== passConfirm) { showErr(err, 'Passwords do not match'); return false; }
 
     err.classList.add('hidden');
     return true;
   }
 
   function validateStep2() {
-    const biz    = document.getElementById('s-biz').value.trim();
-    const domain = document.getElementById('s-domain').value.trim();
-    const err    = document.getElementById('s2-error');
+    const biz           = document.getElementById('s-biz').value.trim();
+    const domain        = document.getElementById('s-domain').value.trim();
+    const domainConfirm = document.getElementById('s-domain-confirm').value.trim();
+    const err           = document.getElementById('s2-error');
 
     if (!biz) { showErr(err, 'Please enter your business name'); return false; }
     if (!domain) { showErr(err, 'Please enter your website URL'); return false; }
+    if (!domainConfirm) { showErr(err, 'Please confirm your website URL'); return false; }
+    if (domain !== domainConfirm) { showErr(err, 'Website URLs do not match'); return false; }
 
     err.classList.add('hidden');
     return true;
@@ -1230,22 +1284,20 @@
 <script>
   // ── Skip auth page if already logged in ──────────────────────────────────
   async function _authPageRedirectIfLoggedIn() {
+    // Don't redirect if there's already a navigation in progress
+    if (window.location.search.includes('code=') || window.location.hash.includes('access_token')) return;
+
     const { data } = await supabaseClient.auth.getSession();
-    const logo = document.getElementById('logo-link');
-    if (!data.session) {
-      if (logo) logo.href = 'index.html';
-      return;
-    }
-    if (!window.location.search.includes('code=') && !window.location.hash.includes('access_token')) {
-      // Already logged in — route based on onboarding completion
-      const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.session.user.id).single();
-      if (profile?.role === 'admin') {
-        window.location.replace('admin.html');
-      } else if (!profile?.cf_zone_id) {
-        window.location.replace('onboarding.html');
-      } else {
-        window.location.replace('dashboard.html');
-      }
+    if (!data.session) return;
+
+    // Already logged in — route based on onboarding completion
+    const { data: profile } = await supabaseClient.from('profiles').select('role, cf_zone_id').eq('id', data.session.user.id).single();
+    if (profile?.role === 'admin') {
+      window.location.replace('admin.html');
+    } else if (!profile?.cf_zone_id) {
+      window.location.replace('onboarding.html');
+    } else {
+      window.location.replace('dashboard.html');
     }
   }
 
@@ -1380,6 +1432,17 @@
     selectDial('s', india);
   })();
 
+  // Initialize login phone picker (no auto-focus)
+  (function initLoginPicker() {
+    const india = COUNTRIES.find(c => c.code === 'IN');
+    if (!india) return;
+    document.getElementById('l-dialcode').value = india.dial;
+    document.getElementById('l-dial-flag').textContent = toFlag(india.code);
+    document.getElementById('l-dial-code').textContent = india.dial;
+    document.getElementById('l-phone').maxLength  = india.digits;
+    document.getElementById('l-phone').placeholder = india.digits + '-digit number';
+  })();
+
   // Populate country dropdown (step 2)
   const countrySel = document.getElementById('s-country');
   COUNTRIES.forEach(c => {
@@ -1393,9 +1456,17 @@
   (async () => {
     try {
       const geo = await fetch('https://ipapi.co/json/').then(r => r.json());
-      // Set dial code picker
+      // Set dial code pickers (signup + login)
       const match = COUNTRIES.find(c => c.code === geo.country_code);
-      if (match) selectDial('s', match);
+      if (match) {
+        selectDial('s', match);
+        // Update login picker without stealing focus
+        document.getElementById('l-dialcode').value = match.dial;
+        document.getElementById('l-dial-flag').textContent = toFlag(match.code);
+        document.getElementById('l-dial-code').textContent = match.dial;
+        document.getElementById('l-phone').maxLength  = match.digits;
+        document.getElementById('l-phone').placeholder = match.digits + '-digit number';
+      }
       // Set country in step 2
       if (geo.country_code) countrySel.value = geo.country_code;
       // Set pricing
@@ -1453,6 +1524,102 @@
     }
   }
 
+  // ── Phone OTP login ───────────────────────────────────────────────────────
+  function showPhoneStep1() {
+    document.getElementById('phone-login-step1').classList.remove('hidden');
+    document.getElementById('phone-login-step2').classList.add('hidden');
+    document.getElementById('phone-login-error').classList.add('hidden');
+  }
+
+  async function sendLoginOtp() {
+    const dialCode = document.getElementById('l-dialcode').value;
+    const digits   = document.getElementById('l-phone').value.trim();
+    const phone    = dialCode + digits;
+    const err      = document.getElementById('phone-login-error');
+    const btn      = document.getElementById('send-otp-btn');
+
+    if (!digits) { showErr(err, 'Please enter your phone number'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const res  = await fetch(`${_OTP_SERVER}/api/send-phone-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showErr(err, data.error || 'Failed to send OTP');
+        btn.disabled = false;
+        btn.textContent = 'Send OTP via WhatsApp';
+        return;
+      }
+      document.getElementById('phone-login-display').textContent = phone;
+      document.getElementById('phone-login-step1').classList.add('hidden');
+      document.getElementById('phone-login-step2').classList.remove('hidden');
+      document.getElementById('login-otp').focus();
+      err.classList.add('hidden');
+    } catch (e) {
+      showErr(err, 'Failed to send OTP. Check your connection.');
+      btn.disabled = false;
+      btn.textContent = 'Send OTP via WhatsApp';
+    }
+  }
+
+  async function verifyLoginOtp() {
+    const phone = document.getElementById('phone-login-display').textContent;
+    const otp   = document.getElementById('login-otp').value.trim();
+    const err   = document.getElementById('phone-otp-error');
+    const btn   = document.getElementById('verify-otp-btn');
+
+    if (!otp || otp.length < 6) { showErr(err, 'Please enter the 6-digit code'); return; }
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> Verifying…';
+
+    try {
+      const res  = await fetch(`${_OTP_SERVER}/api/phone-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp, redirect_to: window.location.origin + '/auth.html' })
+      });
+      const data = await res.json();
+      if (!data.action_link) {
+        showErr(err, data.error || 'Verification failed. Please try again.');
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = 'Verify &amp; Login →';
+        return;
+      }
+      // Show loading overlay and follow the magic link
+      document.getElementById('oauth-loading').style.display = 'flex';
+      window.location.href = data.action_link;
+    } catch (e) {
+      showErr(err, 'Verification failed. Check your connection.');
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.innerHTML = 'Verify &amp; Login →';
+    }
+  }
+
+  async function resendLoginOtp() {
+    const phone = document.getElementById('phone-login-display').textContent;
+    const btn   = document.getElementById('login-resend-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+      await fetch(`${_OTP_SERVER}/api/send-phone-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+    } catch (e) {}
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend'; }, 30000);
+  }
+
   // ── New password handler (password reset callback) ───────────────────────
   async function handleNewPassword() {
     const pass    = document.getElementById('newpass-input').value;
@@ -1491,7 +1658,8 @@
       return;
     }
 
-    const isOAuthCallback = window.location.search.includes('code=') || window.location.hash.includes('access_token');
+    const isOAuthCallback = (window.location.search.includes('code=') || window.location.hash.includes('access_token'))
+      && !window.location.hash.includes('type=recovery');
     if (event === 'SIGNED_IN' && session && isOAuthCallback) {
       const { data: profile } = await supabaseClient
         .from('profiles').select('role, cf_zone_id').eq('id', session.user.id).single();
