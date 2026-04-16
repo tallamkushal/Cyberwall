@@ -301,8 +301,10 @@
 <body>
   <!-- OAuth loading overlay — shown instantly if returning from Google -->
   <div id="oauth-loading" style="display:none;position:fixed;inset:0;background:#0f1117;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+    <div style="font-size:36px">🛡</div>
     <svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" stroke="#1a47e8" stroke-width="4" fill="none" stroke-dasharray="80" stroke-dashoffset="60" style="animation:spin 1s linear infinite"/></svg>
-    <div style="color:#fff;font-size:15px;font-family:sans-serif">Signing you in...</div>
+    <div style="color:#fff;font-size:16px;font-family:sans-serif;font-weight:700">Signing you in…</div>
+    <div style="color:rgba(255,255,255,0.4);font-size:13px;font-family:sans-serif">Taking you to your dashboard</div>
     <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
   </div>
   <script>
@@ -906,8 +908,17 @@
     document.getElementById('login-form').classList.toggle('hidden', view !== 'login');
     document.getElementById('forgot-form').classList.toggle('hidden', view !== 'forgot');
     document.getElementById('newpass-form').classList.toggle('hidden', view !== 'new-password');
-    // Hide the login/signup tab bar when showing special views
     document.querySelector('.tabs').classList.toggle('hidden', view === 'new-password');
+
+    // Reset forgot form every time it's shown so it doesn't stay on success state
+    if (view === 'forgot') {
+      document.getElementById('forgot-email').value = '';
+      document.getElementById('forgot-error').classList.add('hidden');
+      document.getElementById('forgot-success').classList.add('hidden');
+      const btn = document.getElementById('forgot-btn');
+      btn.classList.remove('hidden', 'loading');
+      btn.textContent = 'Send Reset Link →';
+    }
   }
 
   // ---- SIGNUP STEPS ----
@@ -1280,7 +1291,6 @@
     setTimeout(() => { btn.disabled = false; btn.textContent = 'Resend'; hint.style.display = 'none'; }, 30000);
   }
 </script>
-<script src="js/landing-chat.js"></script>
 <script>
   // ── Skip auth page if already logged in ──────────────────────────────────
   async function _authPageRedirectIfLoggedIn() {
