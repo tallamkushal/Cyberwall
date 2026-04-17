@@ -73,7 +73,7 @@
     .reveal-delay-3 { transition-delay:0.3s; }
 
     /* ── NAV ── */
-    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:0 5%;padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;height:64px;gap:32px; }
+    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:env(safe-area-inset-top,0px) 5% 0;display:flex;align-items:center;min-height:64px;gap:32px; }
     .nav-logo { display:flex;align-items:center;gap:10px;text-decoration:none; }
     .nav-logo-icon { width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative; }
     .nav-logo-img { width:38px;height:38px;border-radius:10px;object-fit:cover;display:block;filter:drop-shadow(0 0 8px rgba(26,71,232,0.55));transition:filter 0.3s; }
@@ -386,10 +386,42 @@
       .hero{padding:44px 4% 32px;}
       .hero-ctas{flex-direction:column;align-items:stretch;max-width:100%;}
       .hero-ctas .btn{flex:none;text-align:center;justify-content:center;}
-      .nav{padding:0 4% env(safe-area-inset-bottom,0px);height:56px;}
+      /* Keep safe-area-inset-top so content clears Dynamic Island / notch */
+      .nav{padding:env(safe-area-inset-top,0px) 4% 0;min-height:56px;}
       .nav-logo-text{font-size:16px;}
-      .nav-login{padding:6px 10px;font-size:13px;}
+      .nav-login{display:none;} /* replaced by bottom-nav Sign Up tab */
+      .btn-primary.nav-trial{display:none;} /* replaced by bottom-nav Sign Up tab */
       .btn-primary{padding:8px 14px;font-size:13px;}
+    }
+
+    /* ── Mobile sticky bottom nav ───────────────────────────────── */
+    .landing-mobile-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(0,0,0,0.09);
+      padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+      justify-content: space-around;
+      transform: translateZ(0); -webkit-transform: translateZ(0);
+      will-change: transform;
+    }
+    .lmn-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 5px 10px; border-radius: 10px; cursor: pointer;
+      font-size: 10px; font-weight: 600; color: #6b7280;
+      text-decoration: none; transition: color 0.15s; border: none; background: none;
+      font-family: inherit;
+    }
+    .lmn-item span:first-child { font-size: 19px; line-height: 1; }
+    .lmn-item.active { color: #1a47e8; }
+    .lmn-item.cta {
+      background: #1a47e8; color: white !important;
+      border-radius: 10px; padding: 6px 14px;
+    }
+    @media(max-width:768px) {
+      .landing-mobile-nav { display: flex; }
+      body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>
 </head>
@@ -409,7 +441,7 @@
   </div>
   <div class="nav-right">
     <a href="auth.html" class="btn btn-ghost nav-login">Login</a>
-    <a href="auth.html" class="btn btn-primary">Start Free Trial →</a>
+    <a href="auth.html" class="btn btn-primary nav-trial">Start Free Trial →</a>
   </div>
 </nav>
 
@@ -1002,5 +1034,48 @@
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
     }
   </script>
+
+<!-- MOBILE STICKY BOTTOM NAV -->
+<nav class="landing-mobile-nav" id="landing-mobile-nav">
+  <a class="lmn-item active" id="lmn-score" href="#scanner">
+    <span>🎯</span><span>Score</span>
+  </a>
+  <a class="lmn-item" id="lmn-features" href="#features">
+    <span>🛡️</span><span>Features</span>
+  </a>
+  <a class="lmn-item" id="lmn-pricing" href="#pricing">
+    <span>💰</span><span>Pricing</span>
+  </a>
+  <a class="lmn-item cta" href="auth.html">
+    <span>🚀</span><span>Sign Up</span>
+  </a>
+</nav>
+
+<script>
+  // Scroll-spy: highlight the active section tab as user scrolls
+  (function() {
+    const sections = [
+      { id: 'scanner',  tab: 'lmn-score'    },
+      { id: 'features', tab: 'lmn-features' },
+      { id: 'pricing',  tab: 'lmn-pricing'  },
+    ];
+
+    function updateActive() {
+      const scrollY = window.scrollY + window.innerHeight * 0.4;
+      let active = sections[0].tab;
+      for (const s of sections) {
+        const el = document.getElementById(s.id);
+        if (el && el.offsetTop <= scrollY) active = s.tab;
+      }
+      sections.forEach(s => {
+        const tab = document.getElementById(s.tab);
+        if (tab) tab.classList.toggle('active', s.tab === active);
+      });
+    }
+
+    window.addEventListener('scroll', updateActive, { passive: true });
+    updateActive();
+  })();
+</script>
 </body>
 </html>
