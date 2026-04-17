@@ -535,7 +535,14 @@
   function renderAuthResult(data, container) {
     const color    = GRADE_COLORS[data.grade] || '#dc2626';
     const barColor = data.numericScore >= 80 ? '#22c55e' : data.numericScore >= 55 ? '#fbbf24' : '#ef4444';
-    const topIssues = data.issues.slice(0, 3);
+    const visible  = data.issues.slice(0, 3);
+    const hidden   = data.issues.slice(3);
+
+    const issueHtml = (arr) => arr.map(i => `
+      <div class="auth-scan-issue">
+        <div class="auth-scan-issue-dot" style="background:#ef4444"></div>
+        <span>${i.label}</span>
+      </div>`).join('');
 
     container.innerHTML = `
       <div class="auth-scan-result">
@@ -549,11 +556,16 @@
             </div>
           </div>
         </div>
-        ${topIssues.length ? topIssues.map(i => `
-          <div class="auth-scan-issue">
-            <div class="auth-scan-issue-dot" style="background:${SEV_COLORS[i.severity]||'#9ca3af'}"></div>
-            <span>${i.label}</span>
-          </div>`).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0">✅ No critical issues found</div>'}
+        ${visible.length ? issueHtml(visible) : '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0">✅ No critical issues found</div>'}
+        ${hidden.length ? `
+          <div id="auth-issues-extra" style="display:none">${issueHtml(hidden)}</div>
+          <button onclick="
+            var el=document.getElementById('auth-issues-extra');
+            var btn=this;
+            if(el.style.display==='none'){el.style.display='block';btn.textContent='Show less ↑';}
+            else{el.style.display='none';btn.textContent='Show ${hidden.length} more issues ↓';}
+          " style="background:none;border:none;color:rgba(255,255,255,0.55);font-size:11px;font-weight:600;cursor:pointer;padding:4px 0;text-align:left;width:100%">Show ${hidden.length} more issues ↓</button>
+        ` : ''}
         ${data.issues.length > 0 ? `<button class="auth-scan-cta" onclick="document.getElementById('tab-signup').click();document.getElementById('tab-signup').scrollIntoView({behavior:'smooth'})">Fix all ${data.issues.length} issues with CyberWall →</button>` : ''}
       </div>`;
 
