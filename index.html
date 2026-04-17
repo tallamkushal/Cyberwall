@@ -400,38 +400,6 @@
     .scan-spinner{width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;}
     @keyframes spin{to{transform:rotate(360deg);}}
 
-    /* ── DARK MODE OVERRIDES ── */
-    html[data-theme="dark"] .nav { background:rgba(17,17,16,0.97); border-bottom-color:rgba(255,255,255,0.07); }
-    html[data-theme="dark"] .nav-tab-strip { border-top-color:rgba(255,255,255,0.07); }
-    html[data-theme="dark"] .nts-tab { color:rgba(255,255,255,0.4); }
-    html[data-theme="dark"] .nts-tab.active { color:#7ba7f7; border-bottom-color:#7ba7f7; }
-    html[data-theme="dark"] .hero-wrap { background:linear-gradient(135deg,#0d1117 0%,#111110 40%,#0d0d1a 100%); }
-    html[data-theme="dark"] .hero-tag { background:rgba(26,71,232,0.18);border-color:rgba(26,71,232,0.35);color:#7ba7f7; }
-    html[data-theme="dark"] .hero h1 { background:linear-gradient(135deg,#e2e8f0 0%,#7ba7f7 55%,#a78bfa 100%);-webkit-background-clip:text;background-clip:text; }
-    html[data-theme="dark"] .shield-card { background:rgba(28,28,26,0.92);border-color:rgba(26,71,232,0.25);box-shadow:0 20px 60px rgba(0,0,0,0.5),0 4px 16px rgba(0,0,0,0.3); }
-    html[data-theme="dark"] .shield-badge { background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.25); }
-    html[data-theme="dark"] .threat-badge { background:rgba(28,28,26,0.85);border-color:rgba(255,255,255,0.1); }
-    html[data-theme="dark"] .social-proof { background:var(--surface);border-bottom-color:var(--border); }
-    html[data-theme="dark"] .logo-item { color:#3a3a36; }
-    html[data-theme="dark"] .logo-item:hover { color:#5a5a56; }
-    html[data-theme="dark"] .problem-card { background:linear-gradient(135deg,#1f0d0d,#1c1c1a);border-color:rgba(239,68,68,0.25); }
-    html[data-theme="dark"] .step-card { background:var(--surface); }
-    html[data-theme="dark"] .feature-card { background:var(--surface); }
-    html[data-theme="dark"] .pricing-card { background:var(--surface); }
-    html[data-theme="dark"] .pricing-card.popular { background:linear-gradient(135deg,#101a3e,#1c1c1a);box-shadow:0 8px 40px rgba(26,71,232,0.25); }
-    html[data-theme="dark"] .testimonial-card { background:var(--surface); }
-    html[data-theme="dark"] .scan-result-card { background:var(--surface);border-color:rgba(255,255,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.5); }
-    html[data-theme="dark"] .scan-passed-tag { background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.2); }
-    html[data-theme="dark"] .scanner-btn { background:#1c1c1a!important;color:#7ba7f7!important;box-shadow:0 4px 20px rgba(0,0,0,0.5)!important; }
-
-    /* Theme toggle button */
-    .theme-toggle-btn {
-      width:34px;height:34px;border-radius:8px;border:1.5px solid var(--border);
-      background:transparent;cursor:pointer;font-size:16px;display:flex;
-      align-items:center;justify-content:center;transition:background 0.15s;flex-shrink:0;
-    }
-    .theme-toggle-btn:hover { background:var(--bg); }
-
     @media(max-width:768px){
       .hero h1{font-size:36px;letter-spacing:-1px;}
       .hero p{font-size:15px;}
@@ -441,6 +409,7 @@
       .nav-links{display:none;}
       .nav-login{display:none;}
       .btn-primary.nav-trial{display:none;}
+      .nav-right{display:none;}
       .nav-tab-strip{display:flex;}
       .pricing-card.popular{transform:none;}
       .shield-card{padding:18px 20px;gap:12px;}
@@ -448,6 +417,7 @@
       .threat-badge{font-size:11px;padding:5px 10px;}
       .section{padding:60px 5%;}
       .section-center h2{font-size:26px;}
+      .nav-row{gap:8px;}
     }
     @media(max-width:600px){
       .scanner-input-row{flex-direction:column;}
@@ -482,13 +452,11 @@
       <a href="https://wa.me/919844482193" target="_blank" class="nav-link">Contact</a>
     </div>
     <div class="nav-right">
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark mode"><span class="theme-toggle-icon">🌙</span></button>
       <a href="auth.html" class="btn btn-ghost nav-login">Login</a>
       <a href="auth.html" class="btn btn-primary nav-trial">Start Free Trial →</a>
     </div>
-    <!-- Mobile: Login + Sign Up + theme toggle sit next to the logo -->
+    <!-- Mobile: Login + Sign Up sit next to the logo -->
     <div class="nav-mobile-auth">
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark mode"><span class="theme-toggle-icon">🌙</span></button>
       <a href="auth.html" class="nm-login">Login</a>
       <a href="auth.html" class="nm-signup">Sign Up</a>
     </div>
