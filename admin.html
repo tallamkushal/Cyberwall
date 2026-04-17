@@ -227,9 +227,65 @@
     .support-time    { font-size: 11px; color: var(--muted-light); margin-top: 4px; }
     .support-reply   { margin-left: auto; flex-shrink: 0; }
 
+    /* ── Admin mobile bottom nav ─────────────────────────────────── */
+    .admin-mobile-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      background: #0a0a0f; border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+      justify-content: space-around;
+      transform: translateZ(0); -webkit-transform: translateZ(0);
+      will-change: transform;
+    }
+    .admin-mobile-nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 8px; border-radius: 8px; cursor: pointer;
+      font-size: 10px; color: rgba(255,255,255,0.45);
+      text-decoration: none; transition: color 0.15s; position: relative;
+    }
+    .admin-mobile-nav-item span:first-child { font-size: 20px; }
+    .admin-mobile-nav-item.active { color: #ef4444; }
+    .admin-mobile-notif {
+      position: absolute; top: 2px; right: 4px;
+      background: #ef4444; color: white; font-size: 9px; font-weight: 700;
+      padding: 1px 4px; border-radius: 6px; min-width: 14px; text-align: center; line-height: 14px;
+      display: none;
+    }
+
+    /* More sheet */
+    .admin-more-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200;
+    }
+    .admin-more-sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+      background: #0a0a0f; border-top: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px 18px 0 0;
+      padding: 12px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+      transform: translateY(100%); transition: transform 0.28s cubic-bezier(.32,.72,0,1);
+    }
+    .admin-more-sheet.open { transform: translateY(0); }
+    .admin-more-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.2); margin: 0 auto 14px;
+    }
+    .admin-more-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 20px; cursor: pointer; color: rgba(255,255,255,0.75);
+      font-size: 14px; font-weight: 500; transition: background 0.12s;
+    }
+    .admin-more-item:hover { background: rgba(255,255,255,0.06); }
+    .admin-more-item .more-icon { font-size: 18px; width: 24px; text-align: center; }
+    .admin-more-item.danger { color: #ef4444; }
+
     @media (max-width: 768px) {
+      body { overflow: auto; height: auto; }
       .sidebar { display: none; }
-      .main { margin-left: 0; }
+      .admin-mobile-nav { display: flex; }
+      .main {
+        margin-left: 0;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+        height: auto; overflow: visible;
+      }
       .stats-grid { grid-template-columns: repeat(2,1fr); }
       .grid-2, .grid-3-1 { grid-template-columns: 1fr; }
     }
@@ -991,5 +1047,54 @@
       window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
     }
   </script>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="admin-mobile-nav">
+  <a class="admin-mobile-nav-item active" onclick="showPanel('overview', this)" data-panel="overview">
+    <span>📊</span><span>Overview</span>
+  </a>
+  <a class="admin-mobile-nav-item" onclick="showPanel('clients', this)" data-panel="clients">
+    <span style="position:relative;display:inline-block">👥<span id="clients-badge-mobile" class="admin-mobile-notif"></span></span><span>Clients</span>
+  </a>
+  <a class="admin-mobile-nav-item" onclick="showPanel('tasks', this)" data-panel="tasks">
+    <span style="position:relative;display:inline-block">✅<span id="tasks-badge-mobile" class="admin-mobile-notif" style="background:var(--orange)"></span></span><span>Tasks</span>
+  </a>
+  <a class="admin-mobile-nav-item" onclick="showPanel('add', this)" data-panel="add">
+    <span>➕</span><span>Add</span>
+  </a>
+  <a class="admin-mobile-nav-item" onclick="openAdminMore()">
+    <span>⋯</span><span>More</span>
+  </a>
+</nav>
+
+<!-- MORE MENU -->
+<div class="admin-more-backdrop" id="admin-more-backdrop" onclick="closeAdminMore()"></div>
+<div class="admin-more-sheet" id="admin-more-sheet">
+  <div class="admin-more-handle"></div>
+  <div class="admin-more-item" onclick="closeAdminMore(); showPanel('revenue', null)">
+    <span class="more-icon">💰</span> Revenue
+  </div>
+  <div class="admin-more-item" onclick="closeAdminMore(); showPanel('support', null)">
+    <span class="more-icon">💬</span> Support
+    <span id="support-badge-mobile" style="margin-left:auto;background:#ef4444;color:white;font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;display:none"></span>
+  </div>
+  <div class="admin-more-item" onclick="closeAdminMore(); showPanel('ai', null)">
+    <span class="more-icon">🤖</span> AI Assistant
+  </div>
+  <div class="admin-more-item danger" onclick="logOut()">
+    <span class="more-icon">🚪</span> Logout
+  </div>
+</div>
+
+<script>
+  function openAdminMore() {
+    document.getElementById('admin-more-backdrop').style.display = 'block';
+    document.getElementById('admin-more-sheet').classList.add('open');
+  }
+  function closeAdminMore() {
+    document.getElementById('admin-more-backdrop').style.display = 'none';
+    document.getElementById('admin-more-sheet').classList.remove('open');
+  }
+</script>
 </body>
 </html>

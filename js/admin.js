@@ -67,6 +67,8 @@ async function loadAllClients() {
   // Update client count
   safeSet('total-clients', list.length);
   safeSet('clients-count-badge', list.length);
+  const mobileClientsBadge = document.getElementById('clients-badge-mobile');
+  if (mobileClientsBadge) { mobileClientsBadge.textContent = list.length; mobileClientsBadge.style.display = list.length > 0 ? '' : 'none'; }
 
   // Count trials
   const trials = list.filter(c => c.status === 'trial').length;
@@ -420,6 +422,8 @@ function renderTasks(clients) {
   const highCount = visible.filter(t => t.priority === 'high').length;
   const badge = document.getElementById('tasks-count-badge');
   if (badge) { badge.textContent = highCount > 0 ? highCount : ''; badge.style.display = highCount > 0 ? '' : 'none'; }
+  const mobileTasksBadge = document.getElementById('tasks-badge-mobile');
+  if (mobileTasksBadge) { mobileTasksBadge.textContent = highCount > 0 ? highCount : ''; mobileTasksBadge.style.display = highCount > 0 ? '' : 'none'; }
 
   const empty = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">All caught up — no action items.</div>';
 
@@ -636,6 +640,8 @@ function renderTickets(tickets) {
   const open = tickets.filter(t => t.status === 'open');
   if (countEl) countEl.textContent = open.length ? `${open.length} open` : 'All resolved';
   if (badge) { badge.textContent = open.length || ''; badge.style.display = open.length ? '' : 'none'; }
+  const mobileSupportBadge = document.getElementById('support-badge-mobile');
+  if (mobileSupportBadge) { mobileSupportBadge.textContent = open.length || ''; mobileSupportBadge.style.display = open.length ? '' : 'none'; }
 
   if (!tickets.length) {
     el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">No support tickets yet.</div>';
@@ -686,6 +692,12 @@ function showPanel(name, el) {
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (el) el.classList.add('active');
+
+  // Sync mobile bottom nav active state
+  document.querySelectorAll('.admin-mobile-nav-item[data-panel]').forEach(i => i.classList.remove('active'));
+  const mobileItem = document.querySelector(`.admin-mobile-nav-item[data-panel="${name}"]`);
+  if (mobileItem) mobileItem.classList.add('active');
+
   const titles = {
     overview: 'Admin Overview', clients: 'All Clients',
     revenue: 'Revenue', tasks: 'Tasks',

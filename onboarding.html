@@ -151,6 +151,27 @@
     }
     .ob-wa-link:hover { text-decoration: underline; }
 
+    /* Details form */
+    .ob-field { margin-bottom: 18px; }
+    .ob-label {
+      display: block; font-size: 13px; font-weight: 600;
+      margin-bottom: 6px; color: var(--text);
+    }
+    .ob-input {
+      width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 14px; font-family: inherit;
+      background: white; color: var(--text); box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .ob-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(26,71,232,0.08);
+    }
+    .ob-input::placeholder { color: var(--muted-light); }
+    .ob-hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+    .ob-error { font-size: 12px; color: var(--red); margin-top: 6px; display: none; }
+
     @media (max-width: 560px) {
       .ob-card-top { padding: 22px 20px; }
       .ob-card-body { padding: 20px; }
@@ -167,7 +188,36 @@
     <span class="ob-logo-text">ProCyberWall</span>
   </a>
 
-  <div class="ob-card">
+  <!-- STEP 0: Business details (shown only for new users missing this info) -->
+  <div class="ob-card" id="ob-details-card" style="display:none;margin-bottom:20px">
+
+    <div class="ob-card-top">
+      <div class="ob-card-top-eyebrow">Almost there</div>
+      <h2>Tell us about your business 🏢</h2>
+      <p>Just two quick things so we can set up your firewall correctly.</p>
+    </div>
+
+    <div class="ob-card-body">
+      <div class="ob-field">
+        <label class="ob-label" for="ob-biz-name">Business name</label>
+        <input class="ob-input" id="ob-biz-name" type="text" placeholder="e.g. ShopKaro Pvt Ltd" autocomplete="organization"/>
+      </div>
+      <div class="ob-field" style="margin-bottom:0">
+        <label class="ob-label" for="ob-domain">Business website</label>
+        <input class="ob-input" id="ob-domain" type="url" placeholder="e.g. https://shopkaro.in" autocomplete="url"/>
+        <div class="ob-hint">Your website URL — we'll configure the firewall for this domain.</div>
+        <div class="ob-error" id="ob-details-error"></div>
+      </div>
+    </div>
+
+    <div class="ob-card-footer">
+      <button class="btn btn-primary" id="ob-details-btn" onclick="saveBusinessDetails()">Continue →</button>
+    </div>
+
+  </div>
+
+  <!-- STEP 1+: What happens next -->
+  <div class="ob-card" id="ob-steps-card" style="display:none">
 
     <div class="ob-card-top">
       <div class="ob-card-top-eyebrow">Getting Started</div>
@@ -225,7 +275,7 @@
       <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">Go to Dashboard →</button>
     </div>
 
-  </div>
+  </div><!-- end ob-steps-card -->
 
   <p style="font-size:12px;color:var(--muted-light);margin-top:20px;text-align:center">
     Questions? WhatsApp +91 98444 82193 · Available 9am–9pm IST
@@ -240,7 +290,61 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const user = await requireAuth();
     if (!user) return;
+
+    // Fetch the profile to decide which card to show
+    const { data: profile } = await supabaseClient
+      .from('profiles').select('business_name, domain, full_name').eq('id', user.id).single();
+
+    if (profile?.business_name && profile?.domain) {
+      // Already have business details — go straight to the steps
+      document.getElementById('ob-steps-card').style.display = '';
+    } else {
+      // New user (e.g. Google signup) — ask for business details first
+      if (profile?.full_name) {
+        document.getElementById('ob-biz-name').placeholder = profile.full_name + "'s Business";
+      }
+      document.getElementById('ob-details-card').style.display = '';
+    }
   });
+
+  async function saveBusinessDetails() {
+    const bizName = document.getElementById('ob-biz-name').value.trim();
+    const domainRaw = document.getElementById('ob-domain').value.trim();
+    const errEl = document.getElementById('ob-details-error');
+    const btn = document.getElementById('ob-details-btn');
+
+    errEl.style.display = 'none';
+
+    if (!bizName) { errEl.textContent = 'Please enter your business name.'; errEl.style.display = 'block'; return; }
+    if (!domainRaw) { errEl.textContent = 'Please enter your business website.'; errEl.style.display = 'block'; return; }
+
+    // Normalise domain — strip protocol and trailing slash, keep just the hostname
+    let domain = domainRaw;
+    try { domain = new URL(domainRaw.includes('://') ? domainRaw : 'https://' + domainRaw).hostname; } catch (_) {}
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ business_name: bizName, domain })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+
+      // Slide to the steps card
+      document.getElementById('ob-details-card').style.display = 'none';
+      document.getElementById('ob-steps-card').style.display = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      errEl.textContent = e.message || 'Could not save. Please try again.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Continue →';
+    }
+  }
 </script>
 <script>
   if ('serviceWorker' in navigator) {

@@ -1302,7 +1302,24 @@
     if (!data.session) return;
 
     // Already logged in — route based on onboarding completion
-    const { data: profile } = await supabaseClient.from('profiles').select('role, cf_zone_id').eq('id', data.session.user.id).single();
+    const { data: profile, error } = await supabaseClient.from('profiles').select('role, cf_zone_id').eq('id', data.session.user.id).single();
+
+    if (error && error.code === 'PGRST116') {
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      await fetch(`${SERVER}/api/create-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: data.session.user.id,
+          email: data.session.user.email,
+          full_name: data.session.user.user_metadata?.full_name || '',
+          plan: 'starter'
+        })
+      });
+      window.location.replace('onboarding.html');
+      return;
+    }
+
     if (profile?.role === 'admin') {
       window.location.replace('admin.html');
     } else if (!profile?.cf_zone_id) {
@@ -1662,6 +1679,47 @@
   // Handles Google OAuth callbacks, magic links, and password recovery.
   // Regular email/password login is handled by logIn() in auth.js.
   // Already-logged-in redirects are handled by the getSession() block above.
+
+  // Shared routing logic — used by both onAuthStateChange and the fallback poller.
+  let _oauthRedirectDone = false;
+  async function _routeAfterOAuth(session) {
+    if (_oauthRedirectDone) return;
+    _oauthRedirectDone = true;
+    try {
+      const { data: profile, error } = await supabaseClient
+        .from('profiles').select('role, cf_zone_id').eq('id', session.user.id).single();
+
+      if (error && error.code === 'PGRST116') {
+        const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+        try {
+          await fetch(`${SERVER}/api/create-profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || '',
+              plan: 'starter'
+            })
+          });
+        } catch (_) { /* network error — still redirect to onboarding */ }
+        window.location.replace('onboarding.html');
+        return;
+      }
+
+      if (profile?.role === 'admin') {
+        window.location.replace('admin.html');
+      } else if (!profile?.cf_zone_id) {
+        window.location.replace('onboarding.html');
+      } else {
+        window.location.replace('dashboard.html');
+      }
+    } catch (_) {
+      // Fallback if profile fetch fails — send to onboarding rather than hanging
+      window.location.replace('onboarding.html');
+    }
+  }
+
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       // User clicked a password reset link — show the set-new-password form
@@ -1669,18 +1727,22 @@
       return;
     }
 
-    if (event === 'SIGNED_IN' && session && _isOAuthCallback) {
-      const { data: profile } = await supabaseClient
-        .from('profiles').select('role, cf_zone_id').eq('id', session.user.id).single();
-      if (profile?.role === 'admin') {
-        window.location.href = 'admin.html';
-      } else if (!profile?.cf_zone_id) {
-        window.location.href = 'onboarding.html';
-      } else {
-        window.location.href = 'dashboard.html';
-      }
+    // Also handle INITIAL_SESSION: on some mobile browsers Supabase processes the
+    // OAuth code during initialization and emits INITIAL_SESSION instead of SIGNED_IN.
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session && _isOAuthCallback) {
+      await _routeAfterOAuth(session);
     }
   });
+
+  // Safety-net: if onAuthStateChange never fires (timing edge case on mobile),
+  // poll for a session after a short delay and redirect if one is found.
+  if (_isOAuthCallback) {
+    setTimeout(async () => {
+      if (_oauthRedirectDone) return;
+      const { data } = await supabaseClient.auth.getSession();
+      if (data.session) await _routeAfterOAuth(data.session);
+    }, 3000);
+  }
 </script>
   <script>
     if ('serviceWorker' in navigator) {
