@@ -73,7 +73,33 @@
     .reveal-delay-3 { transition-delay:0.3s; }
 
     /* ── NAV ── */
-    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);padding:env(safe-area-inset-top,0px) 5% 0;display:flex;align-items:center;min-height:64px;gap:32px; }
+    .nav { position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,0,0,0.07);display:flex;flex-direction:column; }
+    .nav-row { padding:env(safe-area-inset-top,0px) 5% 0;display:flex;align-items:center;min-height:64px;gap:32px; }
+
+    /* ── Mobile tab strip (inside nav, second row) ── */
+    .nav-tab-strip {
+      display: none;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; white-space: nowrap;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      padding: 0 12px; gap: 2px;
+    }
+    .nav-tab-strip::-webkit-scrollbar { display: none; }
+    .nts-tab {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 10px 12px; font-size: 13px; font-weight: 600;
+      color: #6b7280; text-decoration: none; white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s; flex-shrink: 0;
+    }
+    .nts-tab.active { color: #1a47e8; border-bottom-color: #1a47e8; }
+    .nts-tab.nts-login {
+      color: #1a47e8; font-weight: 700;
+    }
+    .nts-tab.nts-signup {
+      background: #1a47e8; color: white; border-radius: 8px;
+      padding: 7px 14px; margin: 6px 0 6px 4px; border-bottom: none;
+    }
     .nav-logo { display:flex;align-items:center;gap:10px;text-decoration:none; }
     .nav-logo-icon { width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative; }
     .nav-logo-img { width:38px;height:38px;border-radius:10px;object-fit:cover;display:block;filter:drop-shadow(0 0 8px rgba(26,71,232,0.55));transition:filter 0.3s; }
@@ -368,6 +394,9 @@
       .problem-grid,.steps-grid,.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr;}
       .step-card::after{display:none;}
       .nav-links{display:none;}
+      .nav-login{display:none;}
+      .btn-primary.nav-trial{display:none;}
+      .nav-tab-strip{display:flex;}
       .pricing-card.popular{transform:none;}
       .shield-card{padding:18px 20px;gap:12px;}
       .threat-badges{gap:7px;}
@@ -386,62 +415,39 @@
       .hero{padding:44px 4% 32px;}
       .hero-ctas{flex-direction:column;align-items:stretch;max-width:100%;}
       .hero-ctas .btn{flex:none;text-align:center;justify-content:center;}
-      /* Keep safe-area-inset-top so content clears Dynamic Island / notch */
-      .nav{padding:env(safe-area-inset-top,0px) 4% 0;min-height:56px;}
+      .nav-row{padding:env(safe-area-inset-top,0px) 4% 0;min-height:52px;}
       .nav-logo-text{font-size:16px;}
-      .nav-login{display:none;} /* replaced by bottom-nav Sign Up tab */
-      .btn-primary.nav-trial{display:none;} /* replaced by bottom-nav Sign Up tab */
       .btn-primary{padding:8px 14px;font-size:13px;}
-    }
-
-    /* ── Mobile sticky bottom nav ───────────────────────────────── */
-    .landing-mobile-nav {
-      display: none;
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-      background: rgba(255,255,255,0.96);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(0,0,0,0.09);
-      padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
-      justify-content: space-around;
-      transform: translateZ(0); -webkit-transform: translateZ(0);
-      will-change: transform;
-    }
-    .lmn-item {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 5px 10px; border-radius: 10px; cursor: pointer;
-      font-size: 10px; font-weight: 600; color: #6b7280;
-      text-decoration: none; transition: color 0.15s; border: none; background: none;
-      font-family: inherit;
-    }
-    .lmn-item span:first-child { font-size: 19px; line-height: 1; }
-    .lmn-item.active { color: #1a47e8; }
-    .lmn-item.cta {
-      background: #1a47e8; color: white !important;
-      border-radius: 10px; padding: 6px 14px;
-    }
-    @media(max-width:768px) {
-      .landing-mobile-nav { display: flex; }
-      body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>
 </head>
 <body>
 
 <nav class="nav">
-  <a href="/" class="nav-logo">
-    <div class="nav-logo-icon" style="width:34px;height:34px;border-radius:9px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:18px;">🛡</div>
-    <span class="nav-logo-text">ProCyberWall</span>
-  </a>
-  <div class="nav-links">
-    <a href="#scanner" class="nav-link nav-link-score">🎯 Free Score Check</a>
-    <a href="#how" class="nav-link">How it works</a>
-    <a href="#features" class="nav-link">Features</a>
-    <a href="#pricing" class="nav-link">Pricing</a>
-    <a href="https://wa.me/919844482193" target="_blank" class="nav-link">Contact</a>
+  <div class="nav-row">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-icon" style="width:34px;height:34px;border-radius:9px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:18px;">🛡</div>
+      <span class="nav-logo-text">ProCyberWall</span>
+    </a>
+    <div class="nav-links">
+      <a href="#scanner" class="nav-link nav-link-score">🎯 Free Score Check</a>
+      <a href="#how" class="nav-link">How it works</a>
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
+      <a href="https://wa.me/919844482193" target="_blank" class="nav-link">Contact</a>
+    </div>
+    <div class="nav-right">
+      <a href="auth.html" class="btn btn-ghost nav-login">Login</a>
+      <a href="auth.html" class="btn btn-primary nav-trial">Start Free Trial →</a>
+    </div>
   </div>
-  <div class="nav-right">
-    <a href="auth.html" class="btn btn-ghost nav-login">Login</a>
-    <a href="auth.html" class="btn btn-primary nav-trial">Start Free Trial →</a>
+  <!-- Mobile tab strip — hidden on desktop, shown on mobile -->
+  <div class="nav-tab-strip">
+    <a class="nts-tab active" id="lmn-score" href="#scanner">🎯 Score</a>
+    <a class="nts-tab" id="lmn-features" href="#features">🛡️ Features</a>
+    <a class="nts-tab" id="lmn-pricing" href="#pricing">💰 Pricing</a>
+    <a class="nts-tab nts-login" href="auth.html">🔑 Login</a>
+    <a class="nts-tab nts-signup" href="auth.html">🚀 Sign Up</a>
   </div>
 </nav>
 
@@ -1035,24 +1041,8 @@
     }
   </script>
 
-<!-- MOBILE STICKY BOTTOM NAV -->
-<nav class="landing-mobile-nav" id="landing-mobile-nav">
-  <a class="lmn-item active" id="lmn-score" href="#scanner">
-    <span>🎯</span><span>Score</span>
-  </a>
-  <a class="lmn-item" id="lmn-features" href="#features">
-    <span>🛡️</span><span>Features</span>
-  </a>
-  <a class="lmn-item" id="lmn-pricing" href="#pricing">
-    <span>💰</span><span>Pricing</span>
-  </a>
-  <a class="lmn-item cta" href="auth.html">
-    <span>🚀</span><span>Sign Up</span>
-  </a>
-</nav>
-
 <script>
-  // Scroll-spy: highlight the active section tab as user scrolls
+  // Scroll-spy: highlight active tab in the mobile top tab strip
   (function() {
     const sections = [
       { id: 'scanner',  tab: 'lmn-score'    },
