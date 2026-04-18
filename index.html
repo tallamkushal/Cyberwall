@@ -196,7 +196,7 @@
     .threat-badge .dot { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
 
     /* ── SOCIAL PROOF ── */
-    .social-proof { text-align:center;padding:32px 5%;border-bottom:1px solid var(--border);background:var(--surface); }
+    .social-proof { text-align:center;padding:24px 5%;border-bottom:1px solid var(--border);background:var(--surface); }
     .social-proof p { font-size:11px;color:var(--muted-light);margin-bottom:20px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase; }
     .logos { display:flex;align-items:center;justify-content:center;gap:36px;flex-wrap:wrap; }
     .logo-item { font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:800;color:#d1d5db;letter-spacing:-0.5px;transition:color 0.2s; }
@@ -206,7 +206,7 @@
     .stats-bar {
       display:flex;justify-content:center;
       background:linear-gradient(135deg,#0f172a,#1e3a8a);
-      padding:32px 5%;flex-wrap:wrap;position:relative;overflow:hidden;
+      padding:28px 5%;flex-wrap:wrap;position:relative;overflow:hidden;
     }
     .stats-bar::after {
       content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;
@@ -219,8 +219,8 @@
     .stat-lbl { font-size:12px;color:rgba(255,255,255,0.45);margin-top:5px;font-weight:500; }
 
     /* ── SECTIONS ── */
-    .section { padding:88px 5%; }
-    .section-center { text-align:center;max-width:1100px;margin:0 auto 56px; }
+    .section { padding:72px 5%; }
+    .section-center { text-align:center;max-width:660px;margin:0 auto 44px; }
     .section-tag { display:inline-block;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;background:var(--accent-light);padding:4px 12px;border-radius:6px; }
     .section-title { font-size:40px;font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;line-height:1.15;white-space:nowrap; }
     .section-sub { font-size:16px;color:var(--muted);line-height:1.75;white-space:nowrap; }
@@ -405,7 +405,19 @@
       .section-title{font-size:26px;white-space:normal;}
       .section-sub{font-size:14px;white-space:normal;}
       .hero{padding:60px 5% 40px;}
-      .problem-grid,.steps-grid,.features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr;}
+      .problem-grid,.steps-grid,.features-grid,.testimonials-grid{grid-template-columns:1fr;}
+      .pricing-grid{
+        display:flex;flex-direction:row;
+        overflow-x:auto;-webkit-overflow-scrolling:touch;
+        scroll-snap-type:x mandatory;
+        gap:16px;padding-bottom:16px;
+        scrollbar-width:none;
+      }
+      .pricing-grid::-webkit-scrollbar{display:none;}
+      .pricing-card{
+        min-width:80vw;max-width:80vw;
+        scroll-snap-align:center;flex-shrink:0;
+      }
       .ai-threats-grid{grid-template-columns:repeat(2,1fr) !important;}
       .step-card::after{display:none;}
       .nav-links{display:none;}
@@ -414,11 +426,12 @@
       .nav-right{display:none;}
       .nav-tab-strip{display:flex;}
       .pricing-card.popular{transform:none;}
+      .pricing-swipe-hint{display:block !important;}
       .shield-card{padding:18px 20px;gap:12px;}
       .threat-badges{gap:7px;}
       .threat-badge{font-size:11px;padding:5px 10px;}
-      .section{padding:60px 5%;}
-      .section-center{max-width:100%;}
+      .section{padding:52px 5%;}
+      .section-center{max-width:100%;margin-bottom:32px;}
       .nav-row{gap:8px;min-height:52px;padding-left:16px;padding-right:16px;}
       .nav-logo-text{font-size:17px;}
       .nav-logo-icon, .nav-logo img{width:32px;height:32px;}
@@ -439,6 +452,12 @@
       .nav-logo-text{font-size:16px;}
       .btn-primary{padding:8px 14px;font-size:13px;}
       .shield-card{flex-direction:column;text-align:center;}
+    }
+
+    /* ── SCROLL OFFSET FOR STICKY NAV ── */
+    #scanner, #how, #features, #pricing { scroll-margin-top: 68px; }
+    @media(max-width:768px) {
+      #scanner, #how, #features, #pricing { scroll-margin-top: 112px; }
     }
 
     /* ── ACTIVE PROTECTION SECTION ── */
@@ -551,7 +570,7 @@
   </div>
 </section>
 
-<section class="reveal active-protection-section" style="padding:56px 5% 52px;text-align:center;">
+<section class="reveal active-protection-section" style="padding:40px 5%;text-align:center;">
   <div class="hero-tag" style="margin-bottom:28px;display:inline-flex;">
     <span class="live-dot"></span> 2,400+ attacks blocked today
   </div>
@@ -759,7 +778,8 @@
       <a href="auth.html" class="btn btn-ghost btn-full">Start Free Trial →</a>
     </div>
   </div>
-  <p style="text-align:center;font-size:13px;color:var(--muted-light);margin-top:24px">All plans include a 7-day free trial. No credit card required to start.</p>
+  <p class="pricing-swipe-hint" style="display:none;text-align:center;font-size:12px;color:var(--muted-light);margin-top:8px">← Swipe to compare plans →</p>
+  <p style="text-align:center;font-size:13px;color:var(--muted-light);margin-top:16px">All plans include a 7-day free trial. No credit card required to start.</p>
   <p id="currency-note" style="text-align:center;font-size:12px;color:var(--muted-light);margin-top:6px;display:none"></p>
 </section>
 
@@ -1156,7 +1176,7 @@
       const target = document.querySelector(this.getAttribute('href'));
       if (!target) return;
       e.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 </script>
