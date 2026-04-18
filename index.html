@@ -222,8 +222,8 @@
     .section { padding:72px 5%; }
     .section-center { text-align:center;max-width:660px;margin:0 auto 44px; }
     .section-tag { display:inline-block;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;background:var(--accent-light);padding:4px 12px;border-radius:6px; }
-    .section-title { font-size:40px;font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;line-height:1.15;white-space:nowrap; }
-    .section-sub { font-size:16px;color:var(--muted);line-height:1.75;white-space:nowrap; }
+    .section-title { font-size:40px;font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;line-height:1.15; }
+    .section-sub { font-size:16px;color:var(--muted);line-height:1.75; }
 
     /* ── PROBLEM ── */
     .problem-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:20px; }
@@ -346,7 +346,8 @@
     .scanner-section .section-tag{
       background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.9);border:none;
     }
-    .scanner-section .section-title{color:white;}
+    .scanner-section .section-center{max-width:900px;}
+    .scanner-section .section-title{color:white;white-space:nowrap;}
     .scanner-section .section-sub{color:rgba(255,255,255,0.65);}
     .scanner-widget{max-width:700px;margin:0 auto;position:relative;z-index:1;}
     .scanner-trust{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:28px;}
@@ -402,8 +403,10 @@
     @media(max-width:768px){
       .hero h1{font-size:36px;letter-spacing:-1px;white-space:normal;}
       .hero p{font-size:15px;white-space:normal;}
-      .section-title{font-size:26px;white-space:normal;}
-      .section-sub{font-size:14px;white-space:normal;}
+      .section-title{font-size:26px;}
+      .section-sub{font-size:14px;}
+      .scanner-section .section-title{white-space:normal;}
+      .scanner-section .section-center{max-width:100%;}
       .hero{padding:60px 5% 40px;}
       .problem-grid,.steps-grid,.features-grid,.testimonials-grid{grid-template-columns:1fr;}
       .pricing-grid{
@@ -854,7 +857,11 @@
       const res = await fetch(`${SCAN_SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`);
       const data = await res.json();
       if (data.error) {
-        resultEl.innerHTML = `<div style="background:#f3e8ff;border:1px solid #d8b4fe;border-radius:14px;padding:20px;color:#7c3aed;font-size:14px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔍</span><div><strong>Invalid domain</strong><div style="margin-top:3px;font-size:13px;opacity:0.85">${data.error}</div></div></div>`;
+        resultEl.innerHTML = `<div style="background:#f3e8ff;border:1px solid #d8b4fe;border-radius:14px;padding:20px;color:#7c3aed;font-size:14px;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔍</span><div><strong>Could not scan</strong><div style="margin-top:3px;font-size:13px;opacity:0.85">${data.error}</div></div></div>`;
+        return;
+      }
+      if (data.blocked) {
+        resultEl.innerHTML = `<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.35);border-radius:14px;padding:20px;font-size:14px;display:flex;align-items:flex-start;gap:12px"><span style="font-size:22px">🛡</span><div><strong style="color:#b45309">Site is protected — scan blocked</strong><div style="margin-top:6px;font-size:13px;color:var(--muted);line-height:1.6">${data.blockedMessage}</div></div></div>`;
         return;
       }
       renderScanResult(data, resultEl);
