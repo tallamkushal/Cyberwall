@@ -2,7 +2,7 @@
 // Applied immediately to prevent flash
 (function () {
   const saved = localStorage.getItem('cw-theme');
-  const pref  = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const pref  = saved || 'dark';
   document.documentElement.setAttribute('data-theme', pref);
 })();
 

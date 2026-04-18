@@ -77,6 +77,17 @@
     .social-btn:hover { border-color: var(--accent); background: var(--bg); }
     html[data-theme="dark"] .social-btn { background: #2a2a28; border-color: #555550; }
     html[data-theme="dark"] .social-btn:hover { background: #333330; border-color: var(--accent); }
+    html[data-theme="dark"] .left {
+      background: linear-gradient(160deg, #0d1117 0%, #0f1a2e 50%, #130d1f 100%);
+      border-right: 1px solid var(--border);
+    }
+    html[data-theme="dark"] .left::after {
+      background: rgba(26,71,232,0.08);
+    }
+    html[data-theme="dark"] .left-logo-icon {
+      background: #1a47e8;
+      box-shadow: 0 0 16px rgba(26,71,232,0.5);
+    }
 
     /* DIVIDER */
     .divider { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
