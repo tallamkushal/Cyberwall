@@ -1,9 +1,33 @@
 {
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "git push",
+            "statusMessage": "Pushing to GitHub..."
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(reg query:*)",
       "Bash(mv CSS css_temp)",
-      "Bash(mv css_temp css)"
+      "Bash(mv css_temp css)",
+      "Bash(node -e \"require\\(''''./server.js''''\\)\")",
+      "Read(//c/Users/Dell/Downloads/**)",
+      "Bash(unzip -l \"WhatsApp Unknown 2026-03-25 at 9.38.43 PM.zip\")",
+      "Bash(grep -E \"\\\\.\\(js|html|json\\)$\")",
+      "Bash(grep -n \"fetch.*API\\\\|fetch.*api\" /c/Users/Dell/Desktop/ai/cyberwall/js/*.js)",
+      "Bash(node --check js/admin.js)",
+      "Bash(node --check js/whatsapp.js)",
+      "Bash(node --check js/cloudflare.js)",
+      "Bash(node:*)"
     ]
   }
 }
