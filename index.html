@@ -875,114 +875,82 @@
 
   function renderScanResult(data, container) {
     const GRADE_COLORS = { 'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ea580c','C':'#ea580c','C-':'#ea580c','D':'#dc2626','F':'#dc2626' };
-    const SEV_COLORS   = { critical:'#dc2626', high:'#dc2626', medium:'#dc2626', low:'#dc2626' };
-    const SEV_LABELS   = { critical:'High Risk', high:'High Risk', medium:'High Risk', low:'High Risk' };
-    const color   = GRADE_COLORS[data.grade] || '#dc2626';
-    const barColor= data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#ea580c' : '#dc2626';
+    const color    = GRADE_COLORS[data.grade] || '#dc2626';
+    const barColor = data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#ea580c' : '#dc2626';
+    const largeCorp  = isLargeCorporation(data.domain);
+    const beforeGrade = data.grade;
+    const fixablePoints = (data.issues || []).reduce((sum, i) => sum + (i.deduction || 0), 0);
+    const afterScore  = Math.min(95, data.numericScore + fixablePoints);
+    const afterGrade  = data.numericScore >= 85 ? data.grade : getGradeClient(afterScore);
 
-    const breakdownHtml = Object.values(data.breakdown).map(b => {
-      const pct = b.score / b.max;
-      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#ea580c' : '#dc2626';
-      return `<div class="scan-breakdown-item">
-        <div class="scan-breakdown-score" style="color:${c}">${b.score}<span class="scan-breakdown-max">/${b.max}</span></div>
-        <div class="scan-breakdown-label">${b.label}</div>
-      </div>`;
-    }).join('');
-
-    const issuesHtml = data.issues.length ? `
-      <div style="margin-bottom:20px">
-        <div class="scan-issues-title">⚠️ Issues Found (${data.issues.length})</div>
-        ${data.issues.slice(0,6).map(i => `
-          <div class="scan-issue-item">
-            <div class="scan-issue-dot" style="background:${SEV_COLORS[i.severity]||'#9ca3af'}"></div>
-            <div>
-              <div style="font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px">
-                ${i.label}
-                <span style="font-size:11px;font-weight:600;color:${SEV_COLORS[i.severity]};background:${SEV_COLORS[i.severity]}18;padding:2px 7px;border-radius:4px">${SEV_LABELS[i.severity]||''}</span>
-              </div>
-              <div style="color:var(--muted);font-size:12px;margin-top:3px">${i.detail}</div>
-            </div>
-          </div>`).join('')}
-      </div>` : '';
-
-    const passedHtml = data.passedChecks.length ? `
-      <div class="scan-passed-list">
-        ${data.passedChecks.slice(0,8).map(c => `<div class="scan-passed-tag">${c.icon||'✓'} ${c.label}</div>`).join('')}
-      </div>` : '';
+    const lockedIssuesHtml = '';
 
     const ctaMsg = data.numericScore >= 85
       ? 'Strong score! CyberWall keeps it that way — 24/7 monitoring, firewall, and instant alerts.'
-      : `CyberWall can fix all ${data.issues.length} issue${data.issues.length>1?'s':''} and bring your score to A+.`;
-
-    const largeCorp = isLargeCorporation(data.domain);
-    const largeCorpBannerHtml = (largeCorp && data.numericScore < 85) ? `
-      <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px">
-        <div style="font-size:20px;flex-shrink:0;line-height:1.3">🏦</div>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px">Why does this large organisation score lower?</div>
-          <div style="font-size:12px;color:#374151;line-height:1.6">Large organisations have built massive, invisible <strong>"fortresses"</strong> in their backend and cloud infrastructure that render those specific front-end headers less critical. Their security investments live deep inside private networks, dedicated firewall appliances, custom zero-trust architecture, and teams of security engineers — layers that our front-end scanner simply cannot see.</div>
-        </div>
-      </div>` : '';
-
-    const beforeGrade = data.grade;
-    const afterScore  = Math.min(100, data.numericScore + 35);
-    const afterGrade  = data.numericScore >= 85 ? data.grade : getGradeClient(afterScore);
+      : `We found ${data.issues.length} issue${data.issues.length>1?'s':''} on your website. Sign up and we'll fix them all within 24 hours.`;
 
     container.innerHTML = `
       <div class="scan-result-card">
-
-        <!-- Header: domain info on left, current grade on right -->
         <div class="scan-result-header">
           <div class="scan-result-info">
             <div class="scan-result-domain">${data.domain}</div>
-            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.passedChecks.length} things working great · ${data.issues.length} things to fix</div>
+            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.passedChecks.length} checks passed</div>
             <div class="scan-score-bar"><div class="scan-score-bar-fill" id="scan-bar-fill" style="width:0%;background:${barColor}"></div></div>
-            <div style="font-size:12px;color:var(--muted-light)">Scan confidence: ${data.confidence}</div>
           </div>
-          <!-- Current grade on the right -->
           <div style="text-align:center;flex-shrink:0">
-            <div style="font-size:11px;color:var(--muted-light);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Your score right now</div>
+            <div style="font-size:11px;color:var(--muted-light);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Your score</div>
             <div class="scan-grade-circle" style="background:${color};margin:0 auto">${data.grade}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:8px">${data.numericScore} / 100</div>
           </div>
         </div>
 
         ${(!largeCorp && data.numericScore < 85) ? `
-        <!-- Before → After comparison -->
         <div style="display:flex;align-items:center;gap:0;margin:20px 0 4px;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.12)">
-          <!-- Before -->
           <div style="flex:1;text-align:center;padding:16px 12px;background:rgba(220,38,38,0.12)">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#f87171;margin-bottom:8px">Without CyberWall</div>
             <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;color:#ef4444;line-height:1">${beforeGrade}</div>
             <div style="font-size:12px;color:#ef4444;margin-top:6px">${data.numericScore} / 100</div>
           </div>
-          <!-- Arrow -->
           <div style="padding:0 10px;font-size:26px;color:rgba(255,255,255,0.3);flex-shrink:0">→</div>
-          <!-- After -->
-          <div style="flex:1;text-align:center;padding:16px 12px;background:rgba(22,163,74,0.15);position:relative">
+          <div style="flex:1;text-align:center;padding:16px 12px;background:rgba(22,163,74,0.15)">
             <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#4ade80;margin-bottom:8px">With CyberWall ✨</div>
             <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;color:#22c55e;line-height:1">${afterGrade}</div>
-            <div style="font-size:12px;color:#22c55e;margin-top:6px">${afterScore} / 100</div>
+            <div style="font-size:12px;color:#22c55e;margin-top:6px">95+ / 100</div>
           </div>
         </div>
         <div style="text-align:center;margin-bottom:20px">
           <div style="font-size:12px;color:rgba(255,255,255,0.35);padding-top:6px">↑ We fix all ${data.issues.length} issue${data.issues.length>1?'s':''} and bring your score up in 24 hours</div>
         </div>` : (!largeCorp ? `<div style="margin:12px 0 20px;text-align:center;font-size:13px;color:rgba(255,255,255,0.5)">Great score! CyberWall keeps it that way with 24/7 monitoring.</div>` : '')}
 
-        <div class="scan-breakdown">${breakdownHtml}</div>
-        ${largeCorpBannerHtml}
-        ${issuesHtml}
-        ${passedHtml}
+        ${!largeCorp && data.issues.length ? `
+        <div style="background:rgba(220,38,38,0.08);border:1.5px solid rgba(220,38,38,0.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px">
+          <div style="font-size:22px;flex-shrink:0">⚠️</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:4px">🚨 Your website has ${data.issues.length} open gap${data.issues.length>1?'s':''} — hackers can walk right in</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6">Hackers scan thousands of websites every hour looking for exactly these weaknesses. Once inside, they can steal your customers' data, break your website, or shut it down completely — sometimes in minutes. <strong style="color:var(--text)">Every hour you wait is a risk.</strong></div>
+          </div>
+        </div>` : ''}
+
+        ${lockedIssuesHtml}
+
+        ${largeCorp ? `
+        <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-size:20px;flex-shrink:0">🏦</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:4px">Why does this company score lower here?</div>
+            <div style="font-size:12px;color:var(--text);line-height:1.7">Large companies like this have entire security teams and expensive private systems protecting them behind the scenes — layers that our scanner simply cannot see from the outside. Their real security is far stronger than what this score shows.</div>
+          </div>
+        </div>` : ''}
+
         ${!largeCorp ? `<div class="scan-cta-strip">
           <div>
             <div class="scan-cta-text">${ctaMsg}</div>
-            <div class="scan-cta-sub">Setup in 24 hours · No credit card · Firewall + SSL + Monitoring included</div>
+            <div class="scan-cta-sub">Setup in 24 hours · No credit card · Full details revealed after sign up</div>
           </div>
           <a href="auth.html" class="btn-white" style="white-space:nowrap;flex-shrink:0;font-size:14px">Fix with CyberWall →</a>
         </div>` : ''}
       </div>`;
 
-    // Animate score bar
     setTimeout(() => {
       const bar = document.getElementById('scan-bar-fill');
       if (bar) bar.style.width = data.numericScore + '%';
@@ -1017,7 +985,19 @@
       'deloitte.com','pwc.com','kpmg.com','ey.com','mckinsey.com',
       'accenture.com','capgemini.com','infosys.com','wipro.com','tcs.com',
       'flipkart.com','reliance.com','jio.com','hdfcbank.com','icicibank.com',
-      'sbi.co.in','axisbank.com','bajajfinserv.com',
+      'sbi.co.in','axisbank.com','bajajfinserv.com','kotak.com','kotakbank.com',
+      'tatamotors.com','tata.com','tatasteel.com','tataconsultancy.com','tatapower.com',
+      'mahindra.com','maruti.co.in','marutisuzuki.com','heromotocorp.com','bajajfinance.in',
+      'ongc.co.in','ntpc.co.in','powergrid.in','coalindia.in','bhel.in',
+      'adani.com','adanigreen.com','adaniports.com','adanienterprise.com',
+      'ltimindtree.com','hcltech.com','techm.com','mphasis.com','hexaware.com',
+      'zomato.com','swiggy.com','paytm.com','phonepe.com','razorpay.com',
+      'ola.com','olamoney.com','nykaa.com','meesho.com','snapdeal.com',
+      'indigo.in','airindia.com','spicejet.com','irctc.co.in','indianrailways.gov.in',
+      'bpcl.in','iocl.com','hpcl.com','gail.com','recpdcl.in',
+      'lici.in','licindia.in','hul.co.in','itcportal.com','godrejcp.com',
+      'ultratechcement.com','asianpaints.com','drreddys.com','cipla.com','sunpharma.com',
+      'tatacommunications.com','bhartiairtel.com','airtel.in','bsnl.co.in','vodafoneidea.com',
     ];
     const d = domain.replace(/^www\./, '').toLowerCase();
     return LARGE_CORPS.some(corp => d === corp || d.endsWith('.' + corp));

@@ -389,6 +389,13 @@
   </div>
 
   <div class="sidebar-section">
+    <div class="sidebar-section-label">Tools</div>
+    <a class="sidebar-item" onclick="showPanel('scanner', this)">
+      <span class="sidebar-item-icon">🔍</span> Site Scanner
+    </a>
+  </div>
+
+  <div class="sidebar-section">
     <div class="sidebar-section-label">AI</div>
     <a class="sidebar-item" onclick="showPanel('ai', this)">
       <span class="sidebar-item-icon">🤖</span> AI Assistant
@@ -846,6 +853,30 @@
       </div>
     </div>
   </div>
+
+    <!-- ===== SITE SCANNER ===== -->
+    <div class="panel" id="panel-scanner">
+      <div class="card" style="max-width:800px;margin:0 auto">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px">🔍</div>
+            <div>
+              <div style="font-weight:700;font-size:16px">Full Site Security Scanner</div>
+              <div style="font-size:12px;color:var(--muted)">Detailed technical breakdown — admin only</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-bottom:24px">
+            <input id="admin-scan-input" type="text" placeholder="Enter domain (e.g. shopkaro.in)" style="flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit" onkeydown="if(event.key==='Enter')runAdminScan()"/>
+            <button onclick="runAdminScan()" style="padding:12px 22px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Scan →</button>
+          </div>
+
+          <div id="admin-scan-result"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- Scripts — ORDER MATTERS -->
@@ -1081,6 +1112,9 @@
   <div class="admin-more-item" onclick="closeAdminMore(); showPanel('ai', null)">
     <span class="more-icon">🤖</span> AI Assistant
   </div>
+  <div class="admin-more-item" onclick="closeAdminMore(); showPanel('scanner', null)">
+    <span class="more-icon">🔍</span> Site Scanner
+  </div>
   <div class="admin-more-item danger" onclick="logOut()">
     <span class="more-icon">🚪</span> Logout
   </div>
@@ -1094,6 +1128,100 @@
   function closeAdminMore() {
     document.getElementById('admin-more-backdrop').style.display = 'none';
     document.getElementById('admin-more-sheet').classList.remove('open');
+  }
+
+  // ── ADMIN SITE SCANNER ───────────────────────────────────────────────────
+  async function runAdminScan() {
+    const input = document.getElementById('admin-scan-input');
+    const domain = (input.value || '').trim().replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/[/?#].*$/,'');
+    if (!domain) { input.focus(); return; }
+
+    const resultEl = document.getElementById('admin-scan-result');
+    resultEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">
+      <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px"></div>
+      Scanning ${domain}…
+    </div>`;
+
+    try {
+      const SERVER = window.location.hostname === 'localhost' ? 'http://localhost:3001' : '';
+      const res  = await fetch(`${SERVER}/api/security-scan?domain=${encodeURIComponent(domain)}`);
+      const data = await res.json();
+      if (data.error) {
+        resultEl.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:12px;padding:16px;color:#dc2626;font-size:14px">⚠️ ${data.error}</div>`;
+        return;
+      }
+      renderAdminScanResult(data, resultEl);
+    } catch(e) {
+      resultEl.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:12px;padding:16px;color:#dc2626;font-size:14px">⚠️ Scan failed. Check domain and try again.</div>`;
+    }
+  }
+
+  function renderAdminScanResult(data, container) {
+    const GRADE_COLORS = { 'A+':'#16a34a','A':'#16a34a','A-':'#22c55e','B+':'#2563eb','B':'#2563eb','B-':'#3b82f6','C+':'#ea580c','C':'#ea580c','C-':'#ea580c','D':'#dc2626','F':'#dc2626' };
+    const SEV_COLORS   = { critical:'#dc2626', high:'#dc2626', medium:'#ea580c', low:'#6b7280' };
+    const SEV_LABELS   = { critical:'Critical', high:'High', medium:'Medium', low:'Low' };
+    const color    = GRADE_COLORS[data.grade] || '#dc2626';
+    const barColor = data.numericScore >= 80 ? '#16a34a' : data.numericScore >= 55 ? '#ea580c' : '#dc2626';
+
+    const breakdownHtml = Object.values(data.breakdown || {}).map(b => {
+      const pct = b.score / b.max;
+      const c = pct >= 0.8 ? '#16a34a' : pct >= 0.5 ? '#ea580c' : '#dc2626';
+      return `<div style="background:var(--bg);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:${c}">${b.score}<span style="font-size:11px;color:var(--muted-light)">/${b.max}</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.3">${b.label}</div>
+      </div>`;
+    }).join('');
+
+    const issuesHtml = data.issues.length ? `
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)">⚠️ Issues Found (${data.issues.length})</div>
+        ${data.issues.map(i => `
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;background:${SEV_COLORS[i.severity]||'#9ca3af'}"></div>
+            <div>
+              <div style="font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px">
+                ${i.label}
+                <span style="font-size:11px;font-weight:600;color:${SEV_COLORS[i.severity]};background:${SEV_COLORS[i.severity]}18;padding:2px 7px;border-radius:4px">${SEV_LABELS[i.severity]||''}</span>
+              </div>
+              <div style="color:var(--muted);font-size:12px;margin-top:3px">${i.detail}</div>
+            </div>
+          </div>`).join('')}
+      </div>` : `<div style="color:#16a34a;font-weight:600;font-size:13px;margin-bottom:16px">✅ No issues found!</div>`;
+
+    const passedHtml = data.passedChecks.length ? `
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)">✅ Passed Checks (${data.passedChecks.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${data.passedChecks.map(c => `<div style="display:flex;align-items:center;gap:5px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#16a34a;font-size:12px;font-weight:500;padding:5px 10px;border-radius:8px">${c.icon||'✓'} ${c.label}</div>`).join('')}
+        </div>
+      </div>` : '';
+
+    container.innerHTML = `
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:24px">
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:18px;font-weight:700;margin-bottom:4px">${data.domain}</div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">${data.numericScore}/100 · ${data.passedChecks.length} passed · ${data.issues.length} issues · Confidence: ${data.confidence}</div>
+            <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+              <div id="admin-scan-bar" style="height:100%;width:0%;background:${barColor};border-radius:4px;transition:width 0.9s cubic-bezier(0.34,1.56,0.64,1)"></div>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:11px;color:var(--muted-light);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Grade</div>
+            <div style="width:72px;height:72px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:white;margin:0 auto">${data.grade}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:6px">${data.numericScore} / 100</div>
+          </div>
+        </div>
+
+        ${breakdownHtml ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin-bottom:20px">${breakdownHtml}</div>` : ''}
+        ${issuesHtml}
+        ${passedHtml}
+      </div>`;
+
+    setTimeout(() => {
+      const bar = document.getElementById('admin-scan-bar');
+      if (bar) bar.style.width = data.numericScore + '%';
+    }, 50);
   }
 </script>
 </body>

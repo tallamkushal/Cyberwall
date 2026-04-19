@@ -23,6 +23,7 @@
     "@anthropic-ai/sdk": "^0.78.0"
   },
   "devDependencies": {
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "puppeteer": "^24.41.0"
   }
 }

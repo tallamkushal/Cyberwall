@@ -701,7 +701,7 @@ function showPanel(name, el) {
   const titles = {
     overview: 'Admin Overview', clients: 'All Clients',
     revenue: 'Revenue', tasks: 'Tasks',
-    add: 'Add New Client', support: 'Support'
+    add: 'Add New Client', support: 'Support', scanner: 'Site Scanner'
   };
   safeSet('topbar-title', titles[name] || name);
 }
