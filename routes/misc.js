@@ -558,7 +558,11 @@ async function handle(req, res, parsedUrl) {
         return true;
       }
       const authUser = await requireAuth(req);
-      if (authUser) scan = await enhanceScanWithCloudflare(scan);
+      if (authUser) {
+        const enhanced = await enhanceScanWithCloudflare(scan);
+        // Keep the raw score — only attach the managed protections info
+        scan = { ...scan, managed: enhanced.managed, managedChecks: enhanced.managedChecks };
+      }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
       res.end(JSON.stringify(scan));
     } catch(err) {

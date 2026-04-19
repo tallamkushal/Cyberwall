@@ -546,14 +546,9 @@
   function renderAuthResult(data, container) {
     const color    = GRADE_COLORS[data.grade] || '#dc2626';
     const barColor = data.numericScore >= 80 ? '#22c55e' : data.numericScore >= 55 ? '#fbbf24' : '#ef4444';
-    const visible  = data.issues.slice(0, 3);
-    const hidden   = data.issues.slice(3);
-
-    const issueHtml = (arr) => arr.map(i => `
-      <div class="auth-scan-issue">
-        <div class="auth-scan-issue-dot" style="background:#ef4444"></div>
-        <span>${i.label}</span>
-      </div>`).join('');
+    const fixablePoints = (data.issues || []).reduce((sum, i) => sum + (i.deduction || 0), 0);
+    const afterScore = Math.min(95, data.numericScore + fixablePoints);
+    const afterGrade = data.numericScore >= 85 ? data.grade : getAuthGrade(afterScore);
 
     container.innerHTML = `
       <div class="auth-scan-result">
@@ -561,29 +556,46 @@
           <div class="auth-scan-grade" style="background:${color}">${data.grade}</div>
           <div class="auth-scan-meta">
             <div class="auth-scan-domain">${data.domain}</div>
-            <div class="auth-scan-score">${data.numericScore}/100 · ${data.passedChecks.length} passed · ${data.issues.length} issues</div>
+            <div class="auth-scan-score">${data.numericScore}/100 · ${data.issues.length} check${data.issues.length>1?'s':''} failed</div>
             <div class="auth-scan-bar-track">
               <div class="auth-scan-bar-fill" id="auth-bar-fill" style="width:0%;background:${barColor}"></div>
             </div>
           </div>
         </div>
-        ${visible.length ? issueHtml(visible) : '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0">✅ No critical issues found</div>'}
-        ${hidden.length ? `
-          <div id="auth-issues-extra" style="display:none">${issueHtml(hidden)}</div>
-          <button onclick="
-            var el=document.getElementById('auth-issues-extra');
-            var btn=this;
-            if(el.style.display==='none'){el.style.display='block';btn.textContent='Show less ↑';}
-            else{el.style.display='none';btn.textContent='Show ${hidden.length} more issues ↓';}
-          " style="background:none;border:none;color:rgba(255,255,255,0.55);font-size:11px;font-weight:600;cursor:pointer;padding:4px 0;text-align:left;width:100%">Show ${hidden.length} more issues ↓</button>
-        ` : ''}
-        ${data.issues.length > 0 ? `<button class="auth-scan-cta" onclick="document.getElementById('tab-signup').click();document.getElementById('tab-signup').scrollIntoView({behavior:'smooth'})">Fix all ${data.issues.length} issues with CyberWall →</button>` : ''}
+
+        ${data.numericScore < 85 ? `
+        <div style="display:flex;gap:6px;margin:10px 0;border-radius:10px;overflow:hidden">
+          <div style="flex:1;text-align:center;padding:8px 6px;background:rgba(220,38,38,0.2)">
+            <div style="font-size:9px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Now</div>
+            <div style="font-size:22px;font-weight:800;color:#ef4444;line-height:1">${data.grade}</div>
+          </div>
+          <div style="display:flex;align-items:center;color:rgba(255,255,255,0.3);font-size:14px">→</div>
+          <div style="flex:1;text-align:center;padding:8px 6px;background:rgba(22,163,74,0.2)">
+            <div style="font-size:9px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">With CyberWall</div>
+            <div style="font-size:22px;font-weight:800;color:#22c55e;line-height:1">${afterGrade}</div>
+          </div>
+        </div>` : ''}
+
+        ${data.issues.length ? `
+        <div style="background:rgba(220,38,38,0.12);border:1px solid rgba(220,38,38,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:#f87171;margin-bottom:2px">🚨 ${data.issues.length} open gap${data.issues.length>1?'s':''} hackers can exploit</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.55);line-height:1.5">Sign up to see all issues and fix them within 24 hours.</div>
+        </div>
+        <button class="auth-scan-cta" onclick="document.getElementById('tab-signup').click()">Fix all ${data.issues.length} issues with CyberWall →</button>` :
+        '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0">✅ Looking good! Sign up to keep it that way.</div>'}
       </div>`;
 
     setTimeout(() => {
       const bar = document.getElementById('auth-bar-fill');
       if (bar) bar.style.width = data.numericScore + '%';
     }, 50);
+  }
+
+  function getAuthGrade(score) {
+    if (score >= 95) return 'A+'; if (score >= 90) return 'A'; if (score >= 85) return 'A-';
+    if (score >= 80) return 'B+'; if (score >= 75) return 'B'; if (score >= 70) return 'B-';
+    if (score >= 65) return 'C+'; if (score >= 55) return 'C'; if (score >= 40) return 'D';
+    return 'F';
   }
 })();
 </script>

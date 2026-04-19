@@ -894,7 +894,7 @@
         <div class="scan-result-header">
           <div class="scan-result-info">
             <div class="scan-result-domain">${data.domain}</div>
-            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.passedChecks.length} checks passed</div>
+            <div class="scan-result-score-line">${data.numericScore}/100 — ${data.issues.length} check${data.issues.length>1?'s':''} failed</div>
             <div class="scan-score-bar"><div class="scan-score-bar-fill" id="scan-bar-fill" style="width:0%;background:${barColor}"></div></div>
           </div>
           <div style="text-align:center;flex-shrink:0">

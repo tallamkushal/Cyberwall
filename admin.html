@@ -764,6 +764,26 @@
       </div>
     </div>
 
+    <!-- ===== SITE SCANNER ===== -->
+    <div class="panel" id="panel-scanner">
+      <div class="card" style="max-width:800px;margin:0 auto">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px">🔍</div>
+            <div>
+              <div style="font-weight:700;font-size:16px">Full Site Security Scanner</div>
+              <div style="font-size:12px;color:var(--muted)">Detailed technical breakdown — admin only</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:24px">
+            <input id="admin-scan-input" type="text" placeholder="Enter domain (e.g. shopkaro.in)" style="flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit" onkeydown="if(event.key==='Enter')runAdminScan()"/>
+            <button onclick="runAdminScan()" style="padding:12px 22px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Scan →</button>
+          </div>
+          <div id="admin-scan-result"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -852,32 +872,6 @@
         <button onclick="sendCFWhatsApp()" class="btn btn-ghost" style="margin-top:10px;margin-left:6px;font-size:12px;padding:6px 14px">💬 Send via WhatsApp</button>
       </div>
     </div>
-  </div>
-
-    <!-- ===== SITE SCANNER ===== -->
-    <div class="panel" id="panel-scanner">
-      <div class="card" style="max-width:800px;margin:0 auto">
-        <div class="card-body">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-            <div style="width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px">🔍</div>
-            <div>
-              <div style="font-weight:700;font-size:16px">Full Site Security Scanner</div>
-              <div style="font-size:12px;color:var(--muted)">Detailed technical breakdown — admin only</div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:10px;margin-bottom:24px">
-            <input id="admin-scan-input" type="text" placeholder="Enter domain (e.g. shopkaro.in)" style="flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:var(--bg);color:var(--text);font-family:inherit" onkeydown="if(event.key==='Enter')runAdminScan()"/>
-            <button onclick="runAdminScan()" style="padding:12px 22px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap">Scan →</button>
-          </div>
-
-          <div id="admin-scan-result"></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
 <!-- Scripts — ORDER MATTERS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
