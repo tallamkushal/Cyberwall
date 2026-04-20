@@ -544,7 +544,7 @@
       <a href="#how" class="nav-link">How it works</a>
       <a href="#features" class="nav-link">Features</a>
       <a href="#pricing" class="nav-link">Pricing</a>
-      <a href="mailto:hello@procyberwall.com" class="nav-link">Contact</a>
+      <a href="#" class="nav-link" onclick="openContact(event)">Contact</a>
     </div>
     <div class="nav-right">
       <button onclick="toggleTheme()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;color:var(--muted)" title="Toggle theme"><span class="theme-toggle-icon">🌙</span></button>
@@ -1126,6 +1126,38 @@
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
+</script>
+
+<!-- CONTACT MODAL -->
+<div id="contact-backdrop" onclick="closeContact()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;backdrop-filter:blur(4px)"></div>
+<div id="contact-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;width:min(420px,90vw);background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px;box-shadow:0 24px 80px rgba(0,0,0,0.18)">
+  <button onclick="closeContact()" style="position:absolute;top:16px;right:16px;background:var(--bg);border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--muted)">✕</button>
+  <div style="font-size:32px;margin-bottom:12px">📬</div>
+  <h3 style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">Get in touch</h3>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:28px">We're here to help. Reach us via WhatsApp or email — we usually reply within a few hours.</p>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <a href="https://wa.me/919844482193" target="_blank" style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;text-decoration:none;transition:all 0.15s">
+      <span style="font-size:26px">💬</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#15803d">WhatsApp</div>
+        <div style="font-size:13px;color:#166534">+91 98444 82193</div>
+      </div>
+      <span style="margin-left:auto;font-size:12px;color:#16a34a;font-weight:600">Chat now →</span>
+    </a>
+    <a href="mailto:hello@procyberwall.com" style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:var(--accent-light);border:1.5px solid rgba(26,71,232,0.2);border-radius:14px;text-decoration:none;transition:all 0.15s">
+      <span style="font-size:26px">✉️</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--accent)">Email</div>
+        <div style="font-size:13px;color:var(--accent)">hello@procyberwall.com</div>
+      </div>
+      <span style="margin-left:auto;font-size:12px;color:var(--accent);font-weight:600">Send mail →</span>
+    </a>
+  </div>
+</div>
+<script>
+  function openContact(e) { e.preventDefault(); document.getElementById('contact-backdrop').style.display='block'; document.getElementById('contact-modal').style.display='block'; }
+  function closeContact() { document.getElementById('contact-backdrop').style.display='none'; document.getElementById('contact-modal').style.display='none'; }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContact(); });
 </script>
 </body>
 </html>
