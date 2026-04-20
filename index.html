@@ -584,46 +584,41 @@
 </section>
 
 <section class="reveal active-protection-section" style="padding:40px 5%;text-align:center;">
-  <div class="hero-tag" style="margin-bottom:28px;display:inline-flex;">
-    <span class="live-dot"></span> 2,400+ attacks blocked today
-  </div>
-  <br/>
   <div class="shield-card" style="display:inline-flex;margin-bottom:28px;">
     <div class="shield-icon-wrap">🛡</div>
     <div class="shield-info">
-      <div class="shield-title">Active Protection</div>
-      <div class="shield-sub">All threats blocked · Last: 2 min ago</div>
+      <div class="shield-title">Always-On Protection</div>
+      <div class="shield-sub">Managed firewall · 24/7 monitoring · Instant alerts</div>
     </div>
-    <div class="shield-badge">● Live</div>
   </div>
   <div class="threat-badges" style="justify-content:center;">
-    <div class="threat-badge"><span class="dot" style="background:#ef4444"></span> SQL Injection blocked</div>
-    <div class="threat-badge"><span class="dot" style="background:#f97316"></span> DDoS mitigated</div>
-    <div class="threat-badge"><span class="dot" style="background:#8b5cf6"></span> XSS attempt stopped</div>
-    <div class="threat-badge"><span class="dot" style="background:#06b6d4"></span> Bot traffic filtered</div>
-    <div class="threat-badge" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06)"><span class="dot" style="background:#ef4444;animation:pulse-ring 1s ease-out infinite"></span> AI-powered attack intercepted</div>
+    <div class="threat-badge"><span class="dot" style="background:#ef4444"></span> SQL Injection</div>
+    <div class="threat-badge"><span class="dot" style="background:#f97316"></span> DDoS Attacks</div>
+    <div class="threat-badge"><span class="dot" style="background:#8b5cf6"></span> XSS Exploits</div>
+    <div class="threat-badge"><span class="dot" style="background:#06b6d4"></span> Bot Traffic</div>
+    <div class="threat-badge" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06)"><span class="dot" style="background:#ef4444"></span> AI-Powered Attacks</div>
   </div>
 </section>
 
 <!-- SOCIAL PROOF -->
 <div class="social-proof reveal">
-  <p>Trusted by businesses worldwide</p>
+  <p>Protecting businesses across industries</p>
   <div class="logos">
-    <span class="logo-item">Shopify Store</span>
-    <span class="logo-item">FinTech App</span>
-    <span class="logo-item">SaaS Startup</span>
     <span class="logo-item">E-Commerce</span>
-    <span class="logo-item">Healthcare Tech</span>
-    <span class="logo-item">Legal Platform</span>
+    <span class="logo-item">SaaS & Tech</span>
+    <span class="logo-item">Healthcare</span>
+    <span class="logo-item">Legal & Finance</span>
+    <span class="logo-item">Hospitality</span>
+    <span class="logo-item">Education</span>
   </div>
 </div>
 
 <!-- STATS -->
 <div class="stats-bar">
-  <div class="stat-item reveal"><div class="stat-num" data-count="2400">0</div><div class="stat-lbl">Attacks blocked daily</div></div>
-  <div class="stat-item reveal reveal-delay-1"><div class="stat-num">99.9%</div><div class="stat-lbl">Uptime guaranteed</div></div>
-  <div class="stat-item reveal reveal-delay-2"><div class="stat-num">24hrs</div><div class="stat-lbl">Setup time</div></div>
-  <div class="stat-item reveal reveal-delay-3"><div class="stat-num" data-count="50000">0</div><div class="stat-lbl">Threats stopped this month</div></div>
+  <div class="stat-item reveal"><div class="stat-num">43%</div><div class="stat-lbl">of cyberattacks target SMBs <span style="font-size:10px;opacity:0.6">(Verizon DBIR)</span></div></div>
+  <div class="stat-item reveal reveal-delay-1"><div class="stat-num">24hrs</div><div class="stat-lbl">Setup — we handle everything</div></div>
+  <div class="stat-item reveal reveal-delay-2"><div class="stat-num">99.9%</div><div class="stat-lbl">Cloudflare network uptime</div></div>
+  <div class="stat-item reveal reveal-delay-3"><div class="stat-num">$200K</div><div class="stat-lbl">avg. SMB breach cost <span style="font-size:10px;opacity:0.6">(IBM)</span></div></div>
 </div>
 
 <!-- SECURITY SCANNER -->
@@ -1020,28 +1015,6 @@
   }, { threshold: 0.12 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-  // Animated number counter
-  function animateCount(el) {
-    const target = parseInt(el.dataset.count);
-    const duration = 1800;
-    const start = performance.now();
-    function update(now) {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      el.textContent = Math.floor(eased * target).toLocaleString() + '+';
-      if (progress < 1) requestAnimationFrame(update);
-    }
-    requestAnimationFrame(update);
-  }
-  const countObserver = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting && e.target.dataset.count) {
-        animateCount(e.target);
-        countObserver.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.5 });
-  document.querySelectorAll('[data-count]').forEach(el => countObserver.observe(el));
 
   // ── LOCAL CURRENCY PRICING ──────────────────────────────────────────────
   (async function() {
