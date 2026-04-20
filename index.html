@@ -413,13 +413,15 @@
         display:flex;flex-direction:row;
         overflow-x:auto;-webkit-overflow-scrolling:touch;
         scroll-snap-type:x mandatory;
-        gap:16px;padding-bottom:16px;
+        gap:12px;padding-bottom:16px;
+        margin-left:-5%;margin-right:-5%;
+        padding-left:5%;padding-right:5%;
         scrollbar-width:none;
       }
       .pricing-grid::-webkit-scrollbar{display:none;}
       .pricing-card{
-        min-width:72vw;max-width:72vw;
-        scroll-snap-align:center;flex-shrink:0;
+        min-width:80vw;max-width:80vw;
+        scroll-snap-align:start;flex-shrink:0;
       }
       .ai-threats-grid{grid-template-columns:repeat(2,1fr) !important;}
       .step-card::after{display:none;}
