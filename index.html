@@ -100,6 +100,17 @@
       background: var(--accent); color: white; border-radius: 8px;
       padding: 7px 14px; margin: 6px 0 6px 4px; border-bottom: none;
     }
+    .nts-new {
+      display: inline-flex; align-items: center;
+      background: linear-gradient(135deg, #ef4444, #f97316);
+      color: white; font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+      padding: 2px 5px; border-radius: 5px; line-height: 1; flex-shrink: 0;
+    }
+    /* Mobile-only: "no credit card" hint inside hero-ctas, after trial button */
+    .hero-nocredit-mobile {
+      display: none; font-size: 12px; color: var(--muted-light);
+      text-align: center; margin-top: -4px;
+    }
     /* Mobile-only auth buttons in the logo row */
     .nav-mobile-auth { display: none; margin-left: auto; gap: 8px; align-items: center; }
     .nav-mobile-auth .nm-login {
@@ -151,8 +162,29 @@
       background-size:48px 48px;
       mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
       pointer-events:none;
+      animation: gridScroll 12s linear infinite;
     }
-    .hero { padding:100px 5% 80px;text-align:center;max-width:1200px;margin:0 auto;position:relative;z-index:1; }
+    @keyframes gridScroll {
+      0%   { background-position: 0 0; }
+      100% { background-position: 48px 48px; }
+    }
+    .hero-beams { position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0; }
+    @keyframes beamFlow {
+      0%   { transform:translateX(-110%); opacity:0; }
+      6%   { opacity:1; }
+      85%  { opacity:0.6; }
+      100% { transform:translateX(110%); opacity:0; }
+    }
+    .hero-beam {
+      position:absolute; left:0; width:35%; height:1px;
+      background:linear-gradient(90deg, transparent, rgba(26,71,232,0.55), rgba(124,58,237,0.35), transparent);
+      box-shadow:0 0 8px rgba(26,71,232,0.25);
+      animation:beamFlow var(--dur,5s) linear var(--delay,0s) infinite;
+    }
+    @media(prefers-reduced-motion:reduce){
+      .hero-grid-bg, .hero-beam { animation:none; }
+    }
+    .hero { padding:100px 5% 80px;text-align:center;max-width:1200px;margin:0 auto;position:relative;z-index:1;margin-top:-5vh; }
     .hero-tag {
       display:inline-flex;align-items:center;gap:7px;
       background:rgba(255,255,255,0.9);border:1px solid rgba(26,71,232,0.15);
@@ -164,7 +196,8 @@
     .live-dot { width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;position:relative; }
     .live-dot::after { content:'';position:absolute;inset:-3px;border-radius:50%;background:var(--green);animation:pulse-ring 1.5s ease-out infinite; }
     .hero h1 {
-      font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1.08;margin-bottom:22px;white-space:nowrap;
+      font-size:clamp(14px,3.3vw,44px);font-weight:800;letter-spacing:-2.5px;line-height:1.08;margin-bottom:22px;
+      white-space:nowrap;
       animation: fadeUp 0.6s ease 0.1s both;
       background: linear-gradient(135deg, #0f172a 0%, #1a47e8 60%, #7c3aed 100%);
       -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -403,7 +436,7 @@
     @keyframes spin{to{transform:rotate(360deg);}}
 
     @media(max-width:768px){
-      .hero h1{font-size:36px;letter-spacing:-1px;white-space:normal;}
+      .hero h1{font-size:30px;letter-spacing:-1px;white-space:normal;}
       .hero p{font-size:15px;white-space:normal;}
       .section-title{font-size:26px;}
       .section-sub{font-size:14px;}
@@ -455,11 +488,13 @@
       .ai-threats-grid{grid-template-columns:1fr !important;}
     }
     @media(max-width:480px){
-      .hero h1{font-size:28px;white-space:normal;}
+      .hero h1{font-size:22px;white-space:normal;}
       .hero p{font-size:14px;white-space:normal;}
       .hero{padding:44px 4% 32px;}
       .hero-ctas{flex-direction:column;align-items:stretch;max-width:100%;}
       .hero-ctas .btn{flex:none;text-align:center;justify-content:center;}
+      .hero-nocredit-mobile{display:block;}
+      .hero-ctas .btn-ghost{border-width:2px;box-shadow:0 0 0 4px rgba(26,71,232,0.12);background:rgba(26,71,232,0.04);}
       .nav-row{padding:env(safe-area-inset-top,0px) 4% 0;min-height:52px;}
       .nav-logo-text{font-size:16px;}
       .btn-primary{padding:8px 14px;font-size:13px;}
@@ -559,20 +594,29 @@
   </div>
   <!-- Mobile tab strip — 3 section tabs only -->
   <div class="nav-tab-strip">
-    <a class="nts-tab active" id="lmn-score" href="#scanner">🎯 Score Check</a>
+    <a class="nts-tab active" id="lmn-score" href="#scanner">🎯 Score Check <span class="nts-new">NEW</span></a>
     <a class="nts-tab" id="lmn-features" href="#features">🛡️ Features</a>
     <a class="nts-tab" id="lmn-pricing" href="#pricing">💰 Pricing</a>
+    <a class="nts-tab" href="#" onclick="openContact(event)">📬 Contact</a>
   </div>
 </nav>
 
 <!-- HERO -->
 <section class="hero-wrap">
   <div class="hero-grid-bg"></div>
+  <div class="hero-beams" aria-hidden="true">
+    <span class="hero-beam" style="top:18%;--dur:5s;--delay:0s;"></span>
+    <span class="hero-beam" style="top:32%;--dur:7s;--delay:1.8s;"></span>
+    <span class="hero-beam" style="top:50%;--dur:4.5s;--delay:0.6s;"></span>
+    <span class="hero-beam" style="top:65%;--dur:6s;--delay:3.1s;"></span>
+    <span class="hero-beam" style="top:80%;--dur:8s;--delay:2s;"></span>
+  </div>
   <div class="hero">
     <h1>We block hackers from breaking into your website.</h1>
     <p>Set it up once, we handle everything — <strong style="color:var(--accent)">24/7, no tech skills needed.</strong></p>
     <div class="hero-ctas">
       <a href="auth.html" class="btn btn-primary btn-xl">Start 7-Day Free Trial →</a>
+      <p class="hero-nocredit-mobile">No credit card required</p>
       <a href="#scanner" class="btn btn-ghost btn-xl" style="display:flex;align-items:center;gap:8px;border:2px solid var(--accent);color:var(--accent);background:transparent;position:relative;overflow:hidden;">
         <span style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(26,71,232,0.1) 50%,transparent 100%);transform:translateX(-100%);animation:cw-sheen 2.2s ease-in-out infinite;pointer-events:none"></span>
         🎯 <span><strong>Check security score</strong> — Free</span>
