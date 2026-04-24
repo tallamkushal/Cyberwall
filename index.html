@@ -75,7 +75,8 @@
     .reveal-delay-3 { transition-delay:0.3s; }
 
     /* ── NAV ── */
-    .nav { position:sticky;top:0;z-index:100;background:rgba(249,249,247,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;flex-direction:column; }
+    .nav { position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(249,249,247,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;flex-direction:column; }
+    body { padding-top:64px; }
     .nav-row { padding:env(safe-area-inset-top,0px) 5% 0;display:flex;align-items:center;min-height:64px;gap:32px; }
 
     /* ── Mobile tab strip (inside nav, second row) ── */
@@ -501,9 +502,10 @@
       .shield-card{flex-direction:column;text-align:center;}
     }
 
-    /* ── SCROLL OFFSET FOR STICKY NAV ── */
+    /* ── SCROLL OFFSET FOR FIXED NAV ── */
     #scanner, #how, #features, #pricing { scroll-margin-top: 68px; }
     @media(max-width:768px) {
+      body { padding-top: 112px; }
       #scanner, #how, #features, #pricing { scroll-margin-top: 112px; }
       #pricing { scroll-margin-top: 8px; }
     }
@@ -515,7 +517,7 @@
 
     /* ── DARK MODE OVERRIDES ── */
     html[data-theme="dark"] .nav {
-      background:rgba(17,17,16,0.95);border-bottom-color:var(--border);
+      background:rgba(17,17,16,0.97);border-bottom-color:var(--border);
     }
     html[data-theme="dark"] .hero-wrap {
       background:linear-gradient(135deg,#0d1117 0%,#111110 40%,#130d1f 100%);

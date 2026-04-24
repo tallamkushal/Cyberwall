@@ -96,7 +96,7 @@
       background: var(--surface); border-bottom: 1px solid var(--border);
       padding: 0 24px; height: 56px;
       display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 40;
+      position: fixed; top: 0; left: 220px; right: 0; z-index: 40;
     }
     .topbar-title { font-size: 15px; font-weight: 700; }
     .topbar-right { display: flex; align-items: center; gap: 10px; }
@@ -110,7 +110,7 @@
     .topbar-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
 
     /* ---- CONTENT ---- */
-    .content { padding: 22px 24px; flex: 1; }
+    .content { padding: 22px 24px; padding-top: calc(56px + 22px); flex: 1; }
     .panel { display: none; }
     .panel.active { display: block; animation: slideUp 0.3s ease; }
 
@@ -281,11 +281,13 @@
       body { display: block; overflow: auto; height: auto; }
       .sidebar { display: none; }
       .admin-mobile-nav { display: flex; }
+      .topbar { left: 0; }
       .main {
         margin-left: 0;
         padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         height: auto; overflow: visible;
       }
+      .content { padding-top: calc(56px + 16px); padding-left: 14px; padding-right: 14px; }
       .stats-grid { grid-template-columns: repeat(2,1fr); }
       .grid-2, .grid-3-1 { grid-template-columns: 1fr; }
     }
@@ -413,17 +415,18 @@
   </div>
 </nav>
 
+<!-- TOPBAR (outside .main so position:fixed is always viewport-relative) -->
+<div class="topbar">
+  <span class="topbar-title" id="topbar-title">Admin Overview</span>
+  <div class="topbar-right">
+    <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme"><span class="theme-toggle-icon">🌙</span></button>
+    <button class="topbar-btn">🔔 Alerts</button>
+    <button class="topbar-btn primary" onclick="showPanel('add', null)">+ Add Client</button>
+  </div>
+</div>
+
 <!-- MAIN -->
 <div class="main">
-  <div class="topbar">
-    <span class="topbar-title" id="topbar-title">Admin Overview</span>
-    <div class="topbar-right">
-      <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme"><span class="theme-toggle-icon">🌙</span></button>
-      <button class="topbar-btn">🔔 Alerts</button>
-      <button class="topbar-btn primary" onclick="showPanel('add', null)">+ Add Client</button>
-    </div>
-  </div>
-
   <div class="content">
 
     <!-- ===== OVERVIEW ===== -->

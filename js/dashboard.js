@@ -126,8 +126,9 @@ function showPanel(name, el, pushState = true) {
   // highlight matching mobile nav item
   const mobileMatch = document.querySelector(`.mobile-nav-item[data-panel="${name}"]`);
   if (mobileMatch) mobileMatch.classList.add('active');
-  const titles = {overview:'Dashboard',threats:'Threats Log',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News','onboarding-steps':'Onboarding Steps'};
+  const titles = {overview:'Dashboard',threats:'Threats Log',traffic:'Traffic Analytics',reports:'Security Reports',ssl:'Protection Status',alerts:'Alerts',billing:'Billing',settings:'Settings',ai:'AI Assistant',support:'Support','security-score':'My Security Grade',darkweb:'Dark Web Monitor',cybernews:'Cyber News','onboarding-steps':'Onboarding Steps'};
   if (name === 'security-score' && !_currentScanDomain) loadSecurityScore();
+  if (name === 'traffic') initAndLoadTraffic();
   // Always scroll to top when switching panels
   window.scrollTo({ top: 0, behavior: 'instant' });
   const mainEl = document.querySelector('.main');
@@ -208,7 +209,10 @@ async function savePassword() {
 // ---- LOAD CLOUDFLARE DATA ----
 async function loadCloudflareForProfile(profile) {
   if (profile && profile.domain) {
-    await loadCloudflareData(normalizeDomain(profile.domain), profile.cf_zone_id || null);
+    const domain = normalizeDomain(profile.domain);
+    const zoneId = profile.cf_zone_id || null;
+    await loadCloudflareData(domain, zoneId);
+    loadTrafficAnalytics(domain, zoneId);
   }
 }
 

@@ -113,11 +113,11 @@
     /* ---- TOPBAR ---- */
     .topbar {
       background: var(--surface); border-bottom: 1px solid var(--border);
-      padding: 0 28px; height: 60px;
+      padding: 0 28px;
       padding-top: env(safe-area-inset-top, 0px);
       height: calc(60px + env(safe-area-inset-top, 0px));
       display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 40;
+      position: fixed; top: 0; left: 240px; right: 0; z-index: 40;
     }
     .topbar-left { display: flex; align-items: center; gap: 12px; }
     .topbar-title { font-size: 16px; font-weight: 700; }
@@ -134,7 +134,7 @@
     .topbar-btn.primary:hover { background: var(--accent-hover); }
 
     /* ---- CONTENT ---- */
-    .content { padding: 24px 28px; flex: 1; }
+    .content { padding: 24px 28px; padding-top: calc(60px + env(safe-area-inset-top, 0px) + 24px); flex: 1; }
     .panel { display: none; }
     .panel.active { display: block; animation: slideUp 0.3s ease; }
 
@@ -397,10 +397,11 @@
       }
       .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .grid-2, .grid-3-1, .grid-3-col { grid-template-columns: 1fr; }
-      .content { padding: 16px 14px; }
+      .content { padding: 16px 14px; padding-top: calc(52px + env(safe-area-inset-top, 0px) + 16px); }
 
-      /* Topbar — restore safe-area so logo clears Dynamic Island */
+      /* Topbar — fixed on mobile, full width */
       .topbar {
+        left: 0;
         padding: env(safe-area-inset-top, 0px) 14px 0;
         height: calc(52px + env(safe-area-inset-top, 0px));
         flex-wrap: nowrap; overflow: hidden;
@@ -497,6 +498,25 @@
     }
     .more-menu-item:active { background: var(--border); }
     .more-menu-item span:first-child { font-size: 24px; }
+
+    /* ---- TRAFFIC ANALYTICS PANEL ---- */
+    .tr-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .tr-sum-card { background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:16px 18px; }
+    .tr-sum-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+    .tr-sum-val { font-size:26px; font-weight:800; font-family:'Bricolage Grotesque',sans-serif; line-height:1.1; }
+    .tr-sum-pct { font-size:11px; color:var(--muted-light); margin-top:4px; }
+    .tr-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
+    .tr-stat-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+    .tr-stat-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+    .tr-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:12px; }
+    .tr-bar-label { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+    .tr-bar-val { color:var(--muted); min-width:28px; text-align:right; }
+    .tr-bar-track { width:60px; height:5px; background:var(--border); border-radius:3px; flex-shrink:0; }
+    .tr-bar-fill { height:5px; border-radius:3px; background:var(--accent); min-width:2px; }
+    @media(max-width:768px){
+      .tr-summary { grid-template-columns:repeat(2,1fr); }
+      .tr-stats-grid { grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
@@ -517,6 +537,9 @@
       </a>
       <a class="sidebar-item" onclick="showPanel('threats', this)">
         <span class="sidebar-item-icon">🚨</span> Threats
+      </a>
+      <a class="sidebar-item" onclick="showPanel('traffic', this)">
+        <span class="sidebar-item-icon">📈</span> Traffic Analytics
       </a>
       <a class="sidebar-item" onclick="showPanel('reports', this)" data-requires="pro">
         <span class="sidebar-item-icon">📄</span> Reports
@@ -592,33 +615,33 @@
   </div>
 </nav>
 
+<!-- TOPBAR (outside .main so position:fixed is always viewport-relative) -->
+<div class="topbar">
+  <div class="topbar-left">
+    <a href="dashboard.html" class="topbar-logo-link" style="display:none;align-items:center;gap:7px;text-decoration:none;flex-shrink:0">
+      <div style="width:34px;height:34px;border-radius:9px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:18px">🛡</div>
+      <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:-0.3px">ProCyberWall</span>
+    </a>
+    <span class="topbar-title" id="topbar-title">Dashboard</span>
+    <span class="badge badge-green" id="protection-status">
+      <span class="live-dot"></span> Protected
+    </span>
+  </div>
+  <div class="topbar-right">
+    <span class="badge badge-blue" id="plan-badge">Pro Plan</span>
+    <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme" style="padding:7px 10px;font-size:16px;border:none">
+      <span class="theme-toggle-icon">🌙</span>
+    </button>
+    <a href="https://wa.me/919844482193" target="_blank" class="topbar-btn">💬 WhatsApp Us</a>
+    <button class="topbar-btn primary">↓ Download Report</button>
+  </div>
+</div>
+
 <!-- MAIN CONTENT -->
 <div class="main" id="main-scroll">
 
   <!-- PULL-TO-REFRESH INDICATOR (mobile only) -->
   <div class="ptr-indicator" id="ptr-indicator">🔄</div>
-
-  <!-- TOPBAR -->
-  <div class="topbar">
-    <div class="topbar-left">
-      <a href="dashboard.html" class="topbar-logo-link" style="display:none;align-items:center;gap:7px;text-decoration:none;flex-shrink:0">
-        <div style="width:34px;height:34px;border-radius:9px;background:#1a47e8;display:flex;align-items:center;justify-content:center;font-size:18px">🛡</div>
-        <span style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:-0.3px">ProCyberWall</span>
-      </a>
-      <span class="topbar-title" id="topbar-title">Dashboard</span>
-      <span class="badge badge-green" id="protection-status">
-        <span class="live-dot"></span> Protected
-      </span>
-    </div>
-    <div class="topbar-right">
-      <span class="badge badge-blue" id="plan-badge">Pro Plan</span>
-      <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme" style="padding:7px 10px;font-size:16px;border:none">
-        <span class="theme-toggle-icon">🌙</span>
-      </button>
-      <a href="https://wa.me/919844482193" target="_blank" class="topbar-btn">💬 WhatsApp Us</a>
-      <button class="topbar-btn primary">↓ Download Report</button>
-    </div>
-  </div>
 
   <!-- PANELS -->
   <div class="content">
@@ -735,6 +758,72 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== TRAFFIC ANALYTICS ===== -->
+    <div class="panel" id="panel-traffic">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:18px;font-weight:800">Traffic Analytics</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Last 24 hours · Cloudflare data</div>
+        </div>
+        <button onclick="refreshTrafficPanel()" class="btn btn-ghost" style="font-size:12px;padding:7px 16px">↻ Refresh</button>
+      </div>
+      <div id="tr-error-banner" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px"></div>
+
+      <!-- Summary cards -->
+      <div class="tr-summary">
+        <div class="tr-sum-card">
+          <div class="tr-sum-label">Total Requests</div>
+          <div class="tr-sum-val" id="tr-total">—</div>
+        </div>
+        <div class="tr-sum-card" style="border-color:rgba(239,68,68,0.35)">
+          <div class="tr-sum-label" style="color:#ef4444">Mitigated by Cloudflare</div>
+          <div class="tr-sum-val" id="tr-mitigated" style="color:#ef4444">—</div>
+          <div class="tr-sum-pct" id="tr-mitigated-pct"></div>
+        </div>
+        <div class="tr-sum-card" style="border-color:rgba(26,71,232,0.3)">
+          <div class="tr-sum-label" style="color:var(--accent)">Served by Cloudflare</div>
+          <div class="tr-sum-val" id="tr-cached" style="color:var(--accent)">—</div>
+          <div class="tr-sum-pct" id="tr-cached-pct"></div>
+        </div>
+        <div class="tr-sum-card" style="border-color:rgba(34,197,94,0.3)">
+          <div class="tr-sum-label" style="color:#22c55e">Served by Origin</div>
+          <div class="tr-sum-val" id="tr-origin" style="color:#22c55e">—</div>
+          <div class="tr-sum-pct" id="tr-origin-pct"></div>
+        </div>
+      </div>
+
+      <!-- 24h line chart -->
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-header" style="flex-wrap:wrap;gap:8px">
+          <span class="card-title">24h Traffic Overview</span>
+          <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
+            <span><span style="display:inline-block;width:10px;height:3px;background:#6b8fff;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Requests</span>
+            <span><span style="display:inline-block;width:10px;height:3px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Mitigated</span>
+            <span><span style="display:inline-block;width:10px;height:3px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Cached</span>
+          </div>
+        </div>
+        <div style="padding:0 18px 16px;height:200px;position:relative">
+          <canvas id="chart-traffic-24h"></canvas>
+        </div>
+      </div>
+
+      <!-- Top stats grid -->
+      <div class="tr-stats-grid">
+        <div class="tr-stat-card"><div class="tr-stat-title">Countries</div><div id="tr-countries"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Device Types</div><div id="tr-devices"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">HTTP Methods</div><div id="tr-methods"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Cache Status</div><div id="tr-cache"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">HTTP Versions</div><div id="tr-protocols"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Security Actions</div><div id="tr-fw-actions"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+      </div>
+
+      <!-- Top blocked IPs -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><span class="card-title">Top Source IPs (Blocked)</span></div>
+        <div style="padding:8px 18px 12px" id="tr-top-ips"><div style="color:var(--muted);font-size:12px;padding:8px 0">Loading…</div></div>
       </div>
     </div>
 
@@ -1374,6 +1463,9 @@
   <div class="more-menu-handle"></div>
   <div class="more-menu-title">More</div>
   <div class="more-menu-grid">
+    <button class="more-menu-item" onclick="moreNav('traffic')">
+      <span>📈</span><span>Traffic<br>Analytics</span>
+    </button>
     <button class="more-menu-item" onclick="moreNav('security-score')">
       <span>🎯</span><span>Security<br>Score</span>
     </button>
@@ -1779,6 +1871,8 @@
         },
       },
     });
+
+    // _trafficChart is initialised lazily in cloudflare.js when the traffic panel first opens
   });
 </script>
 

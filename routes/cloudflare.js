@@ -1,7 +1,7 @@
 const https = require('https');
 const { requireAuth, requireAdminAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
-const { cfGet, cfGetZoneId, CF_EMAIL, CF_API_KEY } = require('../lib/cloudflare');
+const { cfGet, cfGetZoneId, cfGraphQL, CF_EMAIL, CF_API_KEY } = require('../lib/cloudflare');
 const { sendTwilioMessage } = require('../lib/twilio');
 const { probeDomain } = require('../lib/scanner');
 const { createAlert } = require('../lib/alerts');
@@ -519,6 +519,121 @@ async function handle(req, res, parsedUrl) {
     } catch (err) {
       res.writeHead(500, {'Content-Type':'application/json'});
       res.end(JSON.stringify({error: err.message}));
+    }
+    return true;
+  }
+
+  // ── CLOUDFLARE TRAFFIC ANALYTICS (GraphQL) ────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/cf/traffic')) {
+    const authUser = await requireAuth(req);
+    if (!authUser) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    const _u = new URL('http://x' + req.url);
+    const domain = (_u.searchParams.get('domain') || '')
+      .trim().toLowerCase()
+      .replace(/^https?:\/\//i, '').replace(/^www\./i, '')
+      .replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+    let zoneId = _u.searchParams.get('zone_id') || null;
+    if (!domain) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'domain required' }));
+      return true;
+    }
+    try {
+      if (!zoneId) zoneId = await cfGetZoneId(domain);
+      if (!zoneId) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'zone not found' }));
+        return true;
+      }
+
+      const now   = new Date();
+      const since = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const until = now.toISOString();
+
+      const GQL = `
+        query($zoneTag:String!,$since:String!,$until:String!){
+          viewer{
+            zones(filter:{zoneTag:$zoneTag}){
+              totals:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:1
+              ){sum{requests cachedRequests threats bytes}}
+              ts:httpRequestsAdaptiveGroups(
+                filter:{datetimeHour_geq:$since,datetimeHour_leq:$until}
+                limit:48 orderBy:[datetimeHour_ASC]
+              ){sum{requests threats cachedRequests} dimensions{datetimeHour}}
+              byCountry:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:8 orderBy:[sum_requests_DESC]
+              ){sum{requests} dimensions{clientCountryName}}
+              byDevice:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5 orderBy:[sum_requests_DESC]
+              ){sum{requests} dimensions{clientDeviceType}}
+              byMethod:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5 orderBy:[sum_requests_DESC]
+              ){sum{requests} dimensions{clientRequestHTTPMethodName}}
+              byCache:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5 orderBy:[sum_requests_DESC]
+              ){sum{requests} dimensions{cacheStatus}}
+              fwActions:firewallEventsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5 orderBy:[count_DESC]
+              ){count dimensions{action}}
+              fwIPs:firewallEventsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:6 orderBy:[count_DESC]
+              ){count dimensions{clientIP}}
+            }
+          }
+        }`;
+
+      const gqlRes = await cfGraphQL(GQL, { zoneTag: zoneId, since, until });
+      const zData  = gqlRes?.data?.viewer?.zones?.[0];
+
+      if (!zData) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: gqlRes?.errors?.[0]?.message || 'GraphQL error' }));
+        return true;
+      }
+
+      const tot   = zData.totals?.[0]?.sum || {};
+      const total = tot.requests || 0;
+      const mitigated    = tot.threats       || 0;
+      const servedByCF   = tot.cachedRequests || 0;
+      const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
+
+      const timeseries = (zData.ts || []).map(g => ({
+        hour:     g.dimensions?.datetimeHour,
+        requests: g.sum?.requests        || 0,
+        threats:  g.sum?.threats         || 0,
+        cached:   g.sum?.cachedRequests  || 0,
+      }));
+
+      const mapList = (arr, dimKey, valKey = 'requests') =>
+        (arr || []).map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.sum?.[valKey] || g.count || 0 }));
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        summary:    { total, mitigated, servedByCF, servedByOrigin },
+        timeseries,
+        countries:  mapList(zData.byCountry, 'clientCountryName'),
+        devices:    mapList(zData.byDevice,  'clientDeviceType'),
+        methods:    mapList(zData.byMethod,  'clientRequestHTTPMethodName'),
+        cacheStatus:mapList(zData.byCache,   'cacheStatus'),
+        protocols:  [],
+        fwActions:  (zData.fwActions || []).map(g => ({ label: g.dimensions?.action   || 'Unknown', value: g.count || 0 })),
+        topIPs:     (zData.fwIPs     || []).map(g => ({ label: g.dimensions?.clientIP || 'Unknown', value: g.count || 0 })),
+      }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
     }
     return true;
   }

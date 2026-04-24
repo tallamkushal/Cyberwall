@@ -276,6 +276,131 @@ function updateHealthPanel(ssl, email) {
   if (statusEl) statusEl.style.color = statusColor;
 }
 
+// ── TRAFFIC ANALYTICS (GraphQL) ───────────────────────────────────────────
+let _lastTrafficDomain = null, _lastTrafficZone = null, _trafficLoaded = false;
+
+function initAndLoadTraffic() {
+  // Lazy-init the Chart.js instance now that the canvas is visible
+  if (!window._trafficChart) {
+    const canvas = document.getElementById('chart-traffic-24h');
+    if (canvas) {
+      window._trafficChart = new Chart(canvas, {
+        type: 'line',
+        data: { labels: [], datasets: [
+          { label: 'Requests', data: [], borderColor: '#6b8fff', backgroundColor: 'rgba(107,143,255,0.08)', tension: 0.4, borderWidth: 2, pointRadius: 0, fill: true },
+          { label: 'Mitigated', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.06)', tension: 0.4, borderWidth: 2, pointRadius: 0, fill: true },
+          { label: 'Cached',   data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.06)',  tension: 0.4, borderWidth: 2, pointRadius: 0, fill: true },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#888', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } },
+            y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' }, beginAtZero: true },
+          },
+        },
+      });
+    }
+  }
+  if (_lastTrafficDomain) loadTrafficAnalytics(_lastTrafficDomain, _lastTrafficZone);
+}
+
+async function loadTrafficAnalytics(domain, zoneId) {
+  _lastTrafficDomain = domain;
+  _lastTrafficZone   = zoneId;
+  setTrafficState('loading');
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const headers = {};
+    if (session?.access_token) headers['Authorization'] = 'Bearer ' + session.access_token;
+    let url = `/api/cf/traffic?domain=${encodeURIComponent(domain)}`;
+    if (zoneId) url += `&zone_id=${encodeURIComponent(zoneId)}`;
+    const res  = await fetch(url, { headers });
+    const data = await res.json();
+    if (data.error) { setTrafficState('error', data.error); return; }
+    renderTrafficAnalytics(data);
+    setTrafficState('done');
+  } catch (err) {
+    setTrafficState('error', err.message);
+  }
+}
+
+function renderTrafficAnalytics(d) {
+  const s     = d.summary || {};
+  const total = s.total   || 0;
+
+  safeSet('tr-total',     total.toLocaleString());
+  safeSet('tr-mitigated', (s.mitigated    || 0).toLocaleString());
+  safeSet('tr-cached',    (s.servedByCF   || 0).toLocaleString());
+  safeSet('tr-origin',    (s.servedByOrigin || 0).toLocaleString());
+
+  const pct = v => total > 0 ? Math.round(v / total * 100) + '% of total' : '';
+  safeSet('tr-mitigated-pct', pct(s.mitigated    || 0));
+  safeSet('tr-cached-pct',    pct(s.servedByCF   || 0));
+  safeSet('tr-origin-pct',    pct(s.servedByOrigin || 0));
+
+  if (window._trafficChart && d.timeseries?.length) {
+    const fmt = h => new Date(h).getHours().toString().padStart(2, '0') + ':00';
+    window._trafficChart.data.labels             = d.timeseries.map(t => fmt(t.hour));
+    window._trafficChart.data.datasets[0].data  = d.timeseries.map(t => t.requests);
+    window._trafficChart.data.datasets[1].data  = d.timeseries.map(t => t.threats);
+    window._trafficChart.data.datasets[2].data  = d.timeseries.map(t => t.cached);
+    window._trafficChart.update();
+  }
+
+  renderBarList('tr-countries',  d.countries);
+  renderBarList('tr-devices',    d.devices);
+  renderBarList('tr-methods',    d.methods);
+  renderBarList('tr-cache',      d.cacheStatus);
+  renderBarList('tr-protocols',  d.protocols);
+  renderBarList('tr-fw-actions', d.fwActions);
+
+  const ipEl = document.getElementById('tr-top-ips');
+  if (ipEl) {
+    const ips = d.topIPs || [];
+    if (!ips.length) { ipEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">No blocked IPs in the last 24 h</div>'; return; }
+    const maxV = ips[0]?.value || 1;
+    ipEl.innerHTML = ips.map(item => `
+      <div class="tr-bar-row" style="padding:2px 0">
+        <span class="tr-bar-label" style="font-family:monospace;font-size:12px">${escapeHtml(maskIP(item.label))}</span>
+        <span class="tr-bar-val">${item.value}</span>
+        <div class="tr-bar-track"><div class="tr-bar-fill" style="width:${Math.round(item.value / maxV * 100)}%;background:#ef4444"></div></div>
+      </div>`).join('');
+  }
+}
+
+function renderBarList(containerId, items) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!items?.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12px">No data</div>'; return; }
+  const maxV = Math.max(items[0]?.value || 1, 1);
+  el.innerHTML = items.map(item => `
+    <div class="tr-bar-row">
+      <span class="tr-bar-label">${escapeHtml(String(item.label || '—'))}</span>
+      <span class="tr-bar-val">${item.value}</span>
+      <div class="tr-bar-track"><div class="tr-bar-fill" style="width:${Math.round(item.value / maxV * 100)}%"></div></div>
+    </div>`).join('');
+}
+
+function setTrafficState(state, msg) {
+  const statIds = ['tr-countries','tr-devices','tr-methods','tr-cache','tr-protocols','tr-fw-actions','tr-top-ips'];
+  const errBanner = document.getElementById('tr-error-banner');
+  if (state === 'loading') {
+    statIds.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<div style="color:var(--muted);font-size:12px">Loading…</div>'; });
+    if (errBanner) errBanner.style.display = 'none';
+  } else if (state === 'error') {
+    statIds.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<div style="color:var(--muted);font-size:12px">—</div>'; });
+    if (errBanner) { errBanner.textContent = '⚠ ' + (msg || 'Failed to load data'); errBanner.style.display = ''; }
+  } else {
+    if (errBanner) errBanner.style.display = 'none';
+  }
+}
+
+function refreshTrafficPanel() {
+  if (_lastTrafficDomain) loadTrafficAnalytics(_lastTrafficDomain, _lastTrafficZone);
+}
+
 function sslDaysLeft(expiresStr) {
   if (!expiresStr || expiresStr === '—') return null;
   // Strip "(X days)" suffix if present before parsing
