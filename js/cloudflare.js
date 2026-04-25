@@ -317,6 +317,11 @@ async function loadTrafficAnalytics(domain, zoneId) {
     let url = `/api/cf/traffic?domain=${encodeURIComponent(domain)}`;
     if (zoneId) url += `&zone_id=${encodeURIComponent(zoneId)}`;
     const res  = await fetch(url, { headers });
+    if (res.status === 401) {
+      await supabaseClient.auth.signOut();
+      window.location.replace('auth.html');
+      return;
+    }
     const data = await res.json();
     if (data.error) { setTrafficState('error', data.error); return; }
     renderTrafficAnalytics(data);
