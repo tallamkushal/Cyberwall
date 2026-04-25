@@ -564,19 +564,19 @@ async function handle(req, res, parsedUrl) {
               ){sum{requests threats cachedRequests bytes} dimensions{datetime}}
               byCountry:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:8 orderBy:[sum_requests_DESC]
+                limit:8
               ){sum{requests} dimensions{clientCountryName}}
               byDevice:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5 orderBy:[sum_requests_DESC]
+                limit:5
               ){sum{requests} dimensions{clientDeviceType}}
               byMethod:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5 orderBy:[sum_requests_DESC]
+                limit:5
               ){sum{requests} dimensions{clientRequestHTTPMethodName}}
               byCache:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5 orderBy:[sum_requests_DESC]
+                limit:5
               ){sum{requests} dimensions{cacheStatus}}
               fwActions:firewallEventsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
@@ -618,7 +618,9 @@ async function handle(req, res, parsedUrl) {
       const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
 
       const mapList = (arr, dimKey, valKey = 'requests') =>
-        (arr || []).map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.sum?.[valKey] || g.count || 0 }));
+        (arr || [])
+          .map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.sum?.[valKey] || g.count || 0 }))
+          .sort((a, b) => b.value - a.value);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
