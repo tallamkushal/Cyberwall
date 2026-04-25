@@ -259,6 +259,22 @@ async function handle(req, res, parsedUrl) {
         .then(r => r?.errors?.[0]?.extensions?.code === 'quota' ? _statsGql(since3d) : r)
         .catch(() => null);
 
+      // Firewall events — 5s max so it never hangs the overview
+      const fwGqlPromise = Promise.race([
+        cfGraphQL(`
+          query($zoneTag:String!,$since:String!,$until:String!){
+            viewer{
+              zones(filter:{zoneTag:$zoneTag}){
+                byAction:firewallEventsAdaptiveGroups(
+                  filter:{datetime_geq:$since,datetime_leq:$until}
+                  limit:10 orderBy:[count_DESC]
+                ){count dimensions{action clientIP clientCountryName}}
+              }
+            }
+          }`, { zoneTag: zoneId, since: sinceToday, until }),
+        new Promise(resolve => setTimeout(() => resolve(null), 5000))
+      ]).catch(() => null);
+
       const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, rulesets] = await Promise.allSettled([
         cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
         cfGet(`/zones/${zoneId}/settings/always_use_https`),
@@ -275,16 +291,17 @@ async function handle(req, res, parsedUrl) {
 
       const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
 
-      // --- Stats from GraphQL (replaces deprecated REST analytics/dashboard) ---
-      const statsGqlData = (await statsGqlPromise)?.data?.viewer?.zones?.[0]?.hours || [];
-      const threatsBlocked30d = statsGqlData.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
-      const totalRequests30d  = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
-      const todayStr   = now.toISOString().slice(0, 10);
+      // --- Stats from GraphQL ---
+      const statsGqlData  = (await statsGqlPromise)?.data?.viewer?.zones?.[0]?.hours || [];
+      const totalRequests30d = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
+
+      // "Threats Today" = last 24h to match traffic analytics window
+      const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
       const threatsToday = statsGqlData
-        .filter(h => (h.dimensions?.datetime || '').startsWith(todayStr))
+        .filter(h => (h.dimensions?.datetime || '') >= since24h)
         .reduce((s, h) => s + (h.sum?.threats || 0), 0);
 
-      // --- Chart: aggregate hourly data by day (3 or 7 days depending on plan) ---
+      // --- Chart: aggregate by day (3 or 7 days depending on plan) ---
       const dayMap = {};
       for (const h of statsGqlData) {
         const day = (h.dimensions?.datetime || '').slice(0, 10);
@@ -298,17 +315,26 @@ async function handle(req, res, parsedUrl) {
         chartData.push(dayMap[d.toISOString().slice(0,10)] || 0);
       }
 
-      // --- Firewall events ---
-      const evts = ok(events)?.result || [];
-      const attackTypeCounts = {};
-      for (const e of evts) {
-        const type = e.ruleMessage || e.action || 'Other';
-        const key = type.length > 20 ? type.slice(0,20) : type;
-        attackTypeCounts[key] = (attackTypeCounts[key] || 0) + 1;
-      }
-      const sortedTypes = Object.entries(attackTypeCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
-      const attackTypeLabels = sortedTypes.map(x=>x[0]);
-      const attackTypeData   = sortedTypes.map(x=>x[1]);
+      // "Blocked (X days)" = sum only for the chart period so number matches label
+      const chartPeriodStart = new Date(now - chartDays * 24 * 60 * 60 * 1000).toISOString();
+      const threatsBlocked30d = statsGqlData
+        .filter(h => (h.dimensions?.datetime || '') >= chartPeriodStart)
+        .reduce((s, h) => s + (h.sum?.threats || 0), 0);
+
+      // --- Firewall events: REST first, GraphQL fallback ---
+      const restEvts = ok(events)?.result || [];
+      const fwRaw    = restEvts.length === 0
+        ? (await fwGqlPromise)?.data?.viewer?.zones?.[0]?.byAction || []
+        : [];
+      const evts = restEvts.length > 0
+        ? restEvts
+        : fwRaw.map(g => ({
+            action:            g.dimensions?.action            || 'Block',
+            clientIP:          g.dimensions?.clientIP          || '—',
+            clientCountryName: g.dimensions?.clientCountryName || '—',
+          }));
+      const attackTypeLabels = [];
+      const attackTypeData   = [];
 
       // --- Zone settings ---
       const httpsEnforced = ok(httpsSet)?.result?.value === 'on';
@@ -568,7 +594,43 @@ async function handle(req, res, parsedUrl) {
       const since = new Date(now - 24 * 60 * 60 * 1000).toISOString();
       const until = now.toISOString();
 
-      const GQL = `
+      const GQL_PRO = `
+        query($zoneTag:String!,$since:String!,$until:String!){
+          viewer{
+            zones(filter:{zoneTag:$zoneTag}){
+              ts:httpRequests1hGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:48 orderBy:[datetime_ASC]
+              ){sum{requests threats cachedRequests bytes pageViews} dimensions{datetime}}
+              byCountry:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:8
+              ){count dimensions{clientCountryName}}
+              byDevice:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5
+              ){count dimensions{clientDeviceType}}
+              byMethod:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5
+              ){count dimensions{clientRequestHTTPMethodName}}
+              byCache:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5
+              ){count dimensions{cacheStatus}}
+              fwActions:firewallEventsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5 orderBy:[count_DESC]
+              ){count dimensions{action}}
+              fwIPs:firewallEventsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:6 orderBy:[count_DESC]
+              ){count dimensions{clientIP}}
+            }
+          }
+        }`;
+
+      const GQL_FREE = `
         query($zoneTag:String!,$since:String!,$until:String!){
           viewer{
             zones(filter:{zoneTag:$zoneTag}){
@@ -580,8 +642,18 @@ async function handle(req, res, parsedUrl) {
           }
         }`;
 
-      const gqlRes = await cfGraphQL(GQL, { zoneTag: zoneId, since, until });
-      const zData  = gqlRes?.data?.viewer?.zones?.[0];
+      // Try Pro query first; only fall back to free if core timeseries data is missing
+      // Partial errors (e.g. fwActions access denied) are handled gracefully via null checks
+      let gqlRes = await cfGraphQL(GQL_PRO, { zoneTag: zoneId, since, until });
+      const tsData = gqlRes?.data?.viewer?.zones?.[0]?.ts;
+      const hasCoreError = !tsData && gqlRes?.errors?.some(e =>
+        e.message?.includes('does not have access') || e.extensions?.code === 'quota'
+      );
+      if (hasCoreError) {
+        gqlRes = await cfGraphQL(GQL_FREE, { zoneTag: zoneId, since, until });
+      }
+
+      const zData = gqlRes?.data?.viewer?.zones?.[0];
 
       if (!zData) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -590,10 +662,11 @@ async function handle(req, res, parsedUrl) {
       }
 
       const timeseries = (zData.ts || []).map(g => ({
-        hour:     g.dimensions?.datetime,
-        requests: g.sum?.requests        || 0,
-        threats:  g.sum?.threats         || 0,
-        cached:   g.sum?.cachedRequests  || 0,
+        hour:      g.dimensions?.datetime,
+        requests:  g.sum?.requests       || 0,
+        threats:   g.sum?.threats        || 0,
+        cached:    g.sum?.cachedRequests || 0,
+        pageViews: g.sum?.pageViews      || 0,
       }));
 
       const tot = timeseries.reduce((acc, t) => {
@@ -605,20 +678,29 @@ async function handle(req, res, parsedUrl) {
       const total          = tot.requests;
       const mitigated      = tot.threats;
       const cleanTraffic   = Math.max(0, total - mitigated);
-      const servedByCF     = total > 0 ? Math.round((cleanTraffic / total) * 100) : 100;
+      const servedByCF     = total > 0 ? Math.round((mitigated / total) * 100) : 0;
       const servedByOrigin = cleanTraffic;
+
+      const mapList = (arr, dimKey) =>
+        (arr || [])
+          .map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.count || 0 }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 8);
+
+      const pageViews      = timeseries.reduce((s, t) => s + (t.pageViews || 0), 0);
+      const uniqueVisitors = pageViews > 0 ? pageViews : null;
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
-        summary:    { total, mitigated, servedByCF, servedByOrigin },
+        summary:    { total, mitigated, servedByCF, servedByOrigin, uniqueVisitors, pageViews },
         timeseries,
-        countries:  [],
-        devices:    [],
-        methods:    [],
-        cacheStatus:[],
+        countries:  mapList(zData.byCountry,  'clientCountryName'),
+        devices:    mapList(zData.byDevice,   'clientDeviceType'),
+        methods:    mapList(zData.byMethod,   'clientRequestHTTPMethodName'),
+        cacheStatus:mapList(zData.byCache,    'cacheStatus'),
         protocols:  [],
-        fwActions:  [],
-        topIPs:     [],
+        fwActions:  mapList(zData.fwActions,  'action'),
+        topIPs:     mapList(zData.fwIPs,      'clientIP'),
       }));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });

@@ -659,7 +659,7 @@
             <span class="badge" id="stat-trend-badge" style="display:none"></span>
           </div>
           <div class="stat-value" id="stat-blocked">—</div>
-          <div class="stat-label">Attacks Blocked <span id="stat-blocked-period">(30 days)</span></div>
+          <div class="stat-label">Threats Blocked <span id="stat-blocked-period">(30 days)</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top">
@@ -691,7 +691,7 @@
       <div class="grid-3-col">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Attacks Blocked — <span id="chart-period-label">Last 7 Days</span></span>
+            <span class="card-title">Threats Blocked — <span id="chart-period-label">Last 7 Days</span></span>
             <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
           </div>
           <div class="card-body">
@@ -704,10 +704,30 @@
         </div>
 
         <div class="card">
-          <div class="card-header"><span class="card-title">Attack Types</span></div>
-          <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
-            <div style="width:min(220px,100%);height:220px;position:relative">
-              <canvas id="chart-attack-types"></canvas>
+          <div class="card-header"><span class="card-title">Traffic Split (Last 24h)</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:16px;justify-content:center;min-height:180px">
+            <div id="traffic-split-empty" style="display:none;color:var(--muted);font-size:13px;text-align:center">No traffic data yet</div>
+            <div id="traffic-split-data">
+              <div style="margin-bottom:16px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:12px;font-weight:600;color:#22c55e">Clean Traffic</span>
+                  <span id="split-clean-pct" style="font-size:12px;color:#22c55e;font-weight:700">—</span>
+                </div>
+                <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">
+                  <div id="split-clean-bar" style="height:100%;background:#22c55e;border-radius:99px;width:0%;transition:width .6s"></div>
+                </div>
+                <div id="split-clean-count" style="font-size:11px;color:var(--muted);margin-top:4px">— requests reached your server</div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:12px;font-weight:600;color:#ef4444">Threats Blocked</span>
+                  <span id="split-blocked-pct" style="font-size:12px;color:#ef4444;font-weight:700">—</span>
+                </div>
+                <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">
+                  <div id="split-blocked-bar" style="height:100%;background:#ef4444;border-radius:99px;width:0%;transition:width .6s"></div>
+                </div>
+                <div id="split-blocked-count" style="font-size:11px;color:var(--muted);margin-top:4px">— threats stopped by ProCyberWall</div>
+              </div>
             </div>
           </div>
         </div>
@@ -767,7 +787,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
           <div style="font-size:18px;font-weight:800">Traffic Analytics</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:2px">Last 24 hours · Cloudflare data</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Last 24 hours · HTTP requests, not unique visitors · Cloudflare data</div>
         </div>
         <button onclick="refreshTrafficPanel()" class="btn btn-ghost" style="font-size:12px;padding:7px 16px">↻ Refresh</button>
       </div>
@@ -776,27 +796,27 @@
       <!-- Summary cards -->
       <div class="tr-summary">
         <div class="tr-sum-card">
-          <div class="tr-sum-label">Total Visitors</div>
+          <div class="tr-sum-label">Total Requests</div>
           <div class="tr-sum-val" id="tr-total">—</div>
-          <div class="tr-sum-desc">Everyone who knocked on your site's door</div>
+          <div class="tr-sum-desc">Total hits your site received including bots, browsers and API calls</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(239,68,68,0.35)">
-          <div class="tr-sum-label" style="color:#ef4444">Blocked by ProCyberWall</div>
+          <div class="tr-sum-label" style="color:#ef4444">Threats Blocked</div>
           <div class="tr-sum-val" id="tr-mitigated" style="color:#ef4444">—</div>
           <div class="tr-sum-pct" id="tr-mitigated-pct"></div>
           <div class="tr-sum-desc">Stopped before reaching your site</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(26,71,232,0.3)">
-          <div class="tr-sum-label" style="color:var(--accent)">Protection Rate</div>
+          <div class="tr-sum-label" style="color:var(--accent)">Threats Blocked Rate</div>
           <div class="tr-sum-val" id="tr-cached" style="color:var(--accent)">—</div>
           <div class="tr-sum-pct" id="tr-cached-pct"></div>
-          <div class="tr-sum-desc">Of your traffic was clean and legitimate</div>
+          <div class="tr-sum-desc">Of all traffic was identified and blocked</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(34,197,94,0.3)">
           <div class="tr-sum-label" style="color:#22c55e">Reached Your Server</div>
           <div class="tr-sum-val" id="tr-origin" style="color:#22c55e">—</div>
           <div class="tr-sum-pct" id="tr-origin-pct"></div>
-          <div class="tr-sum-desc">Legitimate traffic that got through</div>
+          <div class="tr-sum-desc">Clean requests that passed ProCyberWall's check</div>
         </div>
       </div>
 
@@ -1816,33 +1836,12 @@
 
 <script>
   window.addEventListener('DOMContentLoaded', function () {
-    window._attackTypesChart = new Chart(document.getElementById('chart-attack-types'), {
-      type: 'pie',
-      data: {
-        labels: [],
-        datasets: [{
-          data: [],
-          backgroundColor: ['#ef4444','#f97316','#eab308','#4f5eff','#8b5cf6','#6b7280'],
-          borderWidth: 2,
-          borderColor: 'var(--surface)',
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#888', boxWidth: 12, padding: 10 } },
-          tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + '%' } },
-        },
-      },
-    });
-
     window._attacksChart = new Chart(document.getElementById('chart-attacks-7d'), {
       type: 'bar',
       data: {
         labels: [],
         datasets: [{
-          label: 'Attacks Blocked',
+          label: 'Threats Blocked',
           data: [],
           backgroundColor: [
             'rgba(79,94,255,0.5)',

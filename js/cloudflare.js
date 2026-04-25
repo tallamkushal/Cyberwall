@@ -74,12 +74,12 @@ async function loadCloudflareData(domain, zoneId) {
     const threatsMonth = s.threatsThisMonth;
     safeSet('threats-today', threatsToday.toLocaleString('en-IN'));
     safeSet('threats-today-desc', threatsToday > 0
-      ? `${threatsToday.toLocaleString()} attempts to break into your site today. All blocked automatically.`
-      : 'No attacks on your site today. You\'re good.');
+      ? `${threatsToday.toLocaleString()} suspicious requests from known bad IPs and bots, stopped before reaching your site.`
+      : 'No threats detected today. Your site is clean.');
     safeSet('threats-month', threatsMonth.toLocaleString('en-IN'));
     safeSet('threats-month-desc', threatsMonth > 0
       ? `${threatsMonth.toLocaleString()} hacker attempts blocked in the last ${statPeriod} days. Your site stayed online without any interruptions.`
-      : `No attacks detected in the last ${statPeriod} days. Your site is clean.`);
+      : `No threats detected in the last ${statPeriod} days. Your site is clean.`);
     safeSet('threats-period', `${statPeriod} days`);
     const uniqueCountries = new Set((data.threats || []).map(t => t.clientCountryName || t.country).filter(Boolean)).size;
     safeSet('threats-countries', uniqueCountries > 0 ? uniqueCountries : '—');
@@ -100,14 +100,7 @@ async function loadCloudflareData(domain, zoneId) {
       // Update peak label
       const peakVal = Math.max(...data.chart7d.data);
       const peakDay = data.chart7d.labels[data.chart7d.data.indexOf(peakVal)];
-      safeSet('chart-peak-label', peakVal > 0 ? `Peak: ${peakDay} · ${peakVal.toLocaleString('en-IN')} attacks` : 'No attacks in the last 7 days');
-    }
-
-    // ── Attack types pie chart ────────────────────────────────────────────────
-    if (data.attackTypes?.labels?.length && window._attackTypesChart) {
-      window._attackTypesChart.data.labels = data.attackTypes.labels;
-      window._attackTypesChart.data.datasets[0].data = data.attackTypes.data;
-      window._attackTypesChart.update();
+      safeSet('chart-peak-label', peakVal > 0 ? `Peak: ${peakDay} · ${peakVal.toLocaleString('en-IN')} threats blocked` : 'No threats in the last 7 days');
     }
 
     // ── Threats tables (overview + full log) ──────────────────────────────────
@@ -115,7 +108,10 @@ async function loadCloudflareData(domain, zoneId) {
       renderRealThreats(data.threats, 'threats-tbody');
       renderRealThreats(data.threats, 'threats-full-tbody');
     } else {
-      const noDataMsg = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No suspicious activity detected in this period. Your site is clean.</td></tr>';
+      const blockedToday = s?.threatsToday || 0;
+      const noDataMsg = blockedToday > 0
+        ? `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;line-height:1.6">${blockedToday.toLocaleString()} threats were blocked today by Cloudflare's IP reputation system.<br><span style="font-size:12px">These are automatic blocks — no individual event logs are generated. Detailed logs require active WAF rules.</span></td></tr>`
+        : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No threats detected in this period. Your site is clean.</td></tr>';
       const tbody1 = document.getElementById('threats-tbody');
       const tbody2 = document.getElementById('threats-full-tbody');
       if (tbody1) tbody1.innerHTML = noDataMsg;
@@ -364,6 +360,29 @@ function renderTrafficAnalytics(d) {
   safeSet('tr-mitigated-pct', pct(s.mitigated     || 0));
   safeSet('tr-cached-pct',    '');
   safeSet('tr-origin-pct',    pct(s.servedByOrigin || 0));
+
+  // ── Traffic split card (in overview panel) ────────────────────────────────
+  const splitEmpty = document.getElementById('traffic-split-empty');
+  const splitData  = document.getElementById('traffic-split-data');
+  if (!total) {
+    if (splitEmpty) splitEmpty.style.display = '';
+    if (splitData)  splitData.style.display  = 'none';
+  } else {
+    if (splitEmpty) splitEmpty.style.display = 'none';
+    if (splitData)  splitData.style.display  = '';
+    const cleanCount  = s.servedByOrigin || 0;
+    const blockCount  = s.mitigated      || 0;
+    const cleanPct    = total > 0 ? Math.round(cleanCount  / total * 100) : 0;
+    const blockPct    = total > 0 ? Math.round(blockCount  / total * 100) : 0;
+    safeSet('split-clean-pct',     cleanPct  + '%');
+    safeSet('split-blocked-pct',   blockPct  + '%');
+    safeSet('split-clean-count',   cleanCount.toLocaleString()  + ' requests reached your server');
+    safeSet('split-blocked-count', blockCount.toLocaleString()  + ' threats stopped by ProCyberWall');
+    const cleanBar   = document.getElementById('split-clean-bar');
+    const blockedBar = document.getElementById('split-blocked-bar');
+    if (cleanBar)   cleanBar.style.width   = cleanPct  + '%';
+    if (blockedBar) blockedBar.style.width = blockPct  + '%';
+  }
 
   if (window._trafficChart && d.timeseries?.length) {
     const fmt = h => new Date(h).getHours().toString().padStart(2, '0') + ':00';
