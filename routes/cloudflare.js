@@ -219,8 +219,8 @@ async function handle(req, res, parsedUrl) {
       if (!zoneId) { res.writeHead(404, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain not found in Cloudflare'})); return true; }
 
       const now = new Date();
-      const since30d = new Date(now - 30*24*60*60*1000).toISOString();
-      const since7d  = new Date(now - 7*24*60*60*1000).toISOString();
+      const since30d   = new Date(now - 30*24*60*60*1000).toISOString();
+      const since3d    = new Date(now -  3*24*60*60*1000).toISOString();
       const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const until = now.toISOString();
 
@@ -242,10 +242,24 @@ async function handle(req, res, parsedUrl) {
         r.end();
       });
 
-      const [a30, a7, aToday, events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, rulesets] = await Promise.allSettled([
-        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since30d}&until=${until}&continuous=true`),
-        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${since7d}&until=${until}&continuous=true`),
-        cfGet(`/zones/${zoneId}/analytics/dashboard?since=${sinceToday}&until=${until}&continuous=true`),
+      const _statsGql = (since) => cfGraphQL(`
+        query($zoneTag:String!,$since:String!,$until:String!){
+          viewer{
+            zones(filter:{zoneTag:$zoneTag}){
+              hours:httpRequests1hGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:720 orderBy:[datetime_ASC]
+              ){sum{requests threats} dimensions{datetime}}
+            }
+          }
+        }`, { zoneTag: zoneId, since, until });
+
+      // Try 30 days first; free-plan zones are capped at 3 days — fall back automatically
+      const statsGqlPromise = _statsGql(since30d)
+        .then(r => r?.errors?.[0]?.extensions?.code === 'quota' ? _statsGql(since3d) : r)
+        .catch(() => null);
+
+      const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, rulesets] = await Promise.allSettled([
         cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
         cfGet(`/zones/${zoneId}/settings/always_use_https`),
         cfGet(`/zones/${zoneId}/settings/ssl`),
@@ -261,24 +275,24 @@ async function handle(req, res, parsedUrl) {
 
       const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
 
-      // --- 30-day stats ---
-      const t30 = ok(a30);
-      const threatsBlocked30d = t30?.result?.totals?.requests?.threat || 0;
-      const totalRequests30d  = t30?.result?.totals?.requests?.all    || 0;
+      // --- Stats from GraphQL (replaces deprecated REST analytics/dashboard) ---
+      const statsGqlData = (await statsGqlPromise)?.data?.viewer?.zones?.[0]?.hours || [];
+      const threatsBlocked30d = statsGqlData.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
+      const totalRequests30d  = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
+      const todayStr   = now.toISOString().slice(0, 10);
+      const threatsToday = statsGqlData
+        .filter(h => (h.dimensions?.datetime || '').startsWith(todayStr))
+        .reduce((s, h) => s + (h.sum?.threats || 0), 0);
 
-      // --- Today stats ---
-      const tToday = ok(aToday);
-      const threatsToday = tToday?.result?.totals?.requests?.threat || 0;
-
-      // --- 7-day chart ---
-      const t7 = ok(a7);
+      // --- Chart: aggregate hourly data by day (3 or 7 days depending on plan) ---
       const dayMap = {};
-      for (const point of (t7?.result?.timeseries || [])) {
-        const day = point.since.slice(0, 10);
-        dayMap[day] = (dayMap[day] || 0) + (point.requests?.threat || 0);
+      for (const h of statsGqlData) {
+        const day = (h.dimensions?.datetime || '').slice(0, 10);
+        if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
       }
+      const chartDays = Object.keys(dayMap).length <= 3 ? 3 : 7;
       const chartLabels = [], chartData = [];
-      for (let i = 6; i >= 0; i--) {
+      for (let i = chartDays - 1; i >= 0; i--) {
         const d = new Date(now - i*24*60*60*1000);
         chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', {weekday:'short'}));
         chartData.push(dayMap[d.toISOString().slice(0,10)] || 0);
@@ -406,7 +420,7 @@ async function handle(req, res, parsedUrl) {
           uptime:     uptimePercent,
           responseMs: responseMs,
         },
-        chart7d:     { labels: chartLabels, data: chartData },
+        chart7d:     { labels: chartLabels, data: chartData, days: chartDays },
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
         threats:     evts.slice(0, 10),
         ssl: {
@@ -562,30 +576,6 @@ async function handle(req, res, parsedUrl) {
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:48 orderBy:[datetime_ASC]
               ){sum{requests threats cachedRequests bytes} dimensions{datetime}}
-              byCountry:httpRequestsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:8
-              ){count dimensions{clientCountryName}}
-              byDevice:httpRequestsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5
-              ){count dimensions{clientDeviceType}}
-              byMethod:httpRequestsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5
-              ){count dimensions{clientRequestHTTPMethodName}}
-              byCache:httpRequestsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5
-              ){count dimensions{cacheStatus}}
-              fwActions:firewallEventsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5 orderBy:[count_DESC]
-              ){count dimensions{action}}
-              fwIPs:firewallEventsAdaptiveGroups(
-                filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:6 orderBy:[count_DESC]
-              ){count dimensions{clientIP}}
             }
           }
         }`;
@@ -617,22 +607,17 @@ async function handle(req, res, parsedUrl) {
       const servedByCF     = tot.cached;
       const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
 
-      const mapList = (arr, dimKey, valKey = 'requests') =>
-        (arr || [])
-          .map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.sum?.[valKey] || g.count || 0 }))
-          .sort((a, b) => b.value - a.value);
-
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         summary:    { total, mitigated, servedByCF, servedByOrigin },
         timeseries,
-        countries:  mapList(zData.byCountry, 'clientCountryName'),
-        devices:    mapList(zData.byDevice,  'clientDeviceType'),
-        methods:    mapList(zData.byMethod,  'clientRequestHTTPMethodName'),
-        cacheStatus:mapList(zData.byCache,   'cacheStatus'),
+        countries:  [],
+        devices:    [],
+        methods:    [],
+        cacheStatus:[],
         protocols:  [],
-        fwActions:  (zData.fwActions || []).map(g => ({ label: g.dimensions?.action   || 'Unknown', value: g.count || 0 })),
-        topIPs:     (zData.fwIPs     || []).map(g => ({ label: g.dimensions?.clientIP || 'Unknown', value: g.count || 0 })),
+        fwActions:  [],
+        topIPs:     [],
       }));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });

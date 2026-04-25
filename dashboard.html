@@ -503,6 +503,7 @@
     .tr-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
     .tr-sum-card { background:var(--surface); border:1.5px solid var(--border); border-radius:14px; padding:16px 18px; }
     .tr-sum-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+    .tr-sum-desc { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4; }
     .tr-sum-val { font-size:26px; font-weight:800; font-family:'Bricolage Grotesque',sans-serif; line-height:1.1; }
     .tr-sum-pct { font-size:11px; color:var(--muted-light); margin-top:4px; }
     .tr-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
@@ -658,7 +659,7 @@
             <span class="badge" id="stat-trend-badge" style="display:none"></span>
           </div>
           <div class="stat-value" id="stat-blocked">—</div>
-          <div class="stat-label">Attacks Blocked (30 days)</div>
+          <div class="stat-label">Attacks Blocked <span id="stat-blocked-period">(30 days)</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-card-top">
@@ -690,7 +691,7 @@
       <div class="grid-3-col">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Attacks Blocked — Last 7 Days</span>
+            <span class="card-title">Attacks Blocked — <span id="chart-period-label">Last 7 Days</span></span>
             <span class="card-action" onclick="showPanel('threats', null)">View all →</span>
           </div>
           <div class="card-body">
@@ -744,8 +745,8 @@
     <!-- ===== THREATS ===== -->
     <div class="panel" id="panel-threats">
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value" id="threats-today">—</div><div class="stat-label">Threats Today</div></div>
-        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value" id="threats-month">—</div><div class="stat-label">Blocked This Month</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fee2e2">🚨</div><span class="badge badge-red">High</span></div><div class="stat-value" id="threats-today">—</div><div class="stat-label">Threats Today</div><div id="threats-today-desc" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4">—</div></div>
+        <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#dcfce7">✅</div><span class="badge badge-green">100%</span></div><div class="stat-value" id="threats-month">—</div><div class="stat-label">Blocked (<span id="threats-period">30 days</span>)</div><div id="threats-month-desc" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4">—</div></div>
         <div class="stat-card"><div class="stat-card-top"><div class="stat-icon" style="background:#fef9c3">🌍</div></div><div class="stat-value" id="threats-countries">—</div><div class="stat-label">Countries of Origin</div></div>
       </div>
       <div class="card">
@@ -775,23 +776,27 @@
       <!-- Summary cards -->
       <div class="tr-summary">
         <div class="tr-sum-card">
-          <div class="tr-sum-label">Total Requests</div>
+          <div class="tr-sum-label">Total Visitors</div>
           <div class="tr-sum-val" id="tr-total">—</div>
+          <div class="tr-sum-desc">Everyone who knocked on your site's door</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(239,68,68,0.35)">
-          <div class="tr-sum-label" style="color:#ef4444">Mitigated by Cloudflare</div>
+          <div class="tr-sum-label" style="color:#ef4444">Blocked</div>
           <div class="tr-sum-val" id="tr-mitigated" style="color:#ef4444">—</div>
           <div class="tr-sum-pct" id="tr-mitigated-pct"></div>
+          <div class="tr-sum-desc">Stopped before reaching your site</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(26,71,232,0.3)">
-          <div class="tr-sum-label" style="color:var(--accent)">Served by Cloudflare</div>
+          <div class="tr-sum-label" style="color:var(--accent)">Handled by ProCyberWall</div>
           <div class="tr-sum-val" id="tr-cached" style="color:var(--accent)">—</div>
           <div class="tr-sum-pct" id="tr-cached-pct"></div>
+          <div class="tr-sum-desc">Your server didn't have to do a thing</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(34,197,94,0.3)">
-          <div class="tr-sum-label" style="color:#22c55e">Served by Origin</div>
+          <div class="tr-sum-label" style="color:#22c55e">Reached Your Server</div>
           <div class="tr-sum-val" id="tr-origin" style="color:#22c55e">—</div>
           <div class="tr-sum-pct" id="tr-origin-pct"></div>
+          <div class="tr-sum-desc">Legitimate traffic that got through</div>
         </div>
       </div>
 

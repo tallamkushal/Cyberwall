@@ -32,7 +32,11 @@ async function loadCloudflareData(domain, zoneId) {
     const s = data.stats;
 
     // ── Stat cards ────────────────────────────────────────────────────────────
-    safeSet('stat-blocked', s.threatsBlocked30d.toLocaleString('en-IN'));
+    const statPeriod = data.chart7d?.days || 30;
+    const blockedCount = s.threatsBlocked30d;
+    safeSet('stat-blocked', blockedCount.toLocaleString('en-IN'));
+    safeSet('stat-blocked-period', `(${statPeriod} days)`);
+    safeSet('chart-period-label', `Last ${statPeriod} Days`);
     safeSet('stat-uptime',  s.uptime || '—');
     safeSet('stat-response', s.responseMs != null ? s.responseMs + 'ms' : '—');
 
@@ -66,9 +70,19 @@ async function loadCloudflareData(domain, zoneId) {
     // Security grade is set by the real scan in loadSecurityScore() — leave stat-score alone here
 
     // ── Threats panel stats ───────────────────────────────────────────────────
-    safeSet('threats-today',     s.threatsToday.toLocaleString('en-IN'));
-    safeSet('threats-month',     s.threatsThisMonth.toLocaleString('en-IN'));
-    safeSet('threats-countries', '—');
+    const threatsToday = s.threatsToday;
+    const threatsMonth = s.threatsThisMonth;
+    safeSet('threats-today', threatsToday.toLocaleString('en-IN'));
+    safeSet('threats-today-desc', threatsToday > 0
+      ? `${threatsToday.toLocaleString()} attempts to break into your site today. All blocked automatically.`
+      : 'No attacks on your site today. You\'re good.');
+    safeSet('threats-month', threatsMonth.toLocaleString('en-IN'));
+    safeSet('threats-month-desc', threatsMonth > 0
+      ? `${threatsMonth.toLocaleString()} hacker attempts blocked in the last ${statPeriod} days. Your site stayed online without any interruptions.`
+      : `No attacks detected in the last ${statPeriod} days. Your site is clean.`);
+    safeSet('threats-period', `${statPeriod} days`);
+    const uniqueCountries = new Set((data.threats || []).map(t => t.clientCountryName || t.country).filter(Boolean)).size;
+    safeSet('threats-countries', uniqueCountries > 0 ? uniqueCountries : '—');
 
     // ── Security score card ───────────────────────────────────────────────────
     // score-grade is set by loadSecurityScore() to keep it in sync with the real scan
@@ -100,6 +114,12 @@ async function loadCloudflareData(domain, zoneId) {
     if (data.threats?.length) {
       renderRealThreats(data.threats, 'threats-tbody');
       renderRealThreats(data.threats, 'threats-full-tbody');
+    } else {
+      const noDataMsg = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No suspicious activity detected in this period. Your site is clean.</td></tr>';
+      const tbody1 = document.getElementById('threats-tbody');
+      const tbody2 = document.getElementById('threats-full-tbody');
+      if (tbody1) tbody1.innerHTML = noDataMsg;
+      if (tbody2) tbody2.innerHTML = noDataMsg;
     }
 
     // ── SSL panel ─────────────────────────────────────────────────────────────
@@ -255,17 +275,17 @@ function updateHealthPanel(ssl, email) {
   let icon, statusText, statusColor, desc;
   if (sslCritical) {
     icon = '🔴'; statusText = 'Needs Attention'; statusColor = 'var(--red)';
-    desc = 'Your SSL certificate has an issue. Contact ProCyberWall support immediately.';
+    desc = 'Your site has an SSL issue — visitors may see a security warning. Contact ProCyberWall support immediately.';
   } else if (sslExpiringSoon || hasDmarcIssue || !httpsEnforced) {
     icon = '🟡'; statusText = 'Warning'; statusColor = 'var(--orange)';
     const issues = [];
-    if (sslExpiringSoon) issues.push(`SSL expires in ${daysLeft} days`);
-    if (hasDmarcIssue) issues.push('DMARC not configured');
-    if (!httpsEnforced) issues.push('HTTPS not enforced');
-    desc = issues.join(' · ') + '. Review details below.';
+    if (sslExpiringSoon) issues.push(`your SSL certificate expires in ${daysLeft} days`);
+    if (hasDmarcIssue) issues.push('email protection is not fully set up');
+    if (!httpsEnforced) issues.push('HTTPS is not enforced');
+    desc = 'Heads up — ' + issues.join(', ') + '. Review the details below.';
   } else {
     icon = '🟢'; statusText = 'Good'; statusColor = 'var(--green)';
-    desc = 'Your website is fully protected and running normally. ProCyberWall is actively monitoring it.';
+    desc = 'Your site is protected, fast, and fully online. ProCyberWall is watching 24/7.';
   }
 
   safeSet('health-status-text', statusText);
