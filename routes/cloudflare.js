@@ -561,7 +561,7 @@ async function handle(req, res, parsedUrl) {
               ts:httpRequests1hGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:48 orderBy:[datetime_ASC]
-              ){sum{requests threats cachedRequests bytes} dimensions{datetimeHour}}
+              ){sum{requests threats cachedRequests bytes} dimensions{datetime}}
               byCountry:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:8 orderBy:[sum_requests_DESC]
@@ -600,7 +600,7 @@ async function handle(req, res, parsedUrl) {
       }
 
       const timeseries = (zData.ts || []).map(g => ({
-        hour:     g.dimensions?.datetimeHour,
+        hour:     g.dimensions?.datetime,
         requests: g.sum?.requests        || 0,
         threats:  g.sum?.threats         || 0,
         cached:   g.sum?.cachedRequests  || 0,
