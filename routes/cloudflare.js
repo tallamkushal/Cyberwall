@@ -560,7 +560,7 @@ async function handle(req, res, parsedUrl) {
             zones(filter:{zoneTag:$zoneTag}){
               ts:httpRequests1hGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:48 orderBy:[datetimeHour_ASC]
+                limit:48 orderBy:[datetime_ASC]
               ){sum{requests threats cachedRequests bytes} dimensions{datetimeHour}}
               byCountry:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
