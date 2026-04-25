@@ -565,19 +565,19 @@ async function handle(req, res, parsedUrl) {
               byCountry:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:8
-              ){sum{requests} dimensions{clientCountryName}}
+              ){count dimensions{clientCountryName}}
               byDevice:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:5
-              ){sum{requests} dimensions{clientDeviceType}}
+              ){count dimensions{clientDeviceType}}
               byMethod:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:5
-              ){sum{requests} dimensions{clientRequestHTTPMethodName}}
+              ){count dimensions{clientRequestHTTPMethodName}}
               byCache:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:5
-              ){sum{requests} dimensions{cacheStatus}}
+              ){count dimensions{cacheStatus}}
               fwActions:firewallEventsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:5 orderBy:[count_DESC]
