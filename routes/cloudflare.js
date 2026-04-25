@@ -558,14 +558,10 @@ async function handle(req, res, parsedUrl) {
         query($zoneTag:String!,$since:String!,$until:String!){
           viewer{
             zones(filter:{zoneTag:$zoneTag}){
-              totals:httpRequestsAdaptiveGroups(
+              ts:httpRequests1hGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:1
-              ){sum{requests cachedRequests threats bytes}}
-              ts:httpRequestsAdaptiveGroups(
-                filter:{datetimeHour_geq:$since,datetimeHour_leq:$until}
                 limit:48 orderBy:[datetimeHour_ASC]
-              ){sum{requests threats cachedRequests} dimensions{datetimeHour}}
+              ){sum{requests threats cachedRequests bytes} dimensions{datetimeHour}}
               byCountry:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:8 orderBy:[sum_requests_DESC]
@@ -603,18 +599,23 @@ async function handle(req, res, parsedUrl) {
         return true;
       }
 
-      const tot   = zData.totals?.[0]?.sum || {};
-      const total = tot.requests || 0;
-      const mitigated    = tot.threats       || 0;
-      const servedByCF   = tot.cachedRequests || 0;
-      const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
-
       const timeseries = (zData.ts || []).map(g => ({
         hour:     g.dimensions?.datetimeHour,
         requests: g.sum?.requests        || 0,
         threats:  g.sum?.threats         || 0,
         cached:   g.sum?.cachedRequests  || 0,
       }));
+
+      const tot = timeseries.reduce((acc, t) => {
+        acc.requests += t.requests;
+        acc.threats  += t.threats;
+        acc.cached   += t.cached;
+        return acc;
+      }, { requests: 0, threats: 0, cached: 0 });
+      const total          = tot.requests;
+      const mitigated      = tot.threats;
+      const servedByCF     = tot.cached;
+      const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
 
       const mapList = (arr, dimKey, valKey = 'requests') =>
         (arr || []).map(g => ({ label: g.dimensions?.[dimKey] || 'Unknown', value: g.sum?.[valKey] || g.count || 0 }));

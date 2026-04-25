@@ -11,6 +11,14 @@ for /f "tokens=*" %%a in ('powershell -Command "[System.Environment]::GetEnviron
     set SUPABASE_SERVICE_KEY=%%a
 )
 
+:: Load Cloudflare credentials from User environment variables
+for /f "tokens=*" %%a in ('powershell -Command "[System.Environment]::GetEnvironmentVariable(\"CF_EMAIL\", \"User\")"') do (
+    set CF_EMAIL=%%a
+)
+for /f "tokens=*" %%a in ('powershell -Command "[System.Environment]::GetEnvironmentVariable(\"CF_API_KEY\", \"User\")"') do (
+    set CF_API_KEY=%%a
+)
+
 if "%ANTHROPIC_API_KEY%"=="" (
     echo ERROR: ANTHROPIC_API_KEY is not set. AI assistant will not work.
     echo Please set it in System Environment Variables.
