@@ -689,7 +689,7 @@
       </div>
       <button class="scanner-btn" id="scanner-btn" onclick="runLandingScan()">Check My Score →</button>
     </div>
-    <div class="scanner-samples">Try a demo: <span class="scanner-sample" onclick="runLandingScanFor('github.com')">github.com</span><span class="scanner-sample" onclick="runLandingScanFor('shopify.com')">shopify.com</span></div>
+    <div class="scanner-samples">Try a demo: <span class="scanner-sample" onclick="runLandingScanFor('procyberwall.com')">procyberwall.com</span></div>
     <div id="scanner-result" style="display:none;margin-top:28px"></div>
   </div>
 </section>
@@ -867,6 +867,10 @@
     if (inp) inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') runLandingScan(); });
   });
 
+  function _esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
   async function runLandingScan() {
     const domain = (document.getElementById('scanner-domain').value || '').trim();
     if (!domain) { document.getElementById('scanner-domain').focus(); return; }
@@ -877,7 +881,7 @@
     document.getElementById('scanner-domain').value = domain;
     const resultEl = document.getElementById('scanner-result');
     resultEl.style.display = 'block';
-    resultEl.innerHTML = `<div class="scan-loading"><div class="scan-spinner"></div><div style="color:#374151;font-size:14px;font-weight:600">Scanning ${domain}…</div><div style="color:#6b7280;font-size:12px;margin-top:6px">Checking HTTPS, SSL certificate, security headers, CDN protection…</div></div>`;
+    resultEl.innerHTML = `<div class="scan-loading"><div class="scan-spinner"></div><div style="color:#374151;font-size:14px;font-weight:600">Scanning ${_esc(domain)}…</div><div style="color:#6b7280;font-size:12px;margin-top:6px">Checking HTTPS, SSL certificate, security headers, CDN protection…</div></div>`;
     const btn = document.getElementById('scanner-btn');
     btn.disabled = true; btn.textContent = 'Scanning…';
 
@@ -920,7 +924,7 @@
       <div class="scan-result-card">
         <div class="scan-result-header">
           <div class="scan-result-info">
-            <div class="scan-result-domain">${data.domain}</div>
+            <div class="scan-result-domain">${_esc(data.domain)}</div>
             <div class="scan-result-score-line">${data.numericScore}/100 — ${data.issues.length} check${data.issues.length>1?'s':''} failed</div>
             <div class="scan-score-bar"><div class="scan-score-bar-fill" id="scan-bar-fill" style="width:0%;background:${barColor}"></div></div>
           </div>

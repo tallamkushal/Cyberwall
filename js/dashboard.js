@@ -617,11 +617,12 @@ function _renderSecurityScore(data) {
     ? '⚠️ Your website needs some attention'
     : '🚨 Your website is at risk right now';
 
+  const _safeDomain = _escapeHtml(data.domain);
   const heroMsg = score >= 80
-    ? `Great news! We checked <strong>${data.domain}</strong> and it is doing well. ProCyberWall is actively blocking threats. Keep it this way and your customers can always trust your website.`
+    ? `Great news! We checked <strong>${_safeDomain}</strong> and it is doing well. ProCyberWall is actively blocking threats. Keep it this way and your customers can always trust your website.`
     : score >= 55
-    ? `We checked <strong>${data.domain}</strong> and found ${data.issues.length} thing${data.issues.length>1?'s':''} that need fixing. Your website is partially protected but there are gaps that hackers can use. The good news — we can fix all of them.`
-    : `We checked <strong>${data.domain}</strong> and it is not fully protected. There ${data.issues.length===1?'is':'are'} <strong>${data.issues.length} problem${data.issues.length>1?'s':''}</strong> that leave your website open to attacks right now. Hackers look for exactly these gaps. Let's fix them.`;
+    ? `We checked <strong>${_safeDomain}</strong> and found ${data.issues.length} thing${data.issues.length>1?'s':''} that need fixing. Your website is partially protected but there are gaps that hackers can use. The good news — we can fix all of them.`
+    : `We checked <strong>${_safeDomain}</strong> and it is not fully protected. There ${data.issues.length===1?'is':'are'} <strong>${data.issues.length} problem${data.issues.length>1?'s':''}</strong> that leave your website open to attacks right now. Hackers look for exactly these gaps. Let's fix them.`;
 
   const hero = document.getElementById('ss-hero');
   if (hero) hero.style.background = heroBg;

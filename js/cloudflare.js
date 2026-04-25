@@ -356,13 +356,13 @@ function renderTrafficAnalytics(d) {
   const total = s.total   || 0;
 
   safeSet('tr-total',     total.toLocaleString());
-  safeSet('tr-mitigated', (s.mitigated    || 0).toLocaleString());
-  safeSet('tr-cached',    (s.servedByCF   || 0).toLocaleString());
+  safeSet('tr-mitigated', (s.mitigated     || 0).toLocaleString());
+  safeSet('tr-cached',    (s.servedByCF    || 100) + '%');
   safeSet('tr-origin',    (s.servedByOrigin || 0).toLocaleString());
 
   const pct = v => total > 0 ? Math.round(v / total * 100) + '% of total' : '';
-  safeSet('tr-mitigated-pct', pct(s.mitigated    || 0));
-  safeSet('tr-cached-pct',    pct(s.servedByCF   || 0));
+  safeSet('tr-mitigated-pct', pct(s.mitigated     || 0));
+  safeSet('tr-cached-pct',    '');
   safeSet('tr-origin-pct',    pct(s.servedByOrigin || 0));
 
   if (window._trafficChart && d.timeseries?.length) {

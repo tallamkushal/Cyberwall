@@ -544,6 +544,11 @@ async function handle(req, res, parsedUrl) {
       res.end(JSON.stringify({ error: 'domain parameter required' }));
       return true;
     }
+    if (!/^[a-zA-Z0-9.\-]+$/.test(domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0])) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid domain' }));
+      return true;
+    }
     const ip = getClientIp(req);
     if (!checkRateLimit(ip, '/api/security-scan', 5, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });

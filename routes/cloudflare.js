@@ -604,8 +604,9 @@ async function handle(req, res, parsedUrl) {
       }, { requests: 0, threats: 0, cached: 0 });
       const total          = tot.requests;
       const mitigated      = tot.threats;
-      const servedByCF     = tot.cached;
-      const servedByOrigin = Math.max(0, total - mitigated - servedByCF);
+      const cleanTraffic   = Math.max(0, total - mitigated);
+      const servedByCF     = total > 0 ? Math.round((cleanTraffic / total) * 100) : 100;
+      const servedByOrigin = cleanTraffic;
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
