@@ -102,3 +102,73 @@ CREATE POLICY "Clients insert own tickets"
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS cf_zone_id  TEXT,
   ADD COLUMN IF NOT EXISTS nameservers TEXT;  -- comma-separated, e.g. "aida.ns.cloudflare.com,noah.ns.cloudflare.com"
+
+-- ============================================
+-- HISTORICAL DATA TABLES
+-- Run these to enable data collection
+-- ============================================
+
+-- THREAT SNAPSHOTS — daily threat counts per client
+-- Written every time a client loads their dashboard
+CREATE TABLE IF NOT EXISTS threat_snapshots (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  domain           TEXT NOT NULL,
+  date             DATE NOT NULL DEFAULT CURRENT_DATE,
+  threats_today    INTEGER DEFAULT 0,   -- threats in last 24h
+  threats_7d       INTEGER DEFAULT 0,   -- threats in last 7 days
+  total_requests   INTEGER DEFAULT 0,   -- total requests in last 24h
+  clean_requests   INTEGER DEFAULT 0,   -- clean requests in last 24h
+  block_rate_pct   INTEGER DEFAULT 0,   -- % of traffic blocked
+  recorded_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- One snapshot per client per day
+CREATE UNIQUE INDEX IF NOT EXISTS threat_snapshots_daily
+  ON threat_snapshots (profile_id, date);
+
+ALTER TABLE threat_snapshots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Clients view own snapshots"
+  ON threat_snapshots FOR SELECT
+  USING (auth.uid() = profile_id);
+
+-- SECURITY SCORES — score history per domain over time
+CREATE TABLE IF NOT EXISTS security_scores (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  domain       TEXT NOT NULL,
+  score        INTEGER NOT NULL,
+  grade        TEXT NOT NULL,
+  issues       JSONB,                  -- array of issues found
+  scanned_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE security_scores ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Clients view own scores"
+  ON security_scores FOR SELECT
+  USING (auth.uid() = profile_id);
+
+-- DOMAIN ANALYTICS — daily aggregate traffic per client
+CREATE TABLE IF NOT EXISTS domain_analytics (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  domain           TEXT NOT NULL,
+  date             DATE NOT NULL DEFAULT CURRENT_DATE,
+  total_requests   INTEGER DEFAULT 0,
+  threats_blocked  INTEGER DEFAULT 0,
+  cached_requests  INTEGER DEFAULT 0,
+  bandwidth_bytes  BIGINT DEFAULT 0,
+  recorded_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- One analytics row per client per day
+CREATE UNIQUE INDEX IF NOT EXISTS domain_analytics_daily
+  ON domain_analytics (profile_id, date);
+
+ALTER TABLE domain_analytics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Clients view own analytics"
+  ON domain_analytics FOR SELECT
+  USING (auth.uid() = profile_id);

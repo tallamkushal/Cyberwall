@@ -470,6 +470,27 @@ async function handle(req, res, parsedUrl) {
         },
       }));
 
+      // ── Record historical data (fire-and-forget, response already sent) ────────
+      _cfAuthPromise.then(async authUser => {
+        if (!authUser) return;
+
+        const today = now.toISOString().slice(0, 10);
+        const blockRate = totalRequests30d > 0 ? Math.round((threatsBlocked30d / totalRequests30d) * 100) : 0;
+
+        supabaseRequest('POST', 'threat_snapshots', {
+          profile_id:     authUser.id,
+          domain,
+          date:           today,
+          threats_today:  threatsToday,
+          threats_7d:     threatsBlocked30d,
+          total_requests: totalRequests30d,
+          clean_requests: Math.max(0, totalRequests30d - threatsBlocked30d),
+          block_rate_pct: blockRate,
+          recorded_at:    now.toISOString(),
+        }).catch(() => {});
+
+      }).catch(() => {});
+
       // ── Auto-create alerts (fire-and-forget, response already sent) ──────────
       _cfAuthPromise.then(authUser => {
         if (!authUser) return;

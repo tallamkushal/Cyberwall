@@ -11,6 +11,18 @@ const { createAlert } = require('../lib/alerts');
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
 const HIBP_API_KEY = process.env.HIBP_API_KEY || '';
 
+// Cache scan results for 5 minutes to prevent score fluctuation from network variance
+const _scanCache = new Map();
+const SCAN_TTL = 5 * 60 * 1000;
+function getCachedScan(domain) {
+  const entry = _scanCache.get(domain);
+  if (entry && Date.now() - entry.ts < SCAN_TTL) return entry.data;
+  return null;
+}
+function setCachedScan(domain, data) {
+  _scanCache.set(domain, { ts: Date.now(), data });
+}
+
 async function handle(req, res, parsedUrl) {
   // ── WHATSAPP SEND ───────────────────────────────────────────────────────────
   if (req.method === 'POST' && (req.url === '/api/whatsapp' || req.url === '/.netlify/functions/send-whatsapp')) {
@@ -556,12 +568,14 @@ async function handle(req, res, parsedUrl) {
       return true;
     }
     try {
-      let scan = await runSecurityScan(domain);
+      const cached = getCachedScan(domain);
+      let scan = cached || await runSecurityScan(domain);
       if (scan.error) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: scan.error }));
         return true;
       }
+      if (!cached) setCachedScan(domain, scan);
       const authUser = await requireAuth(req);
       if (authUser) {
         const enhanced = await enhanceScanWithCloudflare(scan);
@@ -570,6 +584,17 @@ async function handle(req, res, parsedUrl) {
       }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
       res.end(JSON.stringify(scan));
+
+      // Record score history for logged-in clients (fire-and-forget)
+      if (authUser) {
+        supabaseRequest('POST', 'security_scores', {
+          profile_id: authUser.id,
+          domain,
+          score:      scan.numericScore,
+          grade:      scan.grade,
+          issues:     JSON.stringify(scan.issues || []),
+        }).catch(() => {});
+      }
     } catch(err) {
       console.error('Security scan error:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
