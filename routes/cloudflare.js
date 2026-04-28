@@ -354,10 +354,10 @@ async function handle(req, res, parsedUrl) {
         (r.kind === 'managed' && r.description?.toLowerCase().includes('managed'))
       );
       const wafEnabled = legacyWaf || hasWafRuleset || (zoneStatus === 'active' && managedRulesets.length > 0);
-      console.log('[bot-debug] botSet:', JSON.stringify(ok(botSet)?.result));
-      console.log('[bot-debug] botMgmt:', JSON.stringify(ok(botMgmt)?.result));
-      const botEnabled    = ok(botSet)?.result?.value === 'on'          // free: Bot Fight Mode
-                         || ok(botMgmt)?.result?.fight_mode === true;  // pro: Super Bot Fight Mode
+      const botMgmtResult = ok(botMgmt)?.result;
+      const botEnabled    = ok(botSet)?.result?.value === 'on'                                          // free: Bot Fight Mode
+                         || ['managed_challenge','block'].includes(botMgmtResult?.sbfm_definitely_automated) // pro: Super Bot Fight Mode
+                         || botMgmtResult?.stale_zone_configuration?.fight_mode === true;               // fallback
 
       // --- Uptime from last recorded downtime ---
       let uptimePercent = '100%';
