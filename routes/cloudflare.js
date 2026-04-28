@@ -201,22 +201,28 @@ async function handle(req, res, parsedUrl) {
     try {
       let zoneId = _overviewUrl.searchParams.get('zone_id') || null;
       let zoneStatus = 'active';
+      let zonePlan   = 'free';
       if (zoneId) {
         const zoneInfo = await cfGet(`/zones/${zoneId}`).catch(() => null);
         if (!zoneInfo?.success) {
           zoneId = null;
         } else {
-          zoneStatus = zoneInfo.result?.status || 'active';
+          zoneStatus = zoneInfo.result?.status   || 'active';
+          zonePlan   = zoneInfo.result?.plan?.legacy_id || 'free';
         }
       }
       if (!zoneId) {
         zoneId = await cfGetZoneId(domain);
         if (zoneId) {
           const zoneInfo = await cfGet(`/zones/${zoneId}`).catch(() => null);
-          zoneStatus = zoneInfo?.result?.status || 'active';
+          zoneStatus = zoneInfo?.result?.status   || 'active';
+          zonePlan   = zoneInfo?.result?.plan?.legacy_id || 'free';
         }
       }
       if (!zoneId) { res.writeHead(404, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain not found in Cloudflare'})); return true; }
+
+      const isPro        = ['pro', 'business', 'enterprise'].includes(zonePlan);
+      const isBusiness   = ['business', 'enterprise'].includes(zonePlan);
 
       const now = new Date();
       const since30d   = new Date(now - 30*24*60*60*1000).toISOString();
@@ -283,8 +289,8 @@ async function handle(req, res, parsedUrl) {
         cfGet(`/zones/${zoneId}/dns_records?per_page=100`),
         cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
         cfGet(`/zones/${zoneId}/settings/waf`),
-        cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
-        cfGet(`/zones/${zoneId}/bot_management`),
+        isPro ? Promise.resolve(null) : cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
+        isPro ? cfGet(`/zones/${zoneId}/bot_management`) : Promise.resolve(null),
         cfGet(`/zones/${zoneId}/rulesets`),
       ]);
 
@@ -355,9 +361,10 @@ async function handle(req, res, parsedUrl) {
       );
       const wafEnabled = legacyWaf || hasWafRuleset || (zoneStatus === 'active' && managedRulesets.length > 0);
       const botMgmtResult = ok(botMgmt)?.result;
-      const botEnabled    = ok(botSet)?.result?.value === 'on'                                          // free: Bot Fight Mode
-                         || ['managed_challenge','block'].includes(botMgmtResult?.sbfm_definitely_automated) // pro: Super Bot Fight Mode
-                         || botMgmtResult?.stale_zone_configuration?.fight_mode === true;               // fallback
+      const botEnabled    = isPro
+        ? ['managed_challenge','block'].includes(botMgmtResult?.sbfm_definitely_automated)  // pro: Super Bot Fight Mode
+          || botMgmtResult?.stale_zone_configuration?.fight_mode === true
+        : ok(botSet)?.result?.value === 'on';                                               // free: Bot Fight Mode
 
       // --- Uptime from last recorded downtime ---
       let uptimePercent = '100%';
