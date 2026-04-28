@@ -230,6 +230,18 @@ async function handle(req, res, parsedUrl) {
       const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const until = now.toISOString();
 
+      const today = now.toISOString().slice(0, 10);
+
+      // Check for today's cached security score — avoids DNS inconsistency
+      const scoreCachePromise = _cfAuthPromise.then(async user => {
+        if (!user) return null;
+        const r = await supabaseRequest('GET',
+          `security_scores?profile_id=eq.${encodeURIComponent(user.id)}&domain=eq.${encodeURIComponent(domain)}&scanned_at=gte.${today}T00:00:00Z&order=scanned_at.desc&limit=1`,
+          null);
+        const rows = JSON.parse(r.body);
+        return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      }).catch(() => null);
+
       // Profile query (last_downtime_at) runs in parallel with CF calls
       const profilePromise = _cfAuthPromise.then(async user => {
         if (!user) return null;
@@ -440,14 +452,18 @@ async function handle(req, res, parsedUrl) {
       if (!certIssuer) certIssuer = 'Cloudflare';
 
       // --- Security score (computed) ---
-      let score = 60;
-      if (sslMode === 'full' || sslMode === 'strict') score += 10;
-      if (httpsEnforced) score += 10;
-      if (spfHardfail)    score += 5; else if (hasSPF) score += 2;
-      if (hasDKIM)        score += 5;
-      if (dmarcBlocking)  score += 5; else if (hasDMARC) score += 2;
-      if (hasMX)          score += 5;
-      const scoreGrade = score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C';
+      let freshScore = 60;
+      if (sslMode === 'full' || sslMode === 'strict') freshScore += 10;
+      if (httpsEnforced) freshScore += 10;
+      if (spfHardfail)    freshScore += 5; else if (hasSPF) freshScore += 2;
+      if (hasDKIM)        freshScore += 5;
+      if (dmarcBlocking)  freshScore += 5; else if (hasDMARC) freshScore += 2;
+      if (hasMX)          freshScore += 5;
+
+      // Use today's cached score if available — prevents DNS inconsistency causing fluctuation
+      const cachedScore = await scoreCachePromise;
+      const score      = cachedScore?.score ?? freshScore;
+      const scoreGrade = cachedScore?.grade ?? (score >= 90 ? 'A+' : score >= 80 ? 'A' : score >= 70 ? 'B' : 'C');
 
       res.writeHead(200, {'Content-Type':'application/json'});
       res.end(JSON.stringify({
@@ -493,8 +509,18 @@ async function handle(req, res, parsedUrl) {
       _cfAuthPromise.then(async authUser => {
         if (!authUser) return;
 
-        const today = now.toISOString().slice(0, 10);
         const blockRate7d = totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0;
+
+        if (!cachedScore) {
+          supabaseRequest('POST', 'security_scores', {
+            profile_id: authUser.id,
+            domain,
+            score:      freshScore,
+            grade:      freshScore >= 90 ? 'A+' : freshScore >= 80 ? 'A' : freshScore >= 70 ? 'B' : 'C',
+            issues:     [],
+            scanned_at: now.toISOString(),
+          }).catch(() => {});
+        }
 
         supabaseRequest('POST', 'threat_snapshots', {
           profile_id:     authUser.id,
