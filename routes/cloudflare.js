@@ -275,7 +275,7 @@ async function handle(req, res, parsedUrl) {
         new Promise(resolve => setTimeout(() => resolve(null), 5000))
       ]).catch(() => null);
 
-      const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, rulesets] = await Promise.allSettled([
+      const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, botMgmt, rulesets] = await Promise.allSettled([
         cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
         cfGet(`/zones/${zoneId}/settings/always_use_https`),
         cfGet(`/zones/${zoneId}/settings/ssl`),
@@ -284,6 +284,7 @@ async function handle(req, res, parsedUrl) {
         cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
         cfGet(`/zones/${zoneId}/settings/waf`),
         cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
+        cfGet(`/zones/${zoneId}/bot_management`),
         cfGet(`/zones/${zoneId}/rulesets`),
       ]);
 
@@ -353,7 +354,8 @@ async function handle(req, res, parsedUrl) {
         (r.kind === 'managed' && r.description?.toLowerCase().includes('managed'))
       );
       const wafEnabled = legacyWaf || hasWafRuleset || (zoneStatus === 'active' && managedRulesets.length > 0);
-      const botEnabled    = ok(botSet)?.result?.value === 'on';
+      const botEnabled    = ok(botSet)?.result?.value === 'on'          // free: Bot Fight Mode
+                         || ok(botMgmt)?.result?.fight_mode === true;  // pro: Super Bot Fight Mode
 
       // --- Uptime from last recorded downtime ---
       let uptimePercent = '100%';
