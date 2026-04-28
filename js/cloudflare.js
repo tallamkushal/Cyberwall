@@ -141,17 +141,17 @@ async function loadCloudflareData(domain, zoneId) {
     // Security grade is set by the real scan in loadSecurityScore() — leave stat-score alone here
 
     // ── Threats panel stats ───────────────────────────────────────────────────
-    const threatsToday = s.threatsToday;
-    const threatsMonth = s.threatsThisMonth;
+    const threatsToday = s.threatsToday || 0;
+    const threats7d    = s.threats7d    || 0;
     safeSet('threats-today', threatsToday.toLocaleString('en-IN'));
     safeSet('threats-today-desc', threatsToday > 0
       ? `${threatsToday.toLocaleString()} suspicious requests from known bad IPs and bots, stopped before reaching your site.`
       : 'No threats detected today. Your site is clean.');
-    safeSet('threats-month', threatsMonth.toLocaleString('en-IN'));
-    safeSet('threats-month-desc', threatsMonth > 0
-      ? `${threatsMonth.toLocaleString()} hacker attempts blocked in the last ${statPeriod} days. Your site stayed online without any interruptions.`
-      : `No threats detected in the last ${statPeriod} days. Your site is clean.`);
-    safeSet('threats-period', `${statPeriod} days`);
+    safeSet('threats-month', threats7d.toLocaleString('en-IN'));
+    safeSet('threats-month-desc', threats7d > 0
+      ? `${threats7d.toLocaleString()} hacker attempts blocked in the last 7 days. Your site stayed online without any interruptions.`
+      : 'No threats detected in the last 7 days. Your site is clean.');
+    safeSet('threats-period', '7 days');
     const uniqueCountries = new Set((data.threats || []).map(t => t.clientCountryName || t.country).filter(Boolean)).size;
     safeSet('threats-countries', uniqueCountries > 0 ? uniqueCountries : '—');
 
