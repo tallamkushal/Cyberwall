@@ -292,22 +292,31 @@ async function handle(req, res, parsedUrl) {
       const ok = r => r.status === 'fulfilled' && r.value?.success ? r.value : null;
 
       // --- Stats from GraphQL ---
-      const statsGqlData  = (await statsGqlPromise)?.data?.viewer?.zones?.[0]?.hours || [];
+      const statsGqlData = (await statsGqlPromise)?.data?.viewer?.zones?.[0]?.hours || [];
+
+      // Time windows
+      const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const since7d  = new Date(now -  7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const filterSince = (since) => statsGqlData.filter(h => (h.dimensions?.datetime || '') >= since);
+
+      const data24h = filterSince(since24h);
+      const data7d  = filterSince(since7d);
+
+      const threatsToday   = data24h.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
+      const threats7d      = data7d.reduce( (s, h) => s + (h.sum?.threats  || 0), 0);
+      const threats30d     = statsGqlData.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
+
+      const totalRequests24h = data24h.reduce((s, h) => s + (h.sum?.requests || 0), 0);
+      const totalRequests7d  = data7d.reduce( (s, h) => s + (h.sum?.requests || 0), 0);
       const totalRequests30d = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
 
-      // "Threats Today" = last 24h to match traffic analytics window
-      const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-      const threatsToday = statsGqlData
-        .filter(h => (h.dimensions?.datetime || '') >= since24h)
-        .reduce((s, h) => s + (h.sum?.threats || 0), 0);
-
-      // --- Chart: aggregate by day ---
+      // --- Chart: aggregate by day (7-day bar chart) ---
       const dayMap = {};
       for (const h of statsGqlData) {
         const day = (h.dimensions?.datetime || '').slice(0, 10);
         if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
       }
-      // Use UTC date for today so it matches Cloudflare's UTC timestamps
       const todayUtc = now.toISOString().slice(0, 10);
       const chartDays = 7;
       const chartLabels = [], chartData = [];
@@ -317,12 +326,6 @@ async function handle(req, res, parsedUrl) {
         chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', {weekday:'short'}));
         chartData.push(dayMap[dateStr] || 0);
       }
-
-      // "Blocked (X days)" = sum only for the chart period so number matches label
-      const chartPeriodStart = new Date(now - chartDays * 24 * 60 * 60 * 1000).toISOString();
-      const threatsBlocked30d = statsGqlData
-        .filter(h => (h.dimensions?.datetime || '') >= chartPeriodStart)
-        .reduce((s, h) => s + (h.sum?.threats || 0), 0);
 
       // --- Firewall events: REST first, GraphQL fallback ---
       const restEvts = ok(events)?.result || [];
@@ -440,9 +443,11 @@ async function handle(req, res, parsedUrl) {
         zoneStatus,
         zoneActive: zoneStatus === 'active',
         stats: {
-          threatsBlocked30d,
           threatsToday,
-          threatsThisMonth: threatsBlocked30d,
+          threats7d,
+          threats30d,
+          totalRequests24h,
+          totalRequests7d,
           totalRequests30d,
           securityScore: score,
           scoreGrade,
@@ -478,17 +483,17 @@ async function handle(req, res, parsedUrl) {
         if (!authUser) return;
 
         const today = now.toISOString().slice(0, 10);
-        const blockRate = totalRequests30d > 0 ? Math.round((threatsBlocked30d / totalRequests30d) * 100) : 0;
+        const blockRate7d = totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0;
 
         supabaseRequest('POST', 'threat_snapshots', {
           profile_id:     authUser.id,
           domain,
           date:           today,
           threats_today:  threatsToday,
-          threats_7d:     threatsBlocked30d,
-          total_requests: totalRequests30d,
-          clean_requests: Math.max(0, totalRequests30d - threatsBlocked30d),
-          block_rate_pct: blockRate,
+          threats_7d:     threats7d,
+          total_requests: totalRequests7d,
+          clean_requests: Math.max(0, totalRequests7d - threats7d),
+          block_rate_pct: blockRate7d,
           recorded_at:    now.toISOString(),
         }).catch(() => {});
 

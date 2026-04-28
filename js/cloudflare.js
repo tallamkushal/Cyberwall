@@ -14,6 +14,18 @@ const CF_ACTION_LABELS = {
   redirect:          { label: 'Redirected',       badge: 'badge-orange' },
   execute:           { label: 'Rules Applied',    badge: 'badge-green'  },
 };
+function setThreatPeriod(period) {
+  window._activeThreatPeriod = period;
+  const counts = window._threatCounts || {};
+  const val = counts[period] ?? 0;
+  const labels = { today: 'Today', '7d': '7 Days', '30d': '30 Days' };
+  safeSet('stat-blocked', val.toLocaleString('en-IN'));
+  safeSet('stat-blocked-period', `(${labels[period]})`);
+  document.querySelectorAll('.threat-period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === period);
+  });
+}
+
 function friendlyAction(raw) {
   return CF_ACTION_LABELS[String(raw || '').toLowerCase()] || { label: raw || 'Blocked', badge: 'badge-red' };
 }
@@ -89,11 +101,13 @@ async function loadCloudflareData(domain, zoneId) {
     const s = data.stats;
 
     // ── Stat cards ────────────────────────────────────────────────────────────
-    const statPeriod = data.chart7d?.days || 30;
-    const blockedCount = s.threatsBlocked30d;
-    safeSet('stat-blocked', blockedCount.toLocaleString('en-IN'));
-    safeSet('stat-blocked-period', `(${statPeriod} days)`);
-    safeSet('chart-period-label', `Last ${statPeriod} Days`);
+    window._threatCounts = {
+      today: s.threatsToday || 0,
+      '7d':  s.threats7d    || 0,
+      '30d': s.threats30d   || 0,
+    };
+    setThreatPeriod(window._activeThreatPeriod || '7d');
+    safeSet('chart-period-label', 'Last 7 Days');
     safeSet('stat-uptime',  s.uptime || '—');
     safeSet('stat-response', s.responseMs != null ? s.responseMs + 'ms' : '—');
 
