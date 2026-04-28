@@ -1,6 +1,63 @@
 // CYBERWALL — Cloudflare Integration (via backend proxy)
 // All Cloudflare API calls go through server.js — credentials never reach the browser.
 
+const CF_ACTION_LABELS = {
+  block:             { label: 'Blocked',          badge: 'badge-red'    },
+  managed_challenge: { label: 'Visitor Screened', badge: 'badge-orange' },
+  js_challenge:      { label: 'Bot Test Run',     badge: 'badge-orange' },
+  challenge:         { label: 'CAPTCHA Shown',    badge: 'badge-orange' },
+  log:               { label: 'Logged Only',      badge: ''             },
+  allow:             { label: 'Allowed',          badge: 'badge-green'  },
+  bypass:            { label: 'Rule Skipped',     badge: ''             },
+  skip:              { label: 'Skipped',          badge: ''             },
+  rewrite:           { label: 'Request Modified', badge: 'badge-orange' },
+  redirect:          { label: 'Redirected',       badge: 'badge-orange' },
+  execute:           { label: 'Rules Applied',    badge: 'badge-green'  },
+};
+function friendlyAction(raw) {
+  return CF_ACTION_LABELS[String(raw || '').toLowerCase()] || { label: raw || 'Blocked', badge: 'badge-red' };
+}
+
+const CACHE_LABELS = {
+  hit:         'Instant (Cached)',
+  miss:        'Fresh from Server',
+  bypass:      'Cache Skipped',
+  dynamic:     'Live Content',
+  expired:     'Cache Refreshed',
+  revalidated: 'Verified Fresh',
+  stale:       'Slightly Outdated',
+  none:        'Not Cached',
+  updating:    'Cache Updating',
+  unknown:     'Unknown',
+};
+function friendlyCache(raw) {
+  return CACHE_LABELS[String(raw || '').toLowerCase()] || raw || 'Unknown';
+}
+
+const PROTOCOL_LABELS = {
+  'http/1.1': 'HTTP/1.1 (Standard)',
+  'http/2':   'HTTP/2 (Faster)',
+  'http/3':   'HTTP/3 (Fastest)',
+  'spdy/3.1': 'SPDY',
+  'none':     'Unknown',
+};
+function friendlyProtocol(raw) {
+  return PROTOCOL_LABELS[String(raw || '').toLowerCase()] || raw || 'Unknown';
+}
+
+const METHOD_LABELS = {
+  get:     'Viewing Pages',
+  post:    'Submitting Forms',
+  head:    'Link Previews',
+  options: 'Browser Safety Checks',
+  put:     'Uploading Data',
+  delete:  'Deleting Data',
+  patch:   'Updating Data',
+};
+function friendlyMethod(raw) {
+  return METHOD_LABELS[String(raw || '').toLowerCase()] || raw || 'Unknown';
+}
+
 function escapeHtml(str) {
   if (str == null) return '—';
   return String(str)
@@ -110,7 +167,7 @@ async function loadCloudflareData(domain, zoneId) {
     } else {
       const blockedToday = s?.threatsToday || 0;
       const noDataMsg = blockedToday > 0
-        ? `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;line-height:1.6">${blockedToday.toLocaleString()} threats were blocked today by Cloudflare's IP reputation system.<br><span style="font-size:12px">These are automatic blocks — no individual event logs are generated. Detailed logs require active WAF rules.</span></td></tr>`
+        ? `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;line-height:1.6">${blockedToday.toLocaleString()} threats were blocked today by ProCyberwall.<br><span style="font-size:12px">These are automatic blocks — no individual event logs are generated. Detailed logs require active WAF rules.</span></td></tr>`
         : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No threats detected in this period. Your site is clean.</td></tr>';
       const tbody1 = document.getElementById('threats-tbody');
       const tbody2 = document.getElementById('threats-full-tbody');
@@ -149,15 +206,18 @@ async function loadCloudflareData(domain, zoneId) {
 function renderRealThreats(events, tbodyId) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
-  tbody.innerHTML = events.map(e => `
+  tbody.innerHTML = events.map(e => {
+    const act = friendlyAction(e.action);
+    return `
     <tr>
-      <td>${escapeHtml(e.ruleMessage || e.action || 'Block')}</td>
+      <td>${escapeHtml(e.ruleMessage || act.label)}</td>
       <td style="font-family:monospace;font-size:12px">${escapeHtml(maskIP(e.clientIP || e.ip || ''))}</td>
       <td>${getCountryFlag(e.clientCountryName || e.country)} ${escapeHtml(e.clientCountryName || e.country || '—')}</td>
       <td style="color:var(--muted)">${escapeHtml(timeAgo(e.occurredAt || e.occurred_at))}</td>
       <td><span class="badge badge-red">High</span></td>
-      <td><span class="badge badge-green">Blocked</span></td>
-    </tr>`).join('');
+      <td><span class="badge ${act.badge}">${act.label}</span></td>
+    </tr>`;
+  }).join('');
 }
 
 function showCFNotSetup() {
@@ -377,7 +437,7 @@ function renderTrafficAnalytics(d) {
     safeSet('split-clean-pct',     cleanPct  + '%');
     safeSet('split-blocked-pct',   blockPct  + '%');
     safeSet('split-clean-count',   cleanCount.toLocaleString()  + ' requests reached your server');
-    safeSet('split-blocked-count', blockCount.toLocaleString()  + ' threats stopped by ProCyberWall');
+    safeSet('split-blocked-count', blockCount.toLocaleString()  + ' threats stopped by ProCyberwall');
     const cleanBar   = document.getElementById('split-clean-bar');
     const blockedBar = document.getElementById('split-blocked-bar');
     if (cleanBar)   cleanBar.style.width   = cleanPct  + '%';
@@ -395,10 +455,10 @@ function renderTrafficAnalytics(d) {
 
   renderBarList('tr-countries',  d.countries);
   renderBarList('tr-devices',    d.devices);
-  renderBarList('tr-methods',    d.methods);
-  renderBarList('tr-cache',      d.cacheStatus);
-  renderBarList('tr-protocols',  d.protocols);
-  renderBarList('tr-fw-actions', d.fwActions);
+  renderBarList('tr-methods',    (d.methods     || []).map(item => ({ ...item, label: friendlyMethod(item.label) })));
+  renderBarList('tr-cache',      (d.cacheStatus || []).map(item => ({ ...item, label: friendlyCache(item.label) })));
+  renderBarList('tr-protocols',  (d.protocols   || []).map(item => ({ ...item, label: friendlyProtocol(item.label) })));
+  renderBarList('tr-fw-actions', (d.fwActions || []).map(item => ({ ...item, label: friendlyAction(item.label).label })));
 
   const ipEl = document.getElementById('tr-top-ips');
   if (ipEl) {

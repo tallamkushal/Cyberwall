@@ -24,6 +24,16 @@
       position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
       overflow: hidden;
     }
+    .sidebar-scroll-hint {
+      position: absolute;
+      bottom: 80px;
+      left: 0; right: 0;
+      height: 60px;
+      background: linear-gradient(to bottom, transparent, #0f0f0e);
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.3s;
+    }
     .sidebar-logo {
       padding: 20px 18px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -351,7 +361,7 @@
       font-size: 13px; line-height: 1.6;
     }
     .ai-msg-user .ai-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
-    .ai-msg-bot  .ai-bubble { background: var(--accent-light); border: 1px solid #c7d7fb; color: var(--accent); border-bottom-left-radius: 4px; }
+    .ai-msg-bot  .ai-bubble { background: var(--accent-light); border: 1px solid #c7d7fb; color: white; border-bottom-left-radius: 4px; }
     .ai-bubble p { margin: 0 0 8px; } .ai-bubble p:last-child { margin: 0; }
     .ai-bubble ul, .ai-bubble ol { margin: 6px 0 6px 16px; }
     .ai-bubble strong { font-weight: 700; }
@@ -528,8 +538,8 @@
     <div class="sidebar-logo-icon">🛡</div>
     <span class="sidebar-logo-text">ProCyberWall</span>
   </a>
-
-  <div class="sidebar-nav">
+  <div class="sidebar-scroll-hint" id="sidebar-scroll-hint"></div>
+  <div class="sidebar-nav" id="sidebar-nav" onscroll="updateScrollHint()">
 
     <div class="sidebar-section">
       <div class="sidebar-section-label">Overview</div>
@@ -542,8 +552,8 @@
       <a class="sidebar-item" onclick="showPanel('traffic', this)">
         <span class="sidebar-item-icon">📈</span> Traffic Analytics
       </a>
-      <a class="sidebar-item" onclick="showPanel('reports', this)" data-requires="pro">
-        <span class="sidebar-item-icon">📄</span> Reports
+      <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
+        <span class="sidebar-item-icon">🤖</span> AI Assistant
       </a>
     </div>
 
@@ -574,8 +584,8 @@
       <a class="sidebar-item" onclick="showPanel('cybernews', this)">
         <span class="sidebar-item-icon">🌐</span> Cyber News
       </a>
-      <a class="sidebar-item" onclick="showPanel('ai', this)" data-requires="pro">
-        <span class="sidebar-item-icon">🤖</span> AI Assistant
+      <a class="sidebar-item" onclick="showPanel('reports', this)" data-requires="pro">
+        <span class="sidebar-item-icon">📄</span> Reports
       </a>
       <a class="sidebar-item" onclick="showPanel('darkweb', this)" data-requires="business">
         <span class="sidebar-item-icon">🕵️</span> Dark Web Monitor
@@ -720,13 +730,13 @@
               </div>
               <div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                  <span style="font-size:12px;font-weight:600;color:#ef4444">Threats Blocked</span>
+                  <span style="font-size:12px;font-weight:600;color:#ef4444">Blocked by ProCyberwall</span>
                   <span id="split-blocked-pct" style="font-size:12px;color:#ef4444;font-weight:700">—</span>
                 </div>
                 <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden">
                   <div id="split-blocked-bar" style="height:100%;background:#ef4444;border-radius:99px;width:0%;transition:width .6s"></div>
                 </div>
-                <div id="split-blocked-count" style="font-size:11px;color:var(--muted);margin-top:4px">— threats stopped by ProCyberWall</div>
+                <div id="split-blocked-count" style="font-size:11px;color:var(--muted);margin-top:4px">— threats stopped by ProCyberwall</div>
               </div>
             </div>
           </div>
@@ -786,8 +796,8 @@
     <div class="panel" id="panel-traffic">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
-          <div style="font-size:18px;font-weight:800">Traffic Analytics</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:2px">Last 24 hours · HTTP requests, not unique visitors · Cloudflare data</div>
+          <div style="font-size:18px;font-weight:800">Website Traffic</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">Last 24 hours · ProCyberwall data</div>
         </div>
         <button onclick="refreshTrafficPanel()" class="btn btn-ghost" style="font-size:12px;padding:7px 16px">↻ Refresh</button>
       </div>
@@ -796,38 +806,38 @@
       <!-- Summary cards -->
       <div class="tr-summary">
         <div class="tr-sum-card">
-          <div class="tr-sum-label">Total Requests</div>
+          <div class="tr-sum-label">Total Visits</div>
           <div class="tr-sum-val" id="tr-total">—</div>
-          <div class="tr-sum-desc">Total hits your site received including bots, browsers and API calls</div>
+          <div class="tr-sum-desc">Total times your website was opened today, including bots</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(239,68,68,0.35)">
-          <div class="tr-sum-label" style="color:#ef4444">Threats Blocked</div>
+          <div class="tr-sum-label" style="color:#ef4444">Blocked by ProCyberwall</div>
           <div class="tr-sum-val" id="tr-mitigated" style="color:#ef4444">—</div>
           <div class="tr-sum-pct" id="tr-mitigated-pct"></div>
-          <div class="tr-sum-desc">Stopped before reaching your site</div>
+          <div class="tr-sum-desc">Attacks stopped before reaching your site</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(26,71,232,0.3)">
-          <div class="tr-sum-label" style="color:var(--accent)">Threats Blocked Rate</div>
+          <div class="tr-sum-label" style="color:var(--accent)">Block Rate</div>
           <div class="tr-sum-val" id="tr-cached" style="color:var(--accent)">—</div>
           <div class="tr-sum-pct" id="tr-cached-pct"></div>
-          <div class="tr-sum-desc">Of all traffic was identified and blocked</div>
+          <div class="tr-sum-desc">Of all visitors were identified as threats and blocked</div>
         </div>
         <div class="tr-sum-card" style="border-color:rgba(34,197,94,0.3)">
-          <div class="tr-sum-label" style="color:#22c55e">Reached Your Server</div>
+          <div class="tr-sum-label" style="color:#22c55e">Safe Visitors</div>
           <div class="tr-sum-val" id="tr-origin" style="color:#22c55e">—</div>
           <div class="tr-sum-pct" id="tr-origin-pct"></div>
-          <div class="tr-sum-desc">Clean requests that passed ProCyberWall's check</div>
+          <div class="tr-sum-desc">Legitimate visits that safely reached your website</div>
         </div>
       </div>
 
       <!-- 24h line chart -->
       <div class="card" style="margin-bottom:18px">
         <div class="card-header" style="flex-wrap:wrap;gap:8px">
-          <span class="card-title">24h Traffic Overview</span>
+          <span class="card-title">Today's Traffic</span>
           <div style="display:flex;gap:14px;font-size:11px;color:var(--muted)">
-            <span><span style="display:inline-block;width:10px;height:3px;background:#6b8fff;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Requests</span>
-            <span><span style="display:inline-block;width:10px;height:3px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Mitigated</span>
-            <span><span style="display:inline-block;width:10px;height:3px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Cached</span>
+            <span><span style="display:inline-block;width:10px;height:3px;background:#6b8fff;border-radius:2px;vertical-align:middle;margin-right:3px"></span>All Visits</span>
+            <span><span style="display:inline-block;width:10px;height:3px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Blocked</span>
+            <span><span style="display:inline-block;width:10px;height:3px;background:#22c55e;border-radius:2px;vertical-align:middle;margin-right:3px"></span>Instant Loads</span>
           </div>
         </div>
         <div style="padding:0 18px 16px;height:200px;position:relative">
@@ -837,17 +847,17 @@
 
       <!-- Top stats grid -->
       <div class="tr-stats-grid">
-        <div class="tr-stat-card"><div class="tr-stat-title">Countries</div><div id="tr-countries"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
-        <div class="tr-stat-card"><div class="tr-stat-title">Device Types</div><div id="tr-devices"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
-        <div class="tr-stat-card"><div class="tr-stat-title">HTTP Methods</div><div id="tr-methods"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
-        <div class="tr-stat-card"><div class="tr-stat-title">Cache Status</div><div id="tr-cache"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
-        <div class="tr-stat-card"><div class="tr-stat-title">HTTP Versions</div><div id="tr-protocols"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
-        <div class="tr-stat-card"><div class="tr-stat-title">Security Actions</div><div id="tr-fw-actions"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Visitor Countries</div><div id="tr-countries"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Visitor Devices</div><div id="tr-devices"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">How They Browse <span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:4px" title="These are estimated counts and may differ slightly from Total Visits">~ approximate</span></div><div id="tr-methods"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Page Load Speed</div><div id="tr-cache"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Connection Type</div><div id="tr-protocols"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="tr-stat-card"><div class="tr-stat-title">Actions Taken</div><div id="tr-fw-actions"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
       </div>
 
       <!-- Top blocked IPs -->
       <div class="card" style="margin-top:16px">
-        <div class="card-header"><span class="card-title">Top Source IPs (Blocked)</span></div>
+        <div class="card-header"><span class="card-title">Top Blocked Attackers</span></div>
         <div style="padding:8px 18px 12px" id="tr-top-ips"><div style="color:var(--muted);font-size:12px;padding:8px 0">Loading…</div></div>
       </div>
     </div>

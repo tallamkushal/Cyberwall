@@ -55,7 +55,7 @@ async function loadDashboard() {
     return;
   }
 
-  document.getElementById('user-name').textContent     = profile.full_name || 'User';
+  document.getElementById('user-name').textContent     = toTitleCase(profile.full_name) || 'User';
   document.getElementById('user-plan').textContent     = capitalize(profile.plan || 'starter') + ' Plan';
   document.getElementById('user-domain').textContent   = normalizeDomain(profile.domain) || 'Not configured';
   document.getElementById('user-initials').textContent = getInitials(profile.full_name);
@@ -148,9 +148,19 @@ window.addEventListener('popstate', function (e) {
 function toggleSwitch(el) { el.classList.toggle('on'); }
 async function handleLogout() { await logOut(); }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function toTitleCase(s) { return s ? s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : ''; }
 function getInitials(name) { return name ? name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'U'; }
 
+function updateScrollHint() {
+  const nav  = document.getElementById('sidebar-nav');
+  const hint = document.getElementById('sidebar-scroll-hint');
+  if (!nav || !hint) return;
+  const atBottom = nav.scrollTop + nav.clientHeight >= nav.scrollHeight - 10;
+  hint.style.opacity = atBottom ? '0' : '1';
+}
+
 window.addEventListener('DOMContentLoaded', async function () {
+  setTimeout(updateScrollHint, 500);
   const initial = location.hash.replace('#', '') || 'overview';
   history.replaceState({ panel: initial }, '', '#' + initial);
 
@@ -261,7 +271,7 @@ async function saveProfileSettings() {
   }
 
   // Update topbar display
-  document.getElementById('user-name').textContent   = name;
+  document.getElementById('user-name').textContent   = toTitleCase(name);
   document.getElementById('user-domain').textContent = domain;
   document.getElementById('user-initials').textContent = getInitials(name);
 

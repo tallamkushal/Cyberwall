@@ -1,6 +1,5 @@
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
-const { createAlert } = require('../lib/alerts');
 
 async function handle(req, res, parsedUrl) {
   // ── GET ALERTS ──────────────────────────────────────────────────────────────
@@ -30,22 +29,6 @@ async function handle(req, res, parsedUrl) {
     if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
     res.writeHead(200, {'Content-Type':'application/json'});
     res.end(JSON.stringify({ ok: true }));
-    // Fire-and-forget: check if IP has changed
-    (async () => {
-      try {
-        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-        const profRes = await supabaseRequest('GET', `profiles?id=eq.${authUser.id}&select=last_login_ip`, null);
-        const [prof]  = JSON.parse(profRes.body);
-        const lastIp  = prof?.last_login_ip;
-        await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { last_login_ip: ip, last_login_at: new Date().toISOString() });
-        if (lastIp && lastIp !== ip) {
-          createAlert(authUser.id, 'login', 'low',
-            'Dashboard accessed from a new location',
-            `Your ProCyberWall dashboard was accessed from a new IP address. If this was not you, contact ProCyberWall support immediately to secure your account.`
-          ).catch(() => {});
-        }
-      } catch (e) { console.error('Login notify error:', e.message); }
-    })();
     return true;
   }
 

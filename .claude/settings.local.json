@@ -1,19 +1,4 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(git commit*)",
-            "command": "git push",
-            "statusMessage": "Pushing to GitHub..."
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(reg query:*)",
@@ -27,7 +12,25 @@
       "Bash(node --check js/admin.js)",
       "Bash(node --check js/whatsapp.js)",
       "Bash(node --check js/cloudflare.js)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git -C \"C:/Users/Dell/desktop/ai/cyberwall\" add index.html dashboard.html admin.html)",
+      "Bash(git -C C:/Users/Dell/desktop/ai/cyberwall commit -m ' *)",
+      "Bash(git *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git push",
+            "if": "Bash(git commit*)",
+            "statusMessage": "Pushing to GitHub..."
+          }
+        ]
+      }
     ]
   }
 }

@@ -301,18 +301,21 @@ async function handle(req, res, parsedUrl) {
         .filter(h => (h.dimensions?.datetime || '') >= since24h)
         .reduce((s, h) => s + (h.sum?.threats || 0), 0);
 
-      // --- Chart: aggregate by day (3 or 7 days depending on plan) ---
+      // --- Chart: aggregate by day ---
       const dayMap = {};
       for (const h of statsGqlData) {
         const day = (h.dimensions?.datetime || '').slice(0, 10);
         if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
       }
-      const chartDays = Object.keys(dayMap).length <= 3 ? 3 : 7;
+      // Use UTC date for today so it matches Cloudflare's UTC timestamps
+      const todayUtc = now.toISOString().slice(0, 10);
+      const chartDays = 7;
       const chartLabels = [], chartData = [];
       for (let i = chartDays - 1; i >= 0; i--) {
-        const d = new Date(now - i*24*60*60*1000);
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateStr = d.toISOString().slice(0, 10);
         chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', {weekday:'short'}));
-        chartData.push(dayMap[d.toISOString().slice(0,10)] || 0);
+        chartData.push(dayMap[dateStr] || 0);
       }
 
       // "Blocked (X days)" = sum only for the chart period so number matches label
@@ -489,38 +492,6 @@ async function handle(req, res, parsedUrl) {
           recorded_at:    now.toISOString(),
         }).catch(() => {});
 
-      }).catch(() => {});
-
-      // ── Auto-create alerts (fire-and-forget, response already sent) ──────────
-      _cfAuthPromise.then(authUser => {
-        if (!authUser) return;
-
-        if (threatsToday >= 10) {
-          const cCounts = {};
-          evts.forEach(t => { const c = t.clientCountryName || t.country; if (c) cCounts[c] = (cCounts[c] || 0) + 1; });
-          const topCountry = Object.entries(cCounts).sort((a, b) => b[1] - a[1])[0];
-          const countryStr = topCountry ? ` Most attacks came from ${topCountry[0]}.` : '';
-          const typeStr    = attackTypeLabels.length > 0 ? ` Main attack type: ${attackTypeLabels[0]}.` : '';
-          createAlert(authUser.id, 'threat', 'high',
-            `${threatsToday.toLocaleString()} attacks blocked today`,
-            `ProCyberWall automatically blocked ${threatsToday.toLocaleString()} attack${threatsToday > 1 ? 's' : ''} targeting ${domain} today.${countryStr}${typeStr} Your website stayed online and protected throughout.`
-          ).catch(() => {});
-        }
-
-        if (_sslDaysLeft !== null && _sslDaysLeft <= 0) {
-          createAlert(authUser.id, 'ssl', 'high',
-            'SSL certificate has expired',
-            `The SSL certificate for ${domain} has expired. Visitors are seeing browser security warnings. Contact ProCyberWall support immediately to restore secure connections.`
-          ).catch(() => {});
-        }
-
-        if (_sslDaysLeft !== null && _sslDaysLeft > 0 && _sslDaysLeft <= 7) {
-          createAlert(authUser.id, 'ssl', 'high',
-            `SSL certificate expires in ${_sslDaysLeft} day${_sslDaysLeft === 1 ? '' : 's'}`,
-            `Your SSL certificate for ${domain} expires in ${_sslDaysLeft} day${_sslDaysLeft === 1 ? '' : 's'}. Contact ProCyberWall support immediately to avoid visitors seeing security warnings.`
-          ).catch(() => {});
-        }
-
         if (chartData.length >= 2) {
           const todayVal = chartData[chartData.length - 1];
           const prevDays = chartData.slice(0, -1).filter(v => v > 0);
@@ -535,47 +506,8 @@ async function handle(req, res, parsedUrl) {
           }
         }
 
-        if (_sslDaysLeft !== null && _sslDaysLeft > 7 && _sslDaysLeft <= 30) {
-          createAlert(authUser.id, 'ssl', 'low',
-            `SSL certificate expires in ${_sslDaysLeft} days`,
-            `Your SSL certificate for ${domain} will expire in ${_sslDaysLeft} days. ProCyberWall will handle the renewal — no action needed from you right now.`,
-            7
-          ).catch(() => {});
-        }
-
-        if (!hasDMARC) {
-          createAlert(authUser.id, 'email', 'low',
-            'DMARC record not configured',
-            `Your domain ${domain} is missing a DMARC record. Without it, attackers can send fake emails pretending to be from your business. Contact ProCyberWall to set this up.`,
-            7
-          ).catch(() => {});
-        } else if (!dmarcBlocking) {
-          createAlert(authUser.id, 'email', 'low',
-            'DMARC is set to monitor only — not blocking fake emails',
-            `Your domain ${domain} has DMARC set to "p=none", which only monitors emails and does not block spoofed messages. Contact ProCyberWall to enforce rejection.`,
-            7
-          ).catch(() => {});
-        } else if (!hasSPF) {
-          createAlert(authUser.id, 'email', 'low',
-            'SPF record not configured',
-            `Your domain ${domain} is missing an SPF record. This can allow spoofed emails to be sent on your behalf. Contact ProCyberWall to resolve this.`,
-            7
-          ).catch(() => {});
-        } else if (hasSPF && !spfHardfail) {
-          createAlert(authUser.id, 'email', 'low',
-            'SPF is not fully enforced',
-            `Your domain ${domain} has SPF configured but uses a soft block (~all), meaning spoofed emails may still reach inboxes. Contact ProCyberWall to tighten this to a hard block (-all).`,
-            7
-          ).catch(() => {});
-        } else if (!hasDKIM) {
-          createAlert(authUser.id, 'email', 'low',
-            'DKIM not configured',
-            `Your domain ${domain} does not have DKIM set up. DKIM helps verify your emails are genuinely from you. Contact ProCyberWall to enable it.`,
-            7
-          ).catch(() => {});
-        }
-
       }).catch(() => {});
+
 
     } catch (err) {
       res.writeHead(500, {'Content-Type':'application/json'});
@@ -637,8 +569,12 @@ async function handle(req, res, parsedUrl) {
               ){count dimensions{clientRequestHTTPMethodName}}
               byCache:httpRequestsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:5
+                limit:6
               ){count dimensions{cacheStatus}}
+              byProtocol:httpRequestsAdaptiveGroups(
+                filter:{datetime_geq:$since,datetime_leq:$until}
+                limit:5
+              ){count dimensions{clientRequestHTTPProtocol}}
               fwActions:firewallEventsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
                 limit:5 orderBy:[count_DESC]
@@ -719,7 +655,7 @@ async function handle(req, res, parsedUrl) {
         devices:    mapList(zData.byDevice,   'clientDeviceType'),
         methods:    mapList(zData.byMethod,   'clientRequestHTTPMethodName'),
         cacheStatus:mapList(zData.byCache,    'cacheStatus'),
-        protocols:  [],
+        protocols:  mapList(zData.byProtocol, 'clientRequestHTTPProtocol'),
         fwActions:  mapList(zData.fwActions,  'action'),
         topIPs:     mapList(zData.fwIPs,      'clientIP'),
       }));

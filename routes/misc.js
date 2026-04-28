@@ -6,7 +6,6 @@ const { sendTwilioMessage, TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = require('..
 const { getClientIp, checkRateLimit } = require('../lib/rateLimit');
 const { runSecurityScan, enhanceScanWithCloudflare } = require('../lib/scanner');
 const { cfGet, cfGetZoneId } = require('../lib/cloudflare');
-const { createAlert } = require('../lib/alerts');
 
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
 const HIBP_API_KEY = process.env.HIBP_API_KEY || '';
@@ -494,9 +493,13 @@ async function handle(req, res, parsedUrl) {
 
       if (totalBreaches > 0) {
         const preview = breaches.slice(0, 3).map(b => `• ${b.Title} (${b.BreachDate?.slice(0,4) || '?'})`).join('\n');
-        const alertTitle = `Your email found in ${totalBreaches} data breach${totalBreaches > 1 ? 'es' : ''}`;
-        const alertDesc  = `${email} was found in the following breach${totalBreaches > 1 ? 'es' : ''}:\n${preview}${totalBreaches > 3 ? `\n+${totalBreaches - 3} more` : ''}\n\nChange your passwords immediately and enable two-factor authentication.`;
-        createAlert(authUser.id, 'darkweb', 'high', alertTitle, alertDesc).catch(() => {});
+        const more = totalBreaches > 3 ? `\n+${totalBreaches - 3} more` : '';
+        const profRes = await supabaseRequest('GET', `profiles?id=eq.${authUser.id}&select=phone,full_name`, null);
+        const [prof] = JSON.parse(profRes.body);
+        if (prof?.phone) {
+          const msg = `🚨 *ProCyberWall Dark Web Alert*\n\n*Your email was found in ${totalBreaches} data breach${totalBreaches > 1 ? 'es' : ''}*\n\n${preview}${more}\n\nChange your passwords immediately and enable two-factor authentication.\n\n— ProCyberWall`;
+          sendTwilioMessage(prof.phone, msg).catch(() => {});
+        }
       }
 
       res.writeHead(200, {'Content-Type':'application/json'});
