@@ -106,7 +106,7 @@ async function loadCloudflareData(domain, zoneId) {
       '7d':  s.threats7d    || 0,
       '30d': s.threats30d   || 0,
     };
-    setThreatPeriod(window._activeThreatPeriod || '7d');
+    setThreatPeriod(window._activeThreatPeriod || 'today');
     safeSet('chart-period-label', 'Last 7 Days');
     safeSet('stat-uptime',  s.uptime || '—');
     safeSet('stat-response', s.responseMs != null ? s.responseMs + 'ms' : '—');
