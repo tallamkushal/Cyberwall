@@ -46,22 +46,22 @@ Rules:
         });
 
         stream.on('text', (text) => {
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          if (!res.writableEnded) res.write(`data: ${JSON.stringify({ text })}\n\n`);
         });
 
         stream.on('finalMessage', () => {
-          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-          res.end();
+          if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ done: true })}\n\n`); res.end(); }
         });
 
         stream.on('error', (err) => {
-          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-          res.end();
+          console.error('AI stream error:', err.message);
+          if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); }
         });
 
       } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: err.message }));
+        console.error('AI chat error:', err.message);
+        if (!res.headersSent) { res.writeHead(500, { 'Content-Type': 'application/json' }); }
+        if (!res.writableEnded) res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
     return true;
@@ -110,17 +110,16 @@ Rules:
         });
 
         stream.on('text', (text) => {
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          if (!res.writableEnded) res.write(`data: ${JSON.stringify({ text })}\n\n`);
         });
 
         stream.on('finalMessage', () => {
-          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-          res.end();
+          if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ done: true })}\n\n`); res.end(); }
         });
 
         stream.on('error', (err) => {
-          res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-          res.end();
+          console.error('AI stream error:', err.message);
+          if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`); res.end(); }
         });
 
       } catch (err) {

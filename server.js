@@ -20,6 +20,7 @@ if (missing.length) {
 
 // ── HTTP SERVER ───────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
+  try {
   // CORS
   const allowedOrigins = ['https://cyberwall.onrender.com', 'https://procyberwall.com', 'https://www.procyberwall.com', 'http://localhost:3001'];
   const origin = req.headers['origin'] || '';
@@ -88,6 +89,21 @@ const server = http.createServer(async (req, res) => {
 
   res.writeHead(404);
   res.end('Not found');
+  } catch (err) {
+    console.error('❌ Request handler error:', err.message, req.method, req.url);
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Internal server error' }));
+    }
+  }
+});
+
+// ── GLOBAL ERROR HANDLERS ─────────────────────────────────────────────────────
+process.on('uncaughtException', err => {
+  console.error('❌ Uncaught exception:', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled rejection:', reason);
 });
 
 // ── SCHEDULED JOBS ────────────────────────────────────────────────────────────

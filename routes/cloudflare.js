@@ -1,6 +1,6 @@
 const https = require('https');
 const { requireAuth, requireAdminAuth } = require('../lib/auth');
-const { supabaseRequest } = require('../lib/supabase');
+const { supabaseRequest, supabaseUpsert } = require('../lib/supabase');
 const { cfGet, cfGetZoneId, cfGraphQL, CF_EMAIL, CF_API_KEY } = require('../lib/cloudflare');
 const { sendTwilioMessage } = require('../lib/twilio');
 const { probeDomain } = require('../lib/scanner');
@@ -100,7 +100,7 @@ async function handle(req, res, parsedUrl) {
         const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
 
         // Save domain to profile first — persisted even if CF zone creation fails
-        await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { domain: clean }).catch(() => {});
+        await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { domain: clean }).catch(err => console.error('[cf]', err.message));
 
         const cfPayload = JSON.stringify({ name: clean, jump_start: true });
         const result = await new Promise((resolve, reject) => {
@@ -160,7 +160,7 @@ async function handle(req, res, parsedUrl) {
             cf_zone_id:   zoneId,
             nameservers:  nameservers.join(','),
             domain:       clean
-          }).catch(() => {});
+          }).catch(err => console.error('[cf]', err.message));
         }
 
         // Notify admin via WhatsApp
@@ -175,7 +175,7 @@ async function handle(req, res, parsedUrl) {
           }
           const status = alreadyExists ? '(zone already existed)' : '✅ New zone created';
           const msg = `🌐 *Cloudflare Zone Setup*\n\n*Client:* ${clientName}\n*Domain:* ${clean}\n*Status:* ${status}\n*Nameservers:*\n• ${nameservers.join('\n• ')}\n\nClient has been shown their nameservers and is updating DNS.\n\n— ProCyberWall System`;
-          sendTwilioMessage(ADMIN_PHONE, msg).catch(() => {});
+          sendTwilioMessage(ADMIN_PHONE, msg).catch(err => console.error('[cf]', err.message));
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -226,6 +226,7 @@ async function handle(req, res, parsedUrl) {
 
       const now = new Date();
       const since30d   = new Date(now - 30*24*60*60*1000).toISOString();
+      const since7d    = new Date(now -  7*24*60*60*1000).toISOString();
       const since3d    = new Date(now -  3*24*60*60*1000).toISOString();
       const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const until = now.toISOString();
@@ -250,6 +251,17 @@ async function handle(req, res, parsedUrl) {
         return Array.isArray(rows) ? rows[0] : null;
       }).catch(() => null);
 
+      // Threat history from Supabase — fills chart days beyond Cloudflare Pro's 72h API retention
+      const since8dDate = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const snapshotsPromise = _cfAuthPromise.then(async user => {
+        if (!user) return [];
+        const r = await supabaseRequest('GET',
+          `threat_snapshots?profile_id=eq.${encodeURIComponent(user.id)}&date=gte.${since8dDate}&select=date,threats_today&order=date.asc`,
+          null);
+        try { const rows = JSON.parse(r.body); return Array.isArray(rows) ? rows : []; }
+        catch(e) { return []; }
+      }).catch(() => []);
+
       // Real ping — measures actual response time to the customer's domain
       const pingPromise = new Promise(resolve => {
         const host = domain.replace(/^https?:\/\//, '').split('/')[0];
@@ -260,25 +272,75 @@ async function handle(req, res, parsedUrl) {
         r.end();
       });
 
-      const _statsGql = (since) => cfGraphQL(`
+      const _statsGql = (since) => {
+        const limitHours = Math.min(720, Math.ceil((now.getTime() - new Date(since).getTime()) / 3600000) + 2);
+        return cfGraphQL(`
+          query($zoneTag:String!,$since:String!,$until:String!){
+            viewer{
+              zones(filter:{zoneTag:$zoneTag}){
+                hours:httpRequests1hGroups(
+                  filter:{datetime_geq:$since,datetime_leq:$until}
+                  limit:${limitHours} orderBy:[datetime_ASC]
+                ){sum{requests threats} dimensions{datetime}}
+              }
+            }
+          }`, { zoneTag: zoneId, since, until });
+      };
+
+      // Start REST calls immediately — runs while cache check happens below
+      const _restSettledPromise = Promise.allSettled([
+        cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
+        cfGet(`/zones/${zoneId}/settings/always_use_https`),
+        cfGet(`/zones/${zoneId}/settings/ssl`),
+        cfGet(`/zones/${zoneId}/settings/min_tls_version`),
+        cfGet(`/zones/${zoneId}/dns_records?per_page=100`),
+        cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
+        cfGet(`/zones/${zoneId}/settings/waf`),
+        isPro ? Promise.resolve(null) : cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
+        isPro ? cfGet(`/zones/${zoneId}/bot_management`) : Promise.resolve(null),
+        cfGet(`/zones/${zoneId}/rulesets`),
+      ]);
+
+      // Stats cache check (15-min TTL) — skips GraphQL entirely on a hit
+      const _statsCacheMaxAge = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+      const statsCache = await supabaseRequest('GET',
+        `zone_stats_cache?domain=eq.${encodeURIComponent(domain)}&fetched_at=gte.${_statsCacheMaxAge}&limit=1`,
+        null
+      ).then(r => {
+        try { const rows = JSON.parse(r.body); return Array.isArray(rows) && rows.length > 0 ? rows[0].data : null; }
+        catch(e) { return null; }
+      }).catch(() => null);
+
+      // Cascade: try 30d → 7d → 3d, stepping down on quota/budget errors
+      const _hasQuotaError = r => r?.errors?.some(e =>
+        e.extensions?.code === 'quota' ||
+        e.message?.toLowerCase().includes('quota') ||
+        e.message?.toLowerCase().includes('budget')
+      );
+
+      // Only fire GraphQL queries on cache miss — avoids Cloudflare budget on every load
+      const statsGqlPromise = statsCache ? Promise.resolve(null) : _statsGql(since30d)
+        .then(r => _hasQuotaError(r) ? _statsGql(since7d)  : r)
+        .then(r => _hasQuotaError(r) ? _statsGql(since3d)  : r)
+        .catch(() => null);
+
+      // Chart uses firewallEventsAdaptiveGroups — captures managed WAF blocks that
+      // httpRequests1dGroups.sum.threats misses on Pro/Business plans.
+      const chartGqlPromise = statsCache ? Promise.resolve(null) : cfGraphQL(`
         query($zoneTag:String!,$since:String!,$until:String!){
           viewer{
             zones(filter:{zoneTag:$zoneTag}){
-              hours:httpRequests1hGroups(
+              fwHourly:firewallEventsAdaptiveGroups(
                 filter:{datetime_geq:$since,datetime_leq:$until}
-                limit:720 orderBy:[datetime_ASC]
-              ){sum{requests threats} dimensions{datetime}}
+                limit:200 orderBy:[datetimeHour_ASC]
+              ){count dimensions{datetimeHour}}
             }
           }
-        }`, { zoneTag: zoneId, since, until });
-
-      // Try 30 days first; free-plan zones are capped at 3 days — fall back automatically
-      const statsGqlPromise = _statsGql(since30d)
-        .then(r => r?.errors?.[0]?.extensions?.code === 'quota' ? _statsGql(since3d) : r)
+        }`, { zoneTag: zoneId, since: since7d, until })
+        .then(r => (r?.errors?.length > 0 || !r?.data) ? null : r)
         .catch(() => null);
 
-      // Firewall events — 5s max so it never hangs the overview
-      const fwGqlPromise = Promise.race([
+      const fwGqlPromise = statsCache ? Promise.resolve(null) : Promise.race([
         cfGraphQL(`
           query($zoneTag:String!,$since:String!,$until:String!){
             viewer{
@@ -293,18 +355,7 @@ async function handle(req, res, parsedUrl) {
         new Promise(resolve => setTimeout(() => resolve(null), 5000))
       ]).catch(() => null);
 
-      const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, botMgmt, rulesets] = await Promise.allSettled([
-        cfGet(`/zones/${zoneId}/firewall/events?per_page=20`),
-        cfGet(`/zones/${zoneId}/settings/always_use_https`),
-        cfGet(`/zones/${zoneId}/settings/ssl`),
-        cfGet(`/zones/${zoneId}/settings/min_tls_version`),
-        cfGet(`/zones/${zoneId}/dns_records?per_page=100`),
-        cfGet(`/zones/${zoneId}/ssl/certificate_packs`),
-        cfGet(`/zones/${zoneId}/settings/waf`),
-        isPro ? Promise.resolve(null) : cfGet(`/zones/${zoneId}/settings/bot_fight_mode`),
-        isPro ? cfGet(`/zones/${zoneId}/bot_management`) : Promise.resolve(null),
-        cfGet(`/zones/${zoneId}/rulesets`),
-      ]);
+      const [events, httpsSet, sslSet, tlsSet, dnsAll, certPacks, wafSet, botSet, botMgmt, rulesets] = await _restSettledPromise;
 
       const [profile, responseMs] = await Promise.all([profilePromise, pingPromise]);
 
@@ -315,7 +366,6 @@ async function handle(req, res, parsedUrl) {
 
       // Time windows
       const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-      const since7d  = new Date(now -  7 * 24 * 60 * 60 * 1000).toISOString();
 
       const filterSince = (since) => statsGqlData.filter(h => (h.dimensions?.datetime || '') >= since);
 
@@ -330,12 +380,29 @@ async function handle(req, res, parsedUrl) {
       const totalRequests7d  = data7d.reduce( (s, h) => s + (h.sum?.requests || 0), 0);
       const totalRequests30d = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
 
-      // --- Chart: aggregate by day (7-day bar chart) ---
+      // --- Chart: aggregate firewall events by UTC day (captures WAF managed rule blocks) ---
+      const chartFwData = (await chartGqlPromise)?.data?.viewer?.zones?.[0]?.fwHourly || [];
       const dayMap = {};
-      for (const h of statsGqlData) {
-        const day = (h.dimensions?.datetime || '').slice(0, 10);
-        if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
+      for (const h of chartFwData) {
+        const day = (h.dimensions?.datetimeHour || '').slice(0, 10);
+        if (day) dayMap[day] = (dayMap[day] || 0) + (h.count || 0);
       }
+      // Fallback: if firewall events returned nothing, use hourly request threats
+      if (chartFwData.length === 0) {
+        for (const h of statsGqlData) {
+          const day = (h.dimensions?.datetime || '').slice(0, 10);
+          if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
+        }
+      }
+
+      // Fill historical gaps from threat_snapshots (Cloudflare Pro API only retains 72h)
+      const snapshotRows = await snapshotsPromise;
+      for (const s of snapshotRows) {
+        if (s.date && dayMap[s.date] === undefined) {
+          dayMap[s.date] = s.threats_today || 0;
+        }
+      }
+
       const todayUtc = now.toISOString().slice(0, 10);
       const chartDays = 7;
       const chartLabels = [], chartData = [];
@@ -470,20 +537,20 @@ async function handle(req, res, parsedUrl) {
         zoneStatus,
         zoneActive: zoneStatus === 'active',
         stats: {
-          threatsToday,
-          threats7d,
-          threats30d,
-          totalRequests24h,
-          totalRequests7d,
-          totalRequests30d,
+          threatsToday:     statsCache?.threatsToday     ?? threatsToday,
+          threats7d:        statsCache?.threats7d        ?? threats7d,
+          threats30d:       statsCache?.threats30d       ?? threats30d,
+          totalRequests24h: statsCache?.totalRequests24h ?? totalRequests24h,
+          totalRequests7d:  statsCache?.totalRequests7d  ?? totalRequests7d,
+          totalRequests30d: statsCache?.totalRequests30d ?? totalRequests30d,
           securityScore: score,
           scoreGrade,
           uptime:     uptimePercent,
           responseMs: responseMs,
         },
-        chart7d:     { labels: chartLabels, data: chartData, days: chartDays },
+        chart7d:     statsCache?.chart7d ?? { labels: chartLabels, data: chartData, days: chartDays },
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
-        threats:     evts.slice(0, 10),
+        threats:     restEvts.length > 0 ? restEvts.slice(0, 10) : (statsCache?.threats ?? evts.slice(0, 10)),
         ssl: {
           status:  sslStatusStr,
           issuer:  certIssuer,
@@ -505,11 +572,35 @@ async function handle(req, res, parsedUrl) {
         },
       }));
 
+      // ── Zone stats cache write (only on live fetch, 15-min TTL) ─────────────────
+      if (!statsCache) {
+        supabaseUpsert('zone_stats_cache', {
+          domain,
+          zone_id: zoneId,
+          data: {
+            chart7d:          { labels: chartLabels, data: chartData, days: chartDays },
+            threatsToday,
+            threats7d,
+            threats30d,
+            totalRequests24h,
+            totalRequests7d,
+            totalRequests30d,
+            threats:          evts.slice(0, 10),
+            attackTypes:      { labels: attackTypeLabels, data: attackTypeData },
+          },
+          fetched_at: now.toISOString(),
+        }).catch(err => console.error('[stats-cache]', err.message));
+      }
+
       // ── Record historical data (fire-and-forget, response already sent) ────────
       _cfAuthPromise.then(async authUser => {
         if (!authUser) return;
 
-        const blockRate7d = totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0;
+        // Use effective values (cache or fresh) so historical snapshots are accurate
+        const _eff_threatsToday  = statsCache?.threatsToday     ?? threatsToday;
+        const _eff_threats7d     = statsCache?.threats7d        ?? threats7d;
+        const _eff_totalReq7d    = statsCache?.totalRequests7d  ?? totalRequests7d;
+        const blockRate7d = _eff_totalReq7d > 0 ? Math.round((_eff_threats7d / _eff_totalReq7d) * 100) : 0;
 
         if (!cachedScore) {
           supabaseRequest('POST', 'security_scores', {
@@ -519,36 +610,37 @@ async function handle(req, res, parsedUrl) {
             grade:      freshScore >= 90 ? 'A+' : freshScore >= 80 ? 'A' : freshScore >= 70 ? 'B' : 'C',
             issues:     [],
             scanned_at: now.toISOString(),
-          }).catch(() => {});
+          }).catch(err => console.error('[cf]', err.message));
         }
 
         supabaseRequest('POST', 'threat_snapshots', {
           profile_id:     authUser.id,
           domain,
           date:           today,
-          threats_today:  threatsToday,
-          threats_7d:     threats7d,
-          total_requests: totalRequests7d,
-          clean_requests: Math.max(0, totalRequests7d - threats7d),
+          threats_today:  _eff_threatsToday,
+          threats_7d:     _eff_threats7d,
+          total_requests: _eff_totalReq7d,
+          clean_requests: Math.max(0, _eff_totalReq7d - _eff_threats7d),
           block_rate_pct: blockRate7d,
           recorded_at:    now.toISOString(),
-        }).catch(() => {});
+        }).catch(err => console.error('[cf]', err.message));
 
-        if (chartData.length >= 2) {
-          const todayVal = chartData[chartData.length - 1];
-          const prevDays = chartData.slice(0, -1).filter(v => v > 0);
+        const _eff_chartData = statsCache?.chart7d?.data ?? chartData;
+        if (_eff_chartData.length >= 2) {
+          const todayVal = _eff_chartData[_eff_chartData.length - 1];
+          const prevDays = _eff_chartData.slice(0, -1).filter(v => v > 0);
           if (prevDays.length > 0) {
             const avg = prevDays.reduce((a, b) => a + b, 0) / prevDays.length;
             if (avg > 0 && todayVal > avg * 5) {
               createAlert(authUser.id, 'traffic', 'high',
                 `Attack spike: ${todayVal.toLocaleString()} attacks today`,
                 `Today's attack volume on ${domain} is ${Math.round(todayVal / avg)}× above your 7-day average. ProCyberWall is monitoring the situation in real time — no action needed from you.`
-              ).catch(() => {});
+              ).catch(err => console.error('[cf]', err.message));
             }
           }
         }
 
-      }).catch(() => {});
+      }).catch(err => console.error('[cf]', err.message));
 
 
     } catch (err) {

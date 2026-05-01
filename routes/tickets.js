@@ -32,10 +32,16 @@ async function handle(req, res, parsedUrl) {
     if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
 
     if (req.method === 'GET') {
-      const r = await supabaseRequest('GET', `support_tickets?client_id=eq.${encodeURIComponent(authUser.id)}&order=created_at.desc&select=*`, null);
-      const tickets = JSON.parse(r.body);
-      res.writeHead(200, {'Content-Type':'application/json'});
-      res.end(JSON.stringify({ tickets: Array.isArray(tickets) ? tickets : [] }));
+      try {
+        const r = await supabaseRequest('GET', `support_tickets?client_id=eq.${encodeURIComponent(authUser.id)}&order=created_at.desc&select=*`, null);
+        const tickets = JSON.parse(r.body);
+        res.writeHead(200, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ tickets: Array.isArray(tickets) ? tickets : [] }));
+      } catch (err) {
+        console.error('tickets/mine error:', err.message);
+        res.writeHead(500, {'Content-Type':'application/json'});
+        res.end(JSON.stringify({ error: err.message }));
+      }
       return true;
     }
   }

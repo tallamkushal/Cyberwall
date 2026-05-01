@@ -56,6 +56,7 @@ async function handle(req, res, parsedUrl) {
     if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
     let body = '';
     req.on('data', c => body += c);
+    req.on('error', err => { console.error('alerts req error:', err.message); res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Bad request'})); });
     req.on('end', async () => {
       try {
         const { id } = JSON.parse(body);

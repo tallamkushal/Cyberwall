@@ -172,3 +172,16 @@ ALTER TABLE domain_analytics ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Clients view own analytics"
   ON domain_analytics FOR SELECT
   USING (auth.uid() = profile_id);
+
+-- ZONE STATS CACHE — populated every 15 min by background poller
+-- Stores GraphQL-heavy data (chart, threat counts) to cut Cloudflare API usage at SaaS scale.
+-- Backend-only: clients never access this directly.
+CREATE TABLE IF NOT EXISTS zone_stats_cache (
+  domain     TEXT PRIMARY KEY,
+  zone_id    TEXT,
+  data       JSONB NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE zone_stats_cache ENABLE ROW LEVEL SECURITY;
+-- No client policies needed — service_role key bypasses RLS for all backend writes.
