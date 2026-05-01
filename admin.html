@@ -9,12 +9,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="ProCyberWall"/>
   <link rel="apple-touch-icon" href="/icons/icon.svg"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>ProCyberWall — Admin</title>
   <link rel="stylesheet" href="css/style.css"/>
   <script src="js/theme.js"></script>
   <style>
-    body { display: flex; height: 100vh; overflow: hidden; }
+    html { overflow: hidden; }
+    body { display: flex; height: 100vh; }
 
     /* ---- SIDEBAR ---- */
     .sidebar {
@@ -277,15 +278,20 @@
     .admin-more-item .more-icon { font-size: 18px; width: 24px; text-align: center; }
     .admin-more-item.danger { color: #ef4444; }
 
+    .topbar-logout-mobile { display: none; }
+
     @media (max-width: 768px) {
+      html { overflow: auto; }
       body { display: block; overflow: auto; height: auto; }
       .sidebar { display: none; }
-      .admin-mobile-nav { display: flex; }
-      .topbar { left: 0; }
+      .admin-mobile-nav { display: flex !important; }
+      .topbar { left: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .topbar-logout-mobile { display: flex; }
       .main {
         margin-left: 0;
         padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
         height: auto; overflow: visible;
+        -webkit-overflow-scrolling: touch;
       }
       .content { padding-top: calc(56px + 16px); padding-left: 14px; padding-right: 14px; }
       .stats-grid { grid-template-columns: repeat(2,1fr); }
@@ -422,6 +428,7 @@
     <button class="topbar-btn" onclick="toggleTheme()" title="Toggle theme"><span class="theme-toggle-icon">🌙</span></button>
     <button class="topbar-btn">🔔 Alerts</button>
     <button class="topbar-btn primary" onclick="showPanel('add', null)">+ Add Client</button>
+    <button class="topbar-btn topbar-logout-mobile" onclick="logOut()" title="Logout" style="padding:7px 10px;">🚪</button>
   </div>
 </div>
 
