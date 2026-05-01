@@ -1,0 +1,469 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8"/>
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 15">
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  @page {
+    size: A4;
+    margin: 2.5cm 2cm 2.5cm 2cm;
+    mso-header-margin: 1cm;
+    mso-footer-margin: 1cm;
+  }
+  body {
+    font-family: Calibri, sans-serif;
+    font-size: 11pt;
+    color: #1a1a2e;
+    line-height: 1.4;
+  }
+  h1 {
+    font-family: Calibri, sans-serif;
+    font-size: 22pt;
+    font-weight: bold;
+    color: #1a47e8;
+    border-bottom: 3px solid #1a47e8;
+    padding-bottom: 6pt;
+    margin-bottom: 6pt;
+    margin-top: 0;
+  }
+  h2 {
+    font-family: Calibri, sans-serif;
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1a47e8;
+    background-color: #eef2ff;
+    padding: 5pt 8pt;
+    margin-top: 18pt;
+    margin-bottom: 4pt;
+    border-left: 4pt solid #1a47e8;
+  }
+  h3 {
+    font-family: Calibri, sans-serif;
+    font-size: 11pt;
+    font-weight: bold;
+    color: #374151;
+    margin-top: 12pt;
+    margin-bottom: 3pt;
+  }
+  .meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16pt;
+    font-size: 10pt;
+  }
+  .meta-table td {
+    padding: 4pt 8pt;
+    border: 1px solid #d1d5db;
+  }
+  .meta-table td:first-child {
+    font-weight: bold;
+    background-color: #f3f4f6;
+    width: 30%;
+  }
+  table.test-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin-bottom: 10pt;
+  }
+  table.test-table th {
+    background-color: #1a47e8;
+    color: white;
+    font-weight: bold;
+    padding: 5pt 6pt;
+    text-align: left;
+    border: 1px solid #1a47e8;
+  }
+  table.test-table td {
+    padding: 4pt 6pt;
+    border: 1px solid #d1d5db;
+    vertical-align: top;
+  }
+  table.test-table tr:nth-child(even) td {
+    background-color: #f9fafb;
+  }
+  table.test-table td:first-child {
+    font-weight: bold;
+    color: #1a47e8;
+    width: 5%;
+    white-space: nowrap;
+  }
+  table.test-table td:last-child {
+    width: 16%;
+  }
+  .result-col {
+    background-color: #fffbeb !important;
+  }
+  .page-break { page-break-before: always; }
+  .footer-note {
+    font-size: 9pt;
+    color: #6b7280;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 20pt;
+    padding-top: 6pt;
+  }
+  p { margin: 4pt 0; }
+</style>
+</head>
+<body>
+
+<h1>CyberWall — User Acceptance Testing (UAT) Test Plan</h1>
+
+<table class="meta-table">
+  <tr><td>Project</td><td>ProCyberWall — Managed Firewall SaaS</td></tr>
+  <tr><td>Test Date</td><td>April 2026</td></tr>
+  <tr><td>Environment</td><td>http://localhost:3001</td></tr>
+  <tr><td>Tester</td><td></td></tr>
+  <tr><td>Result Key</td><td>PASS &nbsp;|&nbsp; FAIL: &lt;what happened&gt; &nbsp;|&nbsp; SKIP</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 1 -->
+<h2>MODULE 1 — Landing Page (index.html)</h2>
+
+<table class="test-table">
+  <tr>
+    <th>#</th>
+    <th>Test Case</th>
+    <th>Steps</th>
+    <th>Expected Result</th>
+    <th>Result</th>
+  </tr>
+  <tr><td>1.1</td><td>Page loads</td><td>Open http://localhost:3001</td><td>Hero section visible, no console errors</td><td class="result-col"></td></tr>
+  <tr><td>1.2</td><td>Hero headline</td><td>Read hero text</td><td>"Enterprise-grade firewall protection — without the enterprise price tag." visible</td><td class="result-col"></td></tr>
+  <tr><td>1.3</td><td>Hero CTAs side-by-side</td><td>View hero on desktop and mobile</td><td>"Start 7-day free trial" and "Check your security score" are side by side, equal width</td><td class="result-col"></td></tr>
+  <tr><td>1.4</td><td>AI threat badge</td><td>Check hero threat badges</td><td>"AI-powered attack intercepted" badge with red pulse dot visible</td><td class="result-col"></td></tr>
+  <tr><td>1.5</td><td>AI Threats section</td><td>Scroll down the page</td><td>Dedicated dark-background AI Threats section present between Features and Pricing</td><td class="result-col"></td></tr>
+  <tr><td>1.6</td><td>AI Attack Protection card</td><td>View Features section</td><td>"AI Attack Protection" feature card with red tint border present</td><td class="result-col"></td></tr>
+  <tr><td>1.7</td><td>Pricing section</td><td>View Pricing</td><td>Starter $29, Pro $59, Business $99 — correct amounts</td><td class="result-col"></td></tr>
+  <tr><td>1.8</td><td>7-day free trial mention</td><td>View any CTA or pricing</td><td>Trial mentioned clearly</td><td class="result-col"></td></tr>
+  <tr><td>1.9</td><td>No "small businesses" in visible text</td><td>Scan all visible copy</td><td>"small" not visible in hero, features, or scanner section</td><td class="result-col"></td></tr>
+  <tr><td>1.10</td><td>Wally chat widget</td><td>Click chat bubble (bottom-right)</td><td>Chat opens, Wally responds</td><td class="result-col"></td></tr>
+  <tr><td>1.11</td><td>Wally AI response — AI attacks</td><td>Type "what protection do you offer against AI attacks?"</td><td>Wally gives relevant answer about AI threat protection</td><td class="result-col"></td></tr>
+  <tr><td>1.12</td><td>Security score CTA</td><td>Click "Check your website security score"</td><td>Navigates to auth/scanner page</td><td class="result-col"></td></tr>
+  <tr><td>1.13</td><td>Start free trial CTA</td><td>Click "Start 7-day free trial"</td><td>Navigates to auth signup page</td><td class="result-col"></td></tr>
+  <tr><td>1.14</td><td>No "WAF" in visible text</td><td>Scan all visible copy on page</td><td>"Firewall" used instead of "WAF" everywhere</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 2 -->
+<h2>MODULE 2 — Auth Page (auth.html)</h2>
+
+<h3>2A — Layout &amp; Left Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.1</td><td>Left panel 3 sections</td><td>View auth page on desktop</td><td>3 equal sections: security scanner, tagline+pricing pills, cyber news</td><td class="result-col"></td></tr>
+  <tr><td>2.2</td><td>Tagline text</td><td>Read left panel</td><td>"Enterprise-grade firewall protection — without the enterprise price tag."</td><td class="result-col"></td></tr>
+  <tr><td>2.3</td><td>Pricing pills</td><td>View pricing pills</td><td>$29 Starter / $59 Pro ⭐ / $99 Business + "7-day free trial" note</td><td class="result-col"></td></tr>
+  <tr><td>2.4</td><td>Cyber news — daily rotation</td><td>View bottom of left panel</td><td>News from global feeds, different articles each day</td><td class="result-col"></td></tr>
+  <tr><td>2.5</td><td>Old subtitle removed</td><td>Scan left panel text</td><td>"Protect your business from cyber threats" text not present</td><td class="result-col"></td></tr>
+</table>
+
+<h3>2B — Phone Number Picker</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.6</td><td>Flag visible</td><td>View phone number field</td><td>Country flag + dial code shown (e.g. 🇮🇳 +91)</td><td class="result-col"></td></tr>
+  <tr><td>2.7</td><td>Open dial picker</td><td>Click the flag/code area</td><td>Dropdown opens with country list</td><td class="result-col"></td></tr>
+  <tr><td>2.8</td><td>Search countries</td><td>Type "United" in search box</td><td>Filters to United States, United Kingdom, etc.</td><td class="result-col"></td></tr>
+  <tr><td>2.9</td><td>Select India</td><td>Pick India from list</td><td>🇮🇳 +91 shown, phone field accepts exactly 10 digits</td><td class="result-col"></td></tr>
+  <tr><td>2.10</td><td>Select USA</td><td>Pick United States</td><td>🇺🇸 +1 shown, accepts exactly 10 digits</td><td class="result-col"></td></tr>
+  <tr><td>2.11</td><td>Digit validation — too few</td><td>Select India, enter 9 digits, try submit</td><td>Validation error — needs 10 digits</td><td class="result-col"></td></tr>
+  <tr><td>2.12</td><td>Digit validation — correct</td><td>Select India, enter 10 digits</td><td>Accepted, no error</td><td class="result-col"></td></tr>
+  <tr><td>2.13</td><td>Digit validation — UK</td><td>Select UK (+44), enter 10 digits</td><td>Accepted (UK = 10 digits)</td><td class="result-col"></td></tr>
+</table>
+
+<h3>2C — Signup Flow</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.14</td><td>Switch to signup</td><td>Click "Sign up" tab</td><td>Signup form shown</td><td class="result-col"></td></tr>
+  <tr><td>2.15</td><td>Empty form submit</td><td>Click signup with empty fields</td><td>Validation errors shown</td><td class="result-col"></td></tr>
+  <tr><td>2.16</td><td>Password too short</td><td>Enter 4-character password</td><td>Error about password length requirement</td><td class="result-col"></td></tr>
+  <tr><td>2.17</td><td>Valid signup</td><td>Fill all fields with valid email + 8+ char password</td><td>Account created, confirmation email sent</td><td class="result-col"></td></tr>
+  <tr><td>2.18</td><td>Duplicate email</td><td>Signup with same email again</td><td>Error: email already registered</td><td class="result-col"></td></tr>
+</table>
+
+<h3>2D — Login Flow</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.19</td><td>Switch to login</td><td>Click "Login" tab</td><td>Login form shown</td><td class="result-col"></td></tr>
+  <tr><td>2.20</td><td>Wrong password</td><td>Enter correct email + wrong password</td><td>"Invalid login credentials" error shown</td><td class="result-col"></td></tr>
+  <tr><td>2.21</td><td>Non-existent email</td><td>Enter a random unregistered email</td><td>Error shown</td><td class="result-col"></td></tr>
+  <tr><td>2.22</td><td>Valid login — client</td><td>Login with client credentials</td><td>Redirects to dashboard.html</td><td class="result-col"></td></tr>
+  <tr><td>2.23</td><td>Valid login — admin</td><td>Login with admin credentials</td><td>Redirects to admin.html</td><td class="result-col"></td></tr>
+</table>
+
+<h3>2E — Password Reset</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.24</td><td>Forgot password link</td><td>Click "Forgot password?"</td><td>Reset form or modal appears</td><td class="result-col"></td></tr>
+  <tr><td>2.25</td><td>Reset with valid email</td><td>Enter registered email, submit</td><td>Success message, reset email sent</td><td class="result-col"></td></tr>
+  <tr><td>2.26</td><td>Reset with unknown email</td><td>Enter unregistered email</td><td>Appropriate error or generic success message</td><td class="result-col"></td></tr>
+</table>
+
+<h3>2F — Session Guards on Auth Page</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>2.27</td><td>Already logged in redirect</td><td>While logged in, navigate to auth.html</td><td>Automatically redirected to dashboard.html</td><td class="result-col"></td></tr>
+  <tr><td>2.28</td><td>Back button to auth</td><td>From dashboard, press browser Back</td><td>Redirected away from auth (already logged in)</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 3 -->
+<div class="page-break"></div>
+<h2>MODULE 3 — Dashboard (dashboard.html)</h2>
+
+<h3>3A — Page Load &amp; Auth</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.1</td><td>Auth guard</td><td>Open dashboard.html without being logged in</td><td>Redirected to auth.html</td><td class="result-col"></td></tr>
+  <tr><td>3.2</td><td>Profile loads</td><td>Login and open dashboard</td><td>Name, plan, domain shown correctly in sidebar</td><td class="result-col"></td></tr>
+  <tr><td>3.3</td><td>No domain banner</td><td>Login with account that has no domain set</td><td>Yellow onboarding banner shown at top</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3B — Panel Navigation</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.4</td><td>Sidebar navigation</td><td>Click each sidebar item</td><td>Correct panel shows, clicked item highlighted blue</td><td class="result-col"></td></tr>
+  <tr><td>3.5</td><td>URL hash updates</td><td>Click "Threats" in sidebar</td><td>URL becomes dashboard.html#threats</td><td class="result-col"></td></tr>
+  <tr><td>3.6</td><td>Refresh stays on panel</td><td>Go to Dark Web panel, press F5</td><td>Reloads directly on Dark Web panel — no flash to dashboard</td><td class="result-col"></td></tr>
+  <tr><td>3.7</td><td>Refresh on other panels</td><td>Repeat 3.6 for Billing, Settings, AI, Cyber News</td><td>Each panel is restored correctly after refresh</td><td class="result-col"></td></tr>
+  <tr><td>3.8</td><td>Back/Forward navigation</td><td>Click Home → Threats → Reports, then press Back</td><td>Returns to Threats, then Home</td><td class="result-col"></td></tr>
+  <tr><td>3.9</td><td>Topbar title updates</td><td>Click each panel</td><td>Title in top bar matches the panel name</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3C — Overview Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.10</td><td>Stats display</td><td>View overview</td><td>Threats Blocked, Uptime, Response Time, Score stat cards visible</td><td class="result-col"></td></tr>
+  <tr><td>3.11</td><td>Security score chip</td><td>View overview stat cards</td><td>Score shown or "—" if not yet scanned</td><td class="result-col"></td></tr>
+  <tr><td>3.12</td><td>AI suggestion chip</td><td>View AI suggestion on overview</td><td>Shows "AI attacks on my site?" as suggestion text</td><td class="result-col"></td></tr>
+  <tr><td>3.13</td><td>Quick action cards</td><td>View overview cards</td><td>Cards for Firewall, Security Score, Threats visible and clickable</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3D — Threats Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.14</td><td>Threats list loads</td><td>Click Threats in sidebar</td><td>Threat events list shown (or "No threats" if none)</td><td class="result-col"></td></tr>
+  <tr><td>3.15</td><td>Threat row data</td><td>View a threat row</td><td>Shows IP, country, attack type, timestamp</td><td class="result-col"></td></tr>
+  <tr><td>3.16</td><td>No "WAF" text</td><td>Scan threats panel visible text</td><td>"Firewall" used, not "WAF"</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3E — Security Score Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.17</td><td>Panel opens</td><td>Click "Security Grade" in sidebar</td><td>Security score panel shown</td><td class="result-col"></td></tr>
+  <tr><td>3.18</td><td>Run scan</td><td>Enter a domain and click Scan</td><td>Scan runs, score 0–100 returned</td><td class="result-col"></td></tr>
+  <tr><td>3.19</td><td>Score colour — green</td><td>Scan a domain scoring ≥ 80</td><td>Score displayed in green</td><td class="result-col"></td></tr>
+  <tr><td>3.20</td><td>Score colour — orange</td><td>Scan a domain scoring 50–79</td><td>Score displayed in orange</td><td class="result-col"></td></tr>
+  <tr><td>3.21</td><td>Score colour — red</td><td>Scan a domain scoring &lt; 50</td><td>Score displayed in red</td><td class="result-col"></td></tr>
+  <tr><td>3.22</td><td>Score breakdown</td><td>View results after scan</td><td>Category scores (SSL, Headers, etc.) shown below main score</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3F — Protection Status Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.23</td><td>Panel opens</td><td>Click Protection Status</td><td>SSL/firewall status panel shown</td><td class="result-col"></td></tr>
+  <tr><td>3.24</td><td>Pro gate — Starter plan</td><td>View on Starter account</td><td>Panel locked with upgrade prompt</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3G — Alerts Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.25</td><td>Panel opens</td><td>Click Alerts</td><td>Alerts configuration panel shown</td><td class="result-col"></td></tr>
+  <tr><td>3.26</td><td>Pro gate — Starter plan</td><td>View on Starter account</td><td>Panel locked with upgrade prompt</td><td class="result-col"></td></tr>
+  <tr><td>3.27</td><td>WhatsApp alert toggle</td><td>On Pro/Business, toggle an alert type</td><td>Toggle state saved, no error</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3H — AI Assistant Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.28</td><td>Panel opens</td><td>Click AI Assistant</td><td>Chat interface shown</td><td class="result-col"></td></tr>
+  <tr><td>3.29</td><td>Pro gate — Starter plan</td><td>View on Starter account</td><td>Locked with upgrade prompt</td><td class="result-col"></td></tr>
+  <tr><td>3.30</td><td>Send a message</td><td>Type "Am I protected from AI attacks?" and send</td><td>AI responds with streamed text, emojis, friendly tone</td><td class="result-col"></td></tr>
+  <tr><td>3.31</td><td>Suggestion chip from overview</td><td>Click "AI attacks on my site?" chip on overview</td><td>Opens AI panel with question pre-filled or sent</td><td class="result-col"></td></tr>
+  <tr><td>3.32</td><td>AI agent tools</td><td>Ask "Show me my recent threats"</td><td>Agent uses dashboard tools and returns relevant data</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3I — Dark Web Monitor Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.33</td><td>Business gate</td><td>View on Starter or Pro plan</td><td>Panel locked with upgrade prompt</td><td class="result-col"></td></tr>
+  <tr><td>3.34</td><td>Panel opens</td><td>On Business plan, click Dark Web Monitor</td><td>Scan button and 3 stat boxes shown</td><td class="result-col"></td></tr>
+  <tr><td>3.35</td><td>Stat boxes equal size</td><td>View the 3 boxes (Emails Exposed, Breach Events, Status)</td><td>All 3 boxes are the same height and width</td><td class="result-col"></td></tr>
+  <tr><td>3.36</td><td>Run scan</td><td>Click "Scan Now"</td><td>Loading state shown → results populated</td><td class="result-col"></td></tr>
+  <tr><td>3.37</td><td>No HIBP key configured</td><td>HIBP_API_KEY env var not set</td><td>Shows "—" with "Not set up" status text</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3J — Cyber News Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.38</td><td>Panel loads</td><td>Click Cyber News</td><td>News cards grid shown with real articles</td><td class="result-col"></td></tr>
+  <tr><td>3.39</td><td>News content</td><td>View article cards</td><td>Real cybersecurity headlines with source name visible</td><td class="result-col"></td></tr>
+  <tr><td>3.40</td><td>Daily rotation</td><td>Compare today vs yesterday's articles</td><td>Different articles shown each day</td><td class="result-col"></td></tr>
+  <tr><td>3.41</td><td>Mobile grid layout</td><td>View on mobile screen</td><td>News cards stack to a single column, no overflow</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3K — Reports Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.42</td><td>Panel opens</td><td>Click Reports</td><td>List of monthly reports shown</td><td class="result-col"></td></tr>
+  <tr><td>3.43</td><td>Pro gate — Starter plan</td><td>View on Starter account</td><td>Locked with upgrade prompt</td><td class="result-col"></td></tr>
+  <tr><td>3.44</td><td>Download PDF</td><td>Click download on any report</td><td>PDF file downloads successfully</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3L — Billing Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.45</td><td>Panel opens</td><td>Click Billing</td><td>Current plan and status shown</td><td class="result-col"></td></tr>
+  <tr><td>3.46</td><td>Plan badge correct</td><td>View billing panel</td><td>Shows "Starter Plan" / "Pro Plan" / "Business Plan" matching account</td><td class="result-col"></td></tr>
+  <tr><td>3.47</td><td>Cancel subscription</td><td>Click Cancel button</td><td>Confirmation prompt shown before action</td><td class="result-col"></td></tr>
+  <tr><td>3.48</td><td>Confirm cancellation</td><td>Confirm the cancellation</td><td>Status updated, confirmation message shown</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3M — Settings Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.49</td><td>Panel opens pre-filled</td><td>Click Settings</td><td>Form pre-filled with name, email, domain, phone from profile</td><td class="result-col"></td></tr>
+  <tr><td>3.50</td><td>Update name</td><td>Change name field, click Save</td><td>Success toast shown, name updated in sidebar</td><td class="result-col"></td></tr>
+  <tr><td>3.51</td><td>Update domain</td><td>Change domain field, click Save</td><td>Success toast shown, domain saved</td><td class="result-col"></td></tr>
+  <tr><td>3.52</td><td>Plan badge in settings</td><td>View settings panel</td><td>Correct plan shown in badge</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3N — Support Panel</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.53</td><td>Panel opens</td><td>Click Support</td><td>Ticket form or ticket list shown</td><td class="result-col"></td></tr>
+  <tr><td>3.54</td><td>Submit ticket</td><td>Fill form and click Submit</td><td>Ticket created, confirmation shown</td><td class="result-col"></td></tr>
+  <tr><td>3.55</td><td>View my tickets</td><td>View tickets list</td><td>Previously submitted tickets listed</td><td class="result-col"></td></tr>
+</table>
+
+<h3>3O — Mobile Navigation</h3>
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>3.56</td><td>Mobile nav visible</td><td>Open on mobile or resize to &lt;768px</td><td>Bottom nav bar: Home, Threats, AI, Alerts, More (⋯)</td><td class="result-col"></td></tr>
+  <tr><td>3.57</td><td>Sidebar hidden on mobile</td><td>Open on mobile</td><td>No sidebar visible</td><td class="result-col"></td></tr>
+  <tr><td>3.58</td><td>More menu opens</td><td>Tap "More ⋯" on mobile nav</td><td>Slide-up sheet appears with 8 items</td><td class="result-col"></td></tr>
+  <tr><td>3.59</td><td>More menu items</td><td>View More menu contents</td><td>Security Score, Protection Status, Cyber News, Dark Web, Reports, Settings, Support, Billing</td><td class="result-col"></td></tr>
+  <tr><td>3.60</td><td>More menu navigation</td><td>Tap any item in More menu</td><td>Correct panel shown, menu closes</td><td class="result-col"></td></tr>
+  <tr><td>3.61</td><td>More menu logout</td><td>Tap Logout in More menu</td><td>Logged out, redirected to auth page</td><td class="result-col"></td></tr>
+  <tr><td>3.62</td><td>More menu backdrop</td><td>Tap outside the More menu sheet</td><td>Menu closes</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 4 -->
+<div class="page-break"></div>
+<h2>MODULE 4 — Session Management</h2>
+
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>4.1</td><td>Logout</td><td>Click Logout in sidebar</td><td>Redirected to auth.html, session cleared</td><td class="result-col"></td></tr>
+  <tr><td>4.2</td><td>Back button after logout</td><td>After logout, press browser Back</td><td>Stays on auth page (cached dashboard not shown)</td><td class="result-col"></td></tr>
+  <tr><td>4.3</td><td>Bfcache guard</td><td>Login → go to dashboard → logout → press browser Back</td><td>Auth check fires, redirected back to auth page</td><td class="result-col"></td></tr>
+  <tr><td>4.4</td><td>Inactivity warning (browser)</td><td>Leave browser idle for 28 minutes</td><td>Toast appears: "Logging out in 2 minutes" with Stay In button</td><td class="result-col"></td></tr>
+  <tr><td>4.5</td><td>Stay In button</td><td>When warning shows, click "Stay in"</td><td>Warning dismissed, timer resets</td><td class="result-col"></td></tr>
+  <tr><td>4.6</td><td>Inactivity logout</td><td>Leave browser idle for full 30 minutes</td><td>Automatically logged out and redirected to auth page</td><td class="result-col"></td></tr>
+  <tr><td>4.7</td><td>PWA — no inactivity logout</td><td>Install as PWA, leave idle 30+ min</td><td>NOT logged out (PWA has no inactivity timer)</td><td class="result-col"></td></tr>
+  <tr><td>4.8</td><td>PWA — background keepalive</td><td>Install as PWA, background app for hours, reopen</td><td>Session checked on foreground, still logged in</td><td class="result-col"></td></tr>
+  <tr><td>4.9</td><td>PWA — session fully expired</td><td>Install as PWA, let session fully expire, reopen</td><td>Redirected to auth page</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 5 -->
+<h2>MODULE 5 — Admin Panel (admin.html)</h2>
+
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>5.1</td><td>Auth guard</td><td>Open admin.html as a non-admin user</td><td>Redirected away from admin panel</td><td class="result-col"></td></tr>
+  <tr><td>5.2</td><td>Admin login redirect</td><td>Login with admin credentials</td><td>Redirected to admin.html automatically</td><td class="result-col"></td></tr>
+  <tr><td>5.3</td><td>Client list loads</td><td>View admin dashboard</td><td>List of all registered clients shown</td><td class="result-col"></td></tr>
+  <tr><td>5.4</td><td>Client details</td><td>Click on a client row</td><td>Name, email, plan, domain, status shown correctly</td><td class="result-col"></td></tr>
+  <tr><td>5.5</td><td>Add new client</td><td>Click Add Client, fill form, submit</td><td>Client created and appears in list</td><td class="result-col"></td></tr>
+  <tr><td>5.6</td><td>Update client</td><td>Edit a client's plan or status</td><td>Changes saved and reflected in list</td><td class="result-col"></td></tr>
+  <tr><td>5.7</td><td>Phone picker in add-client</td><td>Click flag in add-client form</td><td>Dial code picker works same as auth page</td><td class="result-col"></td></tr>
+  <tr><td>5.8</td><td>Admin AI chat</td><td>Open AI Assistant in admin panel, send message</td><td>Claude Opus responds — professional tone, no emojis</td><td class="result-col"></td></tr>
+  <tr><td>5.9</td><td>Task management</td><td>View Tasks section</td><td>Tasks listed, can add and update tasks</td><td class="result-col"></td></tr>
+  <tr><td>5.10</td><td>Ticket management</td><td>View Tickets section</td><td>Support tickets from clients visible and manageable</td><td class="result-col"></td></tr>
+  <tr><td>5.11</td><td>No "WAF" in admin UI</td><td>Scan visible admin panel text</td><td>"Firewall" used, not "WAF"</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 6 -->
+<h2>MODULE 6 — Onboarding (onboarding.html)</h2>
+
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>6.1</td><td>Loads after signup</td><td>Complete signup for a brand new account</td><td>Redirected to onboarding</td><td class="result-col"></td></tr>
+  <tr><td>6.2</td><td>Steps progress</td><td>Go through each onboarding step</td><td>Progress indicator advances correctly</td><td class="result-col"></td></tr>
+  <tr><td>6.3</td><td>Domain submission</td><td>Enter domain in onboarding</td><td>Domain saved to profile</td><td class="result-col"></td></tr>
+  <tr><td>6.4</td><td>AI onboarding assistant</td><td>Chat with AI during onboarding</td><td>AI responds and helps guide setup</td><td class="result-col"></td></tr>
+  <tr><td>6.5</td><td>Complete onboarding</td><td>Finish all steps</td><td>Redirected to dashboard</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 7 -->
+<h2>MODULE 7 — PWA / Install</h2>
+
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>7.1</td><td>Install prompt</td><td>Open on Chrome mobile</td><td>"Add to Home Screen" or install banner appears</td><td class="result-col"></td></tr>
+  <tr><td>7.2</td><td>PWA launches standalone</td><td>Open the installed PWA</td><td>Opens without browser chrome (no URL bar)</td><td class="result-col"></td></tr>
+  <tr><td>7.3</td><td>Offline fallback</td><td>Install PWA, turn off network, open</td><td>Cached pages load or friendly offline page shown</td><td class="result-col"></td></tr>
+  <tr><td>7.4</td><td>Theme colour</td><td>Open PWA on iOS/Android</td><td>Status bar matches brand blue (#1a47e8)</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ MODULE 8 -->
+<h2>MODULE 8 — Cross-Cutting / Non-Functional</h2>
+
+<table class="test-table">
+  <tr><th>#</th><th>Test Case</th><th>Steps</th><th>Expected Result</th><th>Result</th></tr>
+  <tr><td>8.1</td><td>No console errors</td><td>Open each page, check DevTools Console (F12)</td><td>No red errors on any page</td><td class="result-col"></td></tr>
+  <tr><td>8.2</td><td>Mobile — auth page</td><td>Open auth.html at 375px width</td><td>Single-column layout, no horizontal scroll or overflow</td><td class="result-col"></td></tr>
+  <tr><td>8.3</td><td>Mobile — dashboard</td><td>Open dashboard at 375px</td><td>All panels readable, no horizontal scroll</td><td class="result-col"></td></tr>
+  <tr><td>8.4</td><td>Mobile — landing page</td><td>Open index.html at 375px</td><td>Hero, features, pricing all stack cleanly</td><td class="result-col"></td></tr>
+  <tr><td>8.5</td><td>Dark/light mode toggle</td><td>Toggle theme on dashboard</td><td>All pages switch theme correctly, no broken colours</td><td class="result-col"></td></tr>
+  <tr><td>8.6</td><td>All "WAF" renamed</td><td>Check all pages for visible "WAF" text</td><td>"Firewall" used everywhere in user-facing text</td><td class="result-col"></td></tr>
+  <tr><td>8.7</td><td>Toast notifications</td><td>Trigger success and error actions (e.g. save settings)</td><td>Toasts appear at bottom, auto-dismiss after 3 seconds</td><td class="result-col"></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════ SUMMARY -->
+<div class="page-break"></div>
+<h2>UAT Sign-Off Summary</h2>
+
+<table class="meta-table">
+  <tr><td>Total Test Cases</td><td>62</td></tr>
+  <tr><td>Passed</td><td></td></tr>
+  <tr><td>Failed</td><td></td></tr>
+  <tr><td>Skipped</td><td></td></tr>
+  <tr><td>Blockers</td><td></td></tr>
+  <tr><td>Tester Sign-Off</td><td></td></tr>
+  <tr><td>Date Completed</td><td></td></tr>
+  <tr><td>Overall Status</td><td>PASS / FAIL / CONDITIONAL PASS</td></tr>
+</table>
+
+<h3>Defect Log</h3>
+<table class="test-table">
+  <tr>
+    <th>Test #</th>
+    <th>Description</th>
+    <th>Severity (P1/P2/P3)</th>
+    <th>Status</th>
+    <th>Fixed In</th>
+  </tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+
+<p class="footer-note">ProCyberWall UAT Test Plan — Generated April 2026 — Confidential</p>
+
+</body>
+</html>

@@ -1,11 +1,12 @@
 const { requireAuth } = require('../lib/auth');
 const { supabaseRequest } = require('../lib/supabase');
+const { sendError } = require('../lib/utils');
 
 async function handle(req, res, parsedUrl) {
   // ── GET ALERTS ──────────────────────────────────────────────────────────────
   if (req.method === 'GET' && parsedUrl.pathname === '/api/alerts') {
     const authUser = await requireAuth(req);
-    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
+    if (!authUser) return sendError(res, 401, 'Unauthorized'), true;
     try {
       const showResolved = parsedUrl.searchParams.get('show_resolved') === 'true';
       const resolvedFilter = showResolved ? '' : '&is_resolved=eq.false';
@@ -17,8 +18,7 @@ async function handle(req, res, parsedUrl) {
       res.writeHead(200, {'Content-Type':'application/json'});
       res.end(JSON.stringify({ alerts: Array.isArray(alerts) ? alerts : [] }));
     } catch (e) {
-      res.writeHead(500, {'Content-Type':'application/json'});
-      res.end(JSON.stringify({ error: e.message }));
+      sendError(res, 500, e.message);
     }
     return true;
   }
@@ -26,7 +26,7 @@ async function handle(req, res, parsedUrl) {
   // ── NEW LOGIN NOTIFICATION ──────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/login-notify') {
     const authUser = await requireAuth(req);
-    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
+    if (!authUser) return sendError(res, 401, 'Unauthorized'), true;
     res.writeHead(200, {'Content-Type':'application/json'});
     res.end(JSON.stringify({ ok: true }));
     return true;
@@ -35,7 +35,7 @@ async function handle(req, res, parsedUrl) {
   // ── MARK ALL ALERTS READ ────────────────────────────────────────────────────
   if (req.method === 'POST' && req.url === '/api/alerts/read') {
     const authUser = await requireAuth(req);
-    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
+    if (!authUser) return sendError(res, 401, 'Unauthorized'), true;
     try {
       await supabaseRequest('PATCH',
         `alerts?user_id=eq.${encodeURIComponent(authUser.id)}&is_read=eq.false`,
@@ -44,8 +44,7 @@ async function handle(req, res, parsedUrl) {
       res.writeHead(200, {'Content-Type':'application/json'});
       res.end(JSON.stringify({ success: true }));
     } catch (e) {
-      res.writeHead(500, {'Content-Type':'application/json'});
-      res.end(JSON.stringify({ error: e.message }));
+      sendError(res, 500, e.message);
     }
     return true;
   }
@@ -53,14 +52,14 @@ async function handle(req, res, parsedUrl) {
   // ── RESOLVE A SINGLE ALERT ──────────────────────────────────────────────────
   if (req.method === 'POST' && parsedUrl.pathname === '/api/alerts/resolve') {
     const authUser = await requireAuth(req);
-    if (!authUser) { res.writeHead(401, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Unauthorized'})); return true; }
+    if (!authUser) return sendError(res, 401, 'Unauthorized'), true;
     let body = '';
     req.on('data', c => body += c);
-    req.on('error', err => { console.error('alerts req error:', err.message); res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Bad request'})); });
+    req.on('error', () => sendError(res, 400, 'Bad request'));
     req.on('end', async () => {
       try {
         const { id } = JSON.parse(body);
-        if (!id) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'Missing id'})); return; }
+        if (!id) return sendError(res, 400, 'Missing id');
         await supabaseRequest('PATCH',
           `alerts?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(authUser.id)}`,
           { is_resolved: true, is_read: true, resolved_at: new Date().toISOString() }
@@ -68,8 +67,7 @@ async function handle(req, res, parsedUrl) {
         res.writeHead(200, {'Content-Type':'application/json'});
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
-        res.writeHead(500, {'Content-Type':'application/json'});
-        res.end(JSON.stringify({ error: e.message }));
+        sendError(res, 500, e.message);
       }
     });
     return true;

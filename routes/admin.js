@@ -1,7 +1,7 @@
-const https  = require('https');
 const crypto = require('crypto');
 const { requireAdminAuth } = require('../lib/auth');
-const { supabaseRequest, SUPABASE_SERVICE_KEY, SUPABASE_HOSTNAME } = require('../lib/supabase');
+const { supabaseRequest, supabaseAuthRequest } = require('../lib/supabase');
+const { sendError } = require('../lib/utils');
 
 async function handle(req, res, parsedUrl) {
   // ── ADMIN: GET ALL CLIENTS ──────────────────────────────────────────────────
@@ -44,40 +44,15 @@ async function handle(req, res, parsedUrl) {
         }
 
         // Step 1: create auth user (generates a UUID that satisfies FK constraint)
-        const authResult = await new Promise((resolve, reject) => {
-          const payload = JSON.stringify({
-            email,
-            password: crypto.randomBytes(16).toString('hex') + 'Cw1!',
-            email_confirm: true,
-            user_metadata: { full_name }
-          });
-          const opts = {
-            hostname: SUPABASE_HOSTNAME,
-            path: '/auth/v1/admin/users',
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_SERVICE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(payload)
-            }
-          };
-          const r = https.request(opts, resp => {
-            let raw = '';
-            resp.on('data', c => raw += c);
-            resp.on('end', () => {
-              try { resolve({ status: resp.statusCode, body: JSON.parse(raw) }); }
-              catch (e) { reject(new Error('Supabase auth parse error')); }
-            });
-          });
-          r.on('error', reject);
-          r.write(payload);
-          r.end();
-        });
+        const authResult = await supabaseAuthRequest('POST', 'admin/users', {
+          email,
+          password: crypto.randomBytes(16).toString('hex') + 'Cw1!',
+          email_confirm: true,
+          user_metadata: { full_name },
+        }).then(r => ({ status: r.status, body: JSON.parse(r.body) })).catch(() => ({ status: 500, body: {} }));
 
         if (authResult.status >= 400) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: authResult.body.msg || authResult.body.message || 'Failed to create user' }));
+          sendError(res, 400, authResult.body.msg || authResult.body.message || 'Failed to create user');
           return;
         }
 

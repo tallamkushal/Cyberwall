@@ -18,7 +18,7 @@ function setThreatPeriod(period) {
   window._activeThreatPeriod = period;
   const counts = window._threatCounts || {};
   const val = counts[period] ?? 0;
-  const labels = { today: 'Today', '7d': '7 Days', '30d': '30 Days' };
+  const labels = { today: '24h', '7d': '7 Days', '30d': '30 Days' };
   safeSet('stat-blocked', val.toLocaleString('en-IN'));
   safeSet('stat-blocked-period', `(${labels[period]})`);
   document.querySelectorAll('.threat-period-btn').forEach(btn => {
@@ -146,7 +146,7 @@ async function loadCloudflareData(domain, zoneId) {
     safeSet('threats-today', threatsToday.toLocaleString('en-IN'));
     safeSet('threats-today-desc', threatsToday > 0
       ? `${threatsToday.toLocaleString()} suspicious requests from known bad IPs and bots, stopped before reaching your site.`
-      : 'No threats detected today. Your site is clean.');
+      : 'No threats detected in the last 24 hours. Your site is clean.');
     safeSet('threats-month', threats7d.toLocaleString('en-IN'));
     safeSet('threats-month-desc', threats7d > 0
       ? `${threats7d.toLocaleString()} hacker attempts blocked in the last 7 days. Your site stayed online without any interruptions.`
@@ -165,12 +165,23 @@ async function loadCloudflareData(domain, zoneId) {
 
     // ── 7-day bar chart ───────────────────────────────────────────────────────
     if (data.chart7d && window._attacksChart) {
-      window._attacksChart.data.labels = data.chart7d.labels;
+      // Format ISO dates using the browser's local timezone so "Today" matches
+      // the client's local date, not the server's UTC date
+      const _localToday = (() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      })();
+      const localLabels = (data.chart7d.labels || []).map(label => {
+        if (label === _localToday) return 'Today';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(label))
+          return new Date(label + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'short' });
+        return label;
+      });
+      window._attacksChart.data.labels = localLabels;
       window._attacksChart.data.datasets[0].data = data.chart7d.data;
       window._attacksChart.update();
-      // Update peak label
       const peakVal = Math.max(...data.chart7d.data);
-      const peakDay = data.chart7d.labels[data.chart7d.data.indexOf(peakVal)];
+      const peakDay = localLabels[data.chart7d.data.indexOf(peakVal)];
       safeSet('chart-peak-label', peakVal > 0 ? `Peak: ${peakDay} · ${peakVal.toLocaleString('en-IN')} threats blocked` : 'No threats in the last 7 days');
     }
 

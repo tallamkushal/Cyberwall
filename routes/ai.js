@@ -240,17 +240,16 @@ Rules:
             ];
 
           } else {
-            // Final answer — stream it token by token
+            // Final answer — stream word by word for smooth appearance
             let fullText = '';
             for (const block of response.content) {
               if (block.type !== 'text') continue;
               fullText = block.text;
-              for (const char of fullText) {
-                res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+              for (const word of fullText.split(/(\s+)/)) {
+                if (word && !res.writableEnded) res.write(`data: ${JSON.stringify({ text: word })}\n\n`);
               }
             }
-            res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
-            res.end();
+            if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`); res.end(); }
             break;
           }
         }

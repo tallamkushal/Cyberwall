@@ -1,7 +1,8 @@
-const https = require('https');
 const { requireAuth, requireAdminAuth } = require('../lib/auth');
 const { supabaseRequest, supabaseUpsert } = require('../lib/supabase');
-const { cfGet, cfGetZoneId, cfGraphQL, CF_EMAIL, CF_API_KEY } = require('../lib/cloudflare');
+const { makeRequest } = require('../lib/http');
+const { cfGet, cfGetZoneId, cfGraphQL, cfCreateZone } = require('../lib/cloudflare');
+const { normalizeDomain, sendError } = require('../lib/utils');
 const { sendTwilioMessage } = require('../lib/twilio');
 const { probeDomain } = require('../lib/scanner');
 const { createAlert } = require('../lib/alerts');
@@ -24,35 +25,10 @@ async function handle(req, res, parsedUrl) {
         const { domain } = JSON.parse(body);
         if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return; }
 
-        const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-
-        const result = await new Promise((resolve, reject) => {
-          const payload = JSON.stringify({ name: clean, jump_start: true });
-          const opts = {
-            hostname: 'api.cloudflare.com',
-            path: '/client/v4/zones',
-            method: 'POST',
-            headers: {
-              'X-Auth-Email': CF_EMAIL,
-              'X-Auth-Key': CF_API_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(payload)
-            }
-          };
-          const r = https.request(opts, resp => {
-            let raw = '';
-            resp.on('data', c => raw += c);
-            resp.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('CF parse error')); } });
-          });
-          r.on('error', reject);
-          r.setTimeout(15000, () => { r.destroy(); reject(new Error('CF timeout')); });
-          r.write(payload);
-          r.end();
-        });
+        const clean = normalizeDomain(domain);
+        const result = await cfCreateZone(clean);
 
         if (!result.success) {
-          const msg = result.errors?.[0]?.message || 'Cloudflare error';
-          // Zone already exists — fetch existing nameservers
           if (result.errors?.[0]?.code === 1061) {
             const existing = await cfGet(`/zones?name=${encodeURIComponent(clean)}`);
             if (existing.success && existing.result?.length) {
@@ -62,8 +38,7 @@ async function handle(req, res, parsedUrl) {
               return;
             }
           }
-          res.writeHead(400, {'Content-Type':'application/json'});
-          res.end(JSON.stringify({ error: msg }));
+          sendError(res, 400, result.errors?.[0]?.message || 'Cloudflare error');
           return;
         }
 
@@ -97,34 +72,12 @@ async function handle(req, res, parsedUrl) {
           return;
         }
 
-        const clean = domain.replace(/https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        const clean = normalizeDomain(domain);
 
         // Save domain to profile first — persisted even if CF zone creation fails
         await supabaseRequest('PATCH', `profiles?id=eq.${authUser.id}`, { domain: clean }).catch(err => console.error('[cf]', err.message));
 
-        const cfPayload = JSON.stringify({ name: clean, jump_start: true });
-        const result = await new Promise((resolve, reject) => {
-          const opts = {
-            hostname: 'api.cloudflare.com',
-            path: '/client/v4/zones',
-            method: 'POST',
-            headers: {
-              'X-Auth-Email': CF_EMAIL,
-              'X-Auth-Key': CF_API_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(cfPayload)
-            }
-          };
-          const r = https.request(opts, resp => {
-            let raw = '';
-            resp.on('data', c => raw += c);
-            resp.on('end', () => { try { resolve(JSON.parse(raw)); } catch(e) { reject(new Error('CF parse error')); } });
-          });
-          r.on('error', reject);
-          r.setTimeout(15000, () => { r.destroy(); reject(new Error('CF timeout')); });
-          r.write(cfPayload);
-          r.end();
-        });
+        const result = await cfCreateZone(clean);
 
         let nameservers = [];
         let zoneId = null;
@@ -191,10 +144,7 @@ async function handle(req, res, parsedUrl) {
   // ── CLOUDFLARE PROXY: FULL OVERVIEW DATA ───────────────────────────────────
   if (req.method === 'GET' && req.url.startsWith('/api/cf/overview')) {
     const _overviewUrl = new URL('http://x' + req.url);
-    const domain = (_overviewUrl.searchParams.get('domain') || '')
-      .trim().toLowerCase()
-      .replace(/^https?:\/\//i, '').replace(/^www\./i, '')
-      .replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+    const domain = normalizeDomain(_overviewUrl.searchParams.get('domain'));
     if (!domain) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'domain required'})); return true; }
     // Start auth check early (runs in parallel with CF API calls)
     const _cfAuthPromise = requireAuth(req).catch(() => null);
@@ -252,25 +202,24 @@ async function handle(req, res, parsedUrl) {
       }).catch(() => null);
 
       // Threat history from Supabase — fills chart days beyond Cloudflare Pro's 72h API retention
-      const since8dDate = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      // 31-day window so threats7d and threats30d stat cards are accurate
+      const since31dDate = new Date(now - 31 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const snapshotsPromise = _cfAuthPromise.then(async user => {
         if (!user) return [];
         const r = await supabaseRequest('GET',
-          `threat_snapshots?profile_id=eq.${encodeURIComponent(user.id)}&date=gte.${since8dDate}&select=date,threats_today&order=date.asc`,
+          `threat_snapshots?profile_id=eq.${encodeURIComponent(user.id)}&date=gte.${since31dDate}&select=date,threats_today&order=date.asc`,
           null);
         try { const rows = JSON.parse(r.body); return Array.isArray(rows) ? rows : []; }
         catch(e) { return []; }
       }).catch(() => []);
 
       // Real ping — measures actual response time to the customer's domain
-      const pingPromise = new Promise(resolve => {
-        const host = domain.replace(/^https?:\/\//, '').split('/')[0];
+      const pingPromise = (() => {
         const t0 = Date.now();
-        const r = https.request({ hostname: host, path: '/', method: 'HEAD', timeout: 6000 }, () => resolve(Date.now() - t0));
-        r.on('error', () => resolve(null));
-        r.on('timeout', () => { r.destroy(); resolve(null); });
-        r.end();
-      });
+        return makeRequest({ hostname: domain, path: '/', method: 'HEAD', timeout: 6000 })
+          .then(() => Date.now() - t0)
+          .catch(() => null);
+      })();
 
       const _statsGql = (since) => {
         const limitHours = Math.min(720, Math.ceil((now.getTime() - new Date(since).getTime()) / 3600000) + 2);
@@ -372,7 +321,6 @@ async function handle(req, res, parsedUrl) {
       const data24h = filterSince(since24h);
       const data7d  = filterSince(since7d);
 
-      const threatsToday   = data24h.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
       const threats7d      = data7d.reduce( (s, h) => s + (h.sum?.threats  || 0), 0);
       const threats30d     = statsGqlData.reduce((s, h) => s + (h.sum?.threats  || 0), 0);
 
@@ -395,6 +343,11 @@ async function handle(req, res, parsedUrl) {
         }
       }
 
+      // threatsToday from firewallEventsAdaptiveGroups (captures WAF blocks httpRequests misses on Pro)
+      const threatsToday = chartFwData.length > 0
+        ? chartFwData.reduce((s, h) => (h.dimensions?.datetimeHour || '') >= since24h ? s + (h.count || 0) : s, 0)
+        : data24h.reduce((s, h) => s + (h.sum?.threats || 0), 0);
+
       // Fill historical gaps from threat_snapshots (Cloudflare Pro API only retains 72h)
       const snapshotRows = await snapshotsPromise;
       for (const s of snapshotRows) {
@@ -403,13 +356,19 @@ async function handle(req, res, parsedUrl) {
         }
       }
 
+      // Compute accurate period totals from snapshot history
+      const since7dDate  = new Date(now -  7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const since30dDate = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const histThreats7d  = snapshotRows.reduce((s, r) => r.date >= since7dDate  ? s + (r.threats_today || 0) : s, 0);
+      const histThreats30d = snapshotRows.reduce((s, r) => r.date >= since30dDate ? s + (r.threats_today || 0) : s, 0);
+
       const todayUtc = now.toISOString().slice(0, 10);
       const chartDays = 7;
       const chartLabels = [], chartData = [];
       for (let i = chartDays - 1; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const dateStr = d.toISOString().slice(0, 10);
-        chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', {weekday:'short'}));
+        chartLabels.push(dateStr); // ISO date — frontend formats to local day name
         chartData.push(dayMap[dateStr] || 0);
       }
 
@@ -538,8 +497,8 @@ async function handle(req, res, parsedUrl) {
         zoneActive: zoneStatus === 'active',
         stats: {
           threatsToday:     statsCache?.threatsToday     ?? threatsToday,
-          threats7d:        statsCache?.threats7d        ?? threats7d,
-          threats30d:       statsCache?.threats30d       ?? threats30d,
+          threats7d:        histThreats7d  || statsCache?.threats7d  || threats7d,
+          threats30d:       histThreats30d || statsCache?.threats30d || threats30d,
           totalRequests24h: statsCache?.totalRequests24h ?? totalRequests24h,
           totalRequests7d:  statsCache?.totalRequests7d  ?? totalRequests7d,
           totalRequests30d: statsCache?.totalRequests30d ?? totalRequests30d,
@@ -625,7 +584,7 @@ async function handle(req, res, parsedUrl) {
           recorded_at:    now.toISOString(),
         }).catch(err => console.error('[cf]', err.message));
 
-        const _eff_chartData = statsCache?.chart7d?.data ?? chartData;
+        const _eff_chartData = chartData;
         if (_eff_chartData.length >= 2) {
           const todayVal = _eff_chartData[_eff_chartData.length - 1];
           const prevDays = _eff_chartData.slice(0, -1).filter(v => v > 0);
@@ -659,10 +618,7 @@ async function handle(req, res, parsedUrl) {
       return true;
     }
     const _u = new URL('http://x' + req.url);
-    const domain = (_u.searchParams.get('domain') || '')
-      .trim().toLowerCase()
-      .replace(/^https?:\/\//i, '').replace(/^www\./i, '')
-      .replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+    const domain = normalizeDomain(_u.searchParams.get('domain'));
     let zoneId = _u.searchParams.get('zone_id') || null;
     if (!domain) {
       res.writeHead(400, { 'Content-Type': 'application/json' });

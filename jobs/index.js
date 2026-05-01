@@ -2,7 +2,7 @@ const https = require('https');
 const { supabaseRequest, supabaseUpsert } = require('../lib/supabase');
 const { cfGetZoneId, cfGraphQL } = require('../lib/cloudflare');
 const { createAlert } = require('../lib/alerts');
-const { sendTwilioMessage } = require('../lib/twilio');
+const { sendTwilioMessage, TWILIO_SID, TWILIO_TOKEN } = require('../lib/twilio');
 
 // ── SELF-PING (keep Render awake) ─────────────────────────────────────────────
 function selfPing() {
@@ -18,21 +18,26 @@ function selfPing() {
 }
 
 // ── MONTHLY REPORT REMINDER ────────────────────────────────────────────────────
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 async function sendMonthlyReportReminder() {
-  if (new Date().getDate() !== 1) return;
+  if (new Date().getUTCDate() !== 1) return;
   try {
     const result = await supabaseRequest('GET',
       `profiles?status=in.(trial,active)&select=id,domain,phone,full_name`, null);
     const profiles = JSON.parse(result.body);
     if (!Array.isArray(profiles)) return;
-    const monthName = new Date().toLocaleString('en-IN', { month: 'long' });
+    const now = new Date();
+    const prevMonthIdx = now.getUTCMonth() === 0 ? 11 : now.getUTCMonth() - 1;
+    const monthName = MONTH_NAMES[prevMonthIdx];
     for (const p of profiles) {
       if (!p.domain) continue;
       createAlert(p.id, 'report', 'info',
         `Your ${monthName} security report is ready`,
-        `Your monthly ProCyberWall security report for ${p.domain} is now available. Download it from the Reports section for a full summary of threats blocked, SSL status, and email security this month.`
+        `Your monthly ProCyberWall security report for ${p.domain} is now available. Download it from the Reports section for a full summary of threats blocked, SSL status, and email security this month.`,
+        28  // dedup window: once per month
       ).catch(err => console.error('[jobs]', err.message));
-      if (p.phone) {
+      if (p.phone && TWILIO_SID && TWILIO_TOKEN) {
         const msg = `📄 *ProCyberWall Monthly Report*\n\nHi ${p.full_name || 'there'}!\n\nYour *${monthName} Security Report* is ready for ${p.domain}.\n\nLog in to download your report and see a full summary of threats blocked this month.\n\n— ProCyberWall Team 🇮🇳`;
         sendTwilioMessage(p.phone, msg).catch(err => console.error('[jobs]', err.message));
       }
@@ -100,7 +105,7 @@ async function pollZoneStats(domain, zoneId, profileId) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const dateStr = d.toISOString().slice(0, 10);
-    chartLabels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-IN', { weekday: 'short' }));
+    chartLabels.push(dateStr); // ISO date — frontend formats to local day name
     chartData.push(chartDayMap[dateStr] || 0);
   }
 
@@ -118,7 +123,11 @@ async function pollZoneStats(domain, zoneId, profileId) {
   }
 
   // Threat counts: from firewall events (accurate for Pro WAF blocks)
-  const threatsToday = chartDayMap[today]  || 0;
+  const since24hStr  = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const threatsToday = fwChart.reduce((s, h) => {
+    const dt = h.dimensions?.datetimeHour || '';
+    return dt >= since24hStr ? s + (h.count || 0) : s;
+  }, 0);
   const threats7d    = Object.entries(chartDayMap).reduce((s, [d, v]) => d >= since7dStr ? s + v : s, 0);
   const threats30d   = Object.values(chartDayMap).reduce((s, v) => s + v, 0);
 
@@ -128,10 +137,9 @@ async function pollZoneStats(domain, zoneId, profileId) {
     clientCountryName: g.dimensions?.clientCountryName || '—',
   }));
 
-  // Write daily snapshot so the dashboard chart can read 7-day history from Supabase
-  // (Cloudflare Pro API only retains firewall events for 72h)
+  // Write today's snapshot first — chart will read from this history
   if (profileId) {
-    supabaseUpsert(`threat_snapshots?on_conflict=profile_id,date`, {
+    await supabaseUpsert(`threat_snapshots?on_conflict=profile_id,date`, {
       profile_id:     profileId,
       domain,
       date:           today,
@@ -142,6 +150,26 @@ async function pollZoneStats(domain, zoneId, profileId) {
       block_rate_pct: totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0,
       recorded_at:    now.toISOString(),
     }).catch(err => console.error(`[poller-snap] ${domain}:`, err.message));
+
+    // Read last 7 days from threat_snapshots to build accurate chart
+    const since8dDate = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const snapRes = await supabaseRequest('GET',
+      `threat_snapshots?profile_id=eq.${encodeURIComponent(profileId)}&date=gte.${since8dDate}&select=date,threats_today&order=date.asc`,
+      null).catch(() => null);
+    let snapRows = [];
+    try { snapRows = JSON.parse(snapRes?.body || '[]'); if (!Array.isArray(snapRows)) snapRows = []; } catch(e) {}
+
+    const snapDayMap = {};
+    for (const s of snapRows) { if (s.date) snapDayMap[s.date] = s.threats_today || 0; }
+    snapDayMap[today] = threatsToday; // today's live count takes priority
+
+    chartLabels.length = 0; chartData.length = 0;
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      chartLabels.push(dateStr); // ISO date — frontend formats to local day name
+      chartData.push(snapDayMap[dateStr] || 0);
+    }
   }
 
   await supabaseUpsert('zone_stats_cache', {

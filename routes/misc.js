@@ -1,11 +1,13 @@
-const http  = require('http');
 const https = require('https');
 const { requireAuth } = require('../lib/auth');
-const { supabaseRequest } = require('../lib/supabase');
+const { supabaseRequest, supabaseAuthRequest } = require('../lib/supabase');
+const { makeRequest } = require('../lib/http');
+const { sendError } = require('../lib/utils');
 const { sendTwilioMessage, TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM } = require('../lib/twilio');
 const { getClientIp, checkRateLimit } = require('../lib/rateLimit');
 const { runSecurityScan, enhanceScanWithCloudflare } = require('../lib/scanner');
 const { cfGet, cfGetZoneId } = require('../lib/cloudflare');
+const { normalizeDomain } = require('../lib/utils');
 
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '';
 const HIBP_API_KEY = process.env.HIBP_API_KEY || '';
@@ -393,42 +395,15 @@ async function handle(req, res, parsedUrl) {
         const { email } = profiles[0];
 
         // Generate Supabase magic link via Admin API
-        const { SUPABASE_HOSTNAME, SUPABASE_SERVICE_KEY } = require('../lib/supabase');
-        const linkBody = JSON.stringify({
+        const linkResult = await supabaseAuthRequest('POST', 'admin/generate_link', {
           type: 'magiclink',
           email,
-          ...(redirect_to ? { options: { redirect_to } } : {})
-        });
-        const linkResult = await new Promise((resolve, reject) => {
-          const opts = {
-            hostname: SUPABASE_HOSTNAME,
-            path: '/auth/v1/admin/generate_link',
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_SERVICE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_SERVICE_KEY,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(linkBody)
-            }
-          };
-          const r = https.request(opts, resp => {
-            let raw = '';
-            resp.on('data', c => raw += c);
-            resp.on('end', () => {
-              try { resolve({ status: resp.statusCode, body: JSON.parse(raw) }); }
-              catch (e) { resolve({ status: resp.statusCode, body: {} }); }
-            });
-          });
-          r.on('error', reject);
-          r.setTimeout(10000, () => { r.destroy(); reject(new Error('Supabase timeout')); });
-          r.write(linkBody);
-          r.end();
-        });
+          ...(redirect_to ? { options: { redirect_to } } : {}),
+        }).then(r => ({ status: r.status, body: JSON.parse(r.body) })).catch(() => ({ status: 500, body: {} }));
 
         const actionLink = linkResult.body?.properties?.action_link;
         if (linkResult.status !== 200 || !actionLink) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Failed to generate login link. Please try again.' }));
+          sendError(res, 500, 'Failed to generate login link. Please try again.');
           return;
         }
 
@@ -461,27 +436,18 @@ async function handle(req, res, parsedUrl) {
 
       if (!email) { res.writeHead(400, {'Content-Type':'application/json'}); res.end(JSON.stringify({error:'No email found on your account.'})); return true; }
 
-      const breaches = await new Promise((resolve) => {
-        const opts = {
-          hostname: 'haveibeenpwned.com',
-          path: `/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`,
-          method: 'GET',
-          headers: { 'hibp-api-key': HIBP_API_KEY, 'user-agent': 'ProCyberWall' }
-        };
-        const r = https.request(opts, resp => {
-          let raw = '';
-          resp.on('data', c => raw += c);
-          resp.on('end', () => {
-            if (resp.statusCode === 404) return resolve([]);
-            if (resp.statusCode === 401) return resolve({ hibpError: 'Invalid API key' });
-            if (resp.statusCode !== 200) return resolve([]);
-            try { resolve(JSON.parse(raw)); } catch(e) { resolve([]); }
-          });
-        });
-        r.on('error', () => resolve([]));
-        r.setTimeout(10000, () => { r.destroy(); resolve([]); });
-        r.end();
-      });
+      const breaches = await makeRequest({
+        hostname: 'haveibeenpwned.com',
+        path: `/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`,
+        method: 'GET',
+        headers: { 'hibp-api-key': HIBP_API_KEY, 'user-agent': 'ProCyberWall' },
+        timeout: 10000,
+      }).then(r => {
+        if (r.status === 404) return [];
+        if (r.status === 401) return { hibpError: 'Invalid API key' };
+        if (r.status !== 200) return [];
+        try { return JSON.parse(r.body); } catch(e) { return []; }
+      }).catch(() => []);
 
       if (breaches?.hibpError) {
         res.writeHead(500, {'Content-Type':'application/json'});
@@ -559,7 +525,7 @@ async function handle(req, res, parsedUrl) {
       res.end(JSON.stringify({ error: 'domain parameter required' }));
       return true;
     }
-    if (!/^[a-zA-Z0-9.\-]+$/.test(domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0])) {
+    if (!/^[a-zA-Z0-9.\-]+$/.test(normalizeDomain(domain))) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Invalid domain' }));
       return true;
