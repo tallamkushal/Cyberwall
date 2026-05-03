@@ -30,6 +30,28 @@ function friendlyAction(raw) {
   return CF_ACTION_LABELS[String(raw || '').toLowerCase()] || { label: raw || 'Blocked', badge: 'badge-red' };
 }
 
+function friendlyRuleMessage(raw) {
+  if (!raw) return '';
+  const s = raw.toLowerCase();
+  if (s.includes('sql') || s.includes('sqli'))                        return 'SQL Injection Attack';
+  if (s.includes('xss') || s.includes('cross-site scripting'))        return 'XSS Attack';
+  if (s.includes('ddos') || s.includes('flood') || s.includes('rate limit')) return 'DDoS / Flood Attack';
+  if (s.includes('brute') || s.includes('credential'))                return 'Brute Force Login Attempt';
+  if (s.includes('path traversal') || s.includes('directory traversal') || s.includes('lfi') || s.includes('rfi')) return 'Directory Traversal Attack';
+  if (s.includes('rce') || s.includes('remote code') || s.includes('command injection')) return 'Remote Code Execution Attempt';
+  if (s.includes('scanner') || s.includes('scan') || s.includes('vulnerability')) return 'Vulnerability Scanner Detected';
+  if (s.includes('bot') || s.includes('crawler') || s.includes('scraper') || s.includes('spider')) return 'Malicious Bot Blocked';
+  if (s.includes('empty') || s.includes('bad user agent') || s.includes('user agent')) return 'Suspicious Bot (No Browser Identity)';
+  if (s.includes('suspicious') || s.includes('anomaly') || s.includes('bad traffic')) return 'Suspicious Traffic Blocked';
+  if (s.includes('phishing') || s.includes('malware') || s.includes('spam'))  return 'Malware / Phishing Attempt';
+  if (s.includes('bypass') || s.includes('evasion') || s.includes('obfuscat')) return 'Firewall Bypass Attempt';
+  if (s.includes('upload') || s.includes('file inclusion'))            return 'Malicious File Upload Attempt';
+  if (s.includes('redirect') || s.includes('open redirect'))          return 'Open Redirect Attempt';
+  if (s.includes('dos') || s.includes('denial'))                      return 'Denial of Service Attempt';
+  if (s.includes('block'))                                             return 'Blocked by Security Rule';
+  return raw; // fallback: show original if no match
+}
+
 const CACHE_LABELS = {
   hit:         'Instant (Cached)',
   miss:        'Fresh from Server',
@@ -235,9 +257,9 @@ function renderRealThreats(events, tbodyId) {
     const act = friendlyAction(e.action);
     return `
     <tr>
-      <td>${escapeHtml(e.ruleMessage || act.label)}</td>
+      <td>${escapeHtml(friendlyRuleMessage(e.ruleMessage) || act.label)}</td>
       <td style="font-family:monospace;font-size:12px">${escapeHtml(maskIP(e.clientIP || e.ip || ''))}</td>
-      <td>${getCountryFlag(e.clientCountryName || e.country)} ${escapeHtml(e.clientCountryName || e.country || '—')}</td>
+      <td>${getCountryFlag(e.countryCode || e.clientCountryName || e.country)} ${escapeHtml(e.clientCountryName || e.country || '—')}</td>
       <td style="color:var(--muted)">${escapeHtml(timeAgo(e.occurredAt || e.occurred_at))}</td>
       <td><span class="badge badge-red">High</span></td>
       <td><span class="badge ${act.badge}">${act.label}</span></td>

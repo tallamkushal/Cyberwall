@@ -289,7 +289,7 @@ async function handle(req, res, parsedUrl) {
         .then(r => (r?.errors?.length > 0 || !r?.data) ? null : r)
         .catch(() => null);
 
-      const fwGqlPromise = statsCache ? Promise.resolve(null) : Promise.race([
+      const fwGqlPromise = Promise.race([
         cfGraphQL(`
           query($zoneTag:String!,$since:String!,$until:String!){
             viewer{
@@ -297,7 +297,7 @@ async function handle(req, res, parsedUrl) {
                 byAction:firewallEventsAdaptiveGroups(
                   filter:{datetime_geq:$since,datetime_leq:$until}
                   limit:10 orderBy:[count_DESC]
-                ){count dimensions{action clientIP clientCountryName}}
+                ){count dimensions{action clientIP clientCountryName ruleId description source}}
               }
             }
           }`, { zoneTag: zoneId, since: sinceToday, until }),
@@ -371,6 +371,13 @@ async function handle(req, res, parsedUrl) {
         if (!chartFwDays.has(day) && !dayMap[day]) dayMap[day] = threats;
       }
 
+      // Cache hit: CF data was skipped, so merge cached chart values for days still at 0
+      if (statsCache?.chart7d?.labels?.length) {
+        statsCache.chart7d.labels.forEach((label, idx) => {
+          if (!dayMap[label]) dayMap[label] = statsCache.chart7d.data?.[idx] || 0;
+        });
+      }
+
       // Compute accurate period totals from snapshot history
       const since7dDate  = new Date(now -  7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const since30dDate = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -388,17 +395,40 @@ async function handle(req, res, parsedUrl) {
       }
 
       // --- Firewall events: REST first, GraphQL fallback ---
-      const restEvts = ok(events)?.result || [];
+      const CC_NAMES = { AF:'Afghanistan',AL:'Albania',DZ:'Algeria',AO:'Angola',AR:'Argentina',AM:'Armenia',AU:'Australia',AT:'Austria',AZ:'Azerbaijan',BH:'Bahrain',BD:'Bangladesh',BY:'Belarus',BE:'Belgium',BJ:'Benin',BO:'Bolivia',BA:'Bosnia & Herzegovina',BR:'Brazil',BG:'Bulgaria',KH:'Cambodia',CM:'Cameroon',CA:'Canada',CL:'Chile',CN:'China',CO:'Colombia',CD:'Congo',CR:'Costa Rica',CI:"Côte d'Ivoire",HR:'Croatia',CU:'Cuba',CZ:'Czech Republic',DK:'Denmark',DO:'Dominican Republic',EC:'Ecuador',EG:'Egypt',ET:'Ethiopia',FI:'Finland',FR:'France',GE:'Georgia',DE:'Germany',GH:'Ghana',GR:'Greece',GT:'Guatemala',HN:'Honduras',HK:'Hong Kong',HU:'Hungary',IN:'India',ID:'Indonesia',IR:'Iran',IQ:'Iraq',IE:'Ireland',IL:'Israel',IT:'Italy',JP:'Japan',JO:'Jordan',KZ:'Kazakhstan',KE:'Kenya',KW:'Kuwait',LB:'Lebanon',LY:'Libya',MY:'Malaysia',MX:'Mexico',MA:'Morocco',MZ:'Mozambique',MM:'Myanmar',NP:'Nepal',NL:'Netherlands',NZ:'New Zealand',NI:'Nicaragua',NG:'Nigeria',KP:'North Korea',NO:'Norway',OM:'Oman',PK:'Pakistan',PA:'Panama',PY:'Paraguay',PE:'Peru',PH:'Philippines',PL:'Poland',PT:'Portugal',QA:'Qatar',RO:'Romania',RU:'Russia',SA:'Saudi Arabia',SN:'Senegal',RS:'Serbia',SG:'Singapore',SK:'Slovakia',ZA:'South Africa',KR:'South Korea',ES:'Spain',LK:'Sri Lanka',SD:'Sudan',SE:'Sweden',CH:'Switzerland',SY:'Syria',TW:'Taiwan',TZ:'Tanzania',TH:'Thailand',TN:'Tunisia',TR:'Turkey',UA:'Ukraine',AE:'United Arab Emirates',GB:'United Kingdom',US:'United States',UY:'Uruguay',UZ:'Uzbekistan',VE:'Venezuela',VN:'Vietnam',YE:'Yemen',ZW:'Zimbabwe' };
+      // Normalize REST events — rule description is nested in matches[], not top-level
+      const _rawEvts = ok(events)?.result || [];
+      const restEvts = _rawEvts.map(e => {
+        const cc = (e.clientCountryName || e.source?.country || e.country || '').toUpperCase().slice(0, 2);
+        return {
+          action:            e.action || 'block',
+          clientIP:          e.clientIP  || e.source?.ip         || e.ip         || '—',
+          countryCode:       cc,
+          clientCountryName: CC_NAMES[cc] || cc || '—',
+          occurredAt:        e.occurredAt || e.occurred_at || e.timestamp || '',
+          ruleMessage:       e.ruleMessage
+                             || e.matches?.[0]?.definition?.description
+                             || e.matches?.[0]?.rule?.description
+                             || e.matches?.[0]?.description
+                             || '',
+        };
+      });
       const fwRaw    = restEvts.length === 0
         ? (await fwGqlPromise)?.data?.viewer?.zones?.[0]?.byAction || []
         : [];
       const evts = restEvts.length > 0
         ? restEvts
-        : fwRaw.map(g => ({
-            action:            g.dimensions?.action            || 'Block',
-            clientIP:          g.dimensions?.clientIP          || '—',
-            clientCountryName: g.dimensions?.clientCountryName || '—',
-          }));
+        : fwRaw.map(g => {
+            const cc = (g.dimensions?.clientCountryName || '').toUpperCase().slice(0, 2);
+            return {
+              action:            g.dimensions?.action || 'Block',
+              clientIP:          g.dimensions?.clientIP || '—',
+              countryCode:       cc,
+              clientCountryName: CC_NAMES[cc] || cc || '—',
+              occurredAt:        g.dimensions?.datetimeHour || '',
+              ruleMessage:       g.dimensions?.description || '',
+            };
+          });
       const attackTypeLabels = [];
       const attackTypeData   = [];
 
@@ -524,7 +554,7 @@ async function handle(req, res, parsedUrl) {
         },
         chart7d:     { labels: chartLabels, data: chartData, days: chartDays },
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
-        threats:     restEvts.length > 0 ? restEvts.slice(0, 10) : (statsCache?.threats ?? evts.slice(0, 10)),
+        threats:     restEvts.length > 0 ? restEvts.slice(0, 10) : (evts.length > 0 ? evts.slice(0, 10) : (statsCache?.threats || [])),
         ssl: {
           status:  sslStatusStr,
           issuer:  certIssuer,
@@ -566,7 +596,7 @@ async function handle(req, res, parsedUrl) {
             totalRequests24h,
             totalRequests7d,
             totalRequests30d,
-            threats:          evts.slice(0, 10),
+            threats:          restEvts.slice(0, 10),
             attackTypes:      { labels: attackTypeLabels, data: attackTypeData },
           },
           fetched_at: now.toISOString(),
