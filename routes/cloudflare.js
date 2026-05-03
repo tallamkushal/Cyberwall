@@ -329,31 +329,46 @@ async function handle(req, res, parsedUrl) {
       const totalRequests30d = statsGqlData.reduce((s, h) => s + (h.sum?.requests || 0), 0);
 
       // --- Chart: aggregate firewall events by UTC day (captures WAF managed rule blocks) ---
-      const chartFwData = (await chartGqlPromise)?.data?.viewer?.zones?.[0]?.fwHourly || [];
+      const _chartGqlRes = await chartGqlPromise;
+      const chartFwData = _chartGqlRes?.data?.viewer?.zones?.[0]?.fwHourly || [];
+
       const dayMap = {};
+      const chartFwDays = new Set(); // days that have actual CF fwHourly data
       for (const h of chartFwData) {
         const day = (h.dimensions?.datetimeHour || '').slice(0, 10);
-        if (day) dayMap[day] = (dayMap[day] || 0) + (h.count || 0);
-      }
-      // Fallback: if firewall events returned nothing, use hourly request threats
-      if (chartFwData.length === 0) {
-        for (const h of statsGqlData) {
-          const day = (h.dimensions?.datetime || '').slice(0, 10);
-          if (day) dayMap[day] = (dayMap[day] || 0) + (h.sum?.threats || 0);
-        }
+        if (day) { dayMap[day] = (dayMap[day] || 0) + (h.count || 0); chartFwDays.add(day); }
       }
 
-      // threatsToday from firewallEventsAdaptiveGroups (captures WAF blocks httpRequests misses on Pro)
-      const threatsToday = chartFwData.length > 0
-        ? chartFwData.reduce((s, h) => (h.dimensions?.datetimeHour || '') >= since24h ? s + (h.count || 0) : s, 0)
-        : data24h.reduce((s, h) => s + (h.sum?.threats || 0), 0);
-
-      // Fill historical gaps from threat_snapshots (Cloudflare Pro API only retains 72h)
+      // Await snapshots before computing threatsToday so we can use today's snapshot as fallback
       const snapshotRows = await snapshotsPromise;
+      const todaySnap = snapshotRows.find(s => s.date === today);
+
+
+      // threatsToday: fwHourly 24h → snapshot fallback → httpRequests fallback
+      // Use || chain so 0 from fwHourly (CF data lag for today) falls through to snapshot/httpRequests
+      const fwToday = chartFwData.reduce((s, h) => (h.dimensions?.datetimeHour || '') >= since24h ? s + (h.count || 0) : s, 0);
+      const httpToday = data24h.reduce((s, h) => s + (h.sum?.threats || 0), 0);
+      const threatsToday = fwToday || todaySnap?.threats_today || httpToday;
+
+      // Fill chart gaps from snapshots — for any day CF fwHourly didn't return data for.
+      // This covers: days beyond 72h CF retention, and recent days where fwHourly returned
+      // empty (CF data lag, plan limitation). Snapshots are written by the poller using the
+      // same fwChart source so they're more reliable than the httpRequests fallback on Pro.
       for (const s of snapshotRows) {
-        if (s.date && dayMap[s.date] === undefined) {
+        if (s.date && !chartFwDays.has(s.date)) {
           dayMap[s.date] = s.threats_today || 0;
         }
+      }
+
+      // Fallback: pre-aggregate httpRequests hourly threats by day, then fill any day
+      // where dayMap has no non-zero value (snapshot-written zeros count as missing).
+      const reqDayThreats = {};
+      for (const h of statsGqlData) {
+        const day = (h.dimensions?.datetime || '').slice(0, 10);
+        if (day) reqDayThreats[day] = (reqDayThreats[day] || 0) + (h.sum?.threats || 0);
+      }
+      for (const [day, threats] of Object.entries(reqDayThreats)) {
+        if (!chartFwDays.has(day) && !dayMap[day]) dayMap[day] = threats;
       }
 
       // Compute accurate period totals from snapshot history
@@ -496,7 +511,7 @@ async function handle(req, res, parsedUrl) {
         zoneStatus,
         zoneActive: zoneStatus === 'active',
         stats: {
-          threatsToday:     statsCache?.threatsToday     ?? threatsToday,
+          threatsToday:     statsCache?.threatsToday     || threatsToday,
           threats7d:        histThreats7d  || statsCache?.threats7d  || threats7d,
           threats30d:       histThreats30d || statsCache?.threats30d || threats30d,
           totalRequests24h: statsCache?.totalRequests24h ?? totalRequests24h,
@@ -507,7 +522,7 @@ async function handle(req, res, parsedUrl) {
           uptime:     uptimePercent,
           responseMs: responseMs,
         },
-        chart7d:     statsCache?.chart7d ?? { labels: chartLabels, data: chartData, days: chartDays },
+        chart7d:     { labels: chartLabels, data: chartData, days: chartDays },
         attackTypes: { labels: attackTypeLabels, data: attackTypeData },
         threats:     restEvts.length > 0 ? restEvts.slice(0, 10) : (statsCache?.threats ?? evts.slice(0, 10)),
         ssl: {
@@ -532,7 +547,14 @@ async function handle(req, res, parsedUrl) {
       }));
 
       // ── Zone stats cache write (only on live fetch, 15-min TTL) ─────────────────
-      if (!statsCache) {
+      // Skip if chart query failed (_chartGqlRes === null) — threatsToday would come from the
+      // httpRequests fallback, which undercounts WAF blocks on Pro/Business plans, writing
+      // zeros or low counts would corrupt the cache. Empty fwHourly from a successful query
+      // is fine (legitimately no events).
+      // Write cache as long as httpRequests data exists — even if the chart query failed,
+      // statsGqlData gives us totalRequests and threat fallback for the chart bars
+      const _hasLiveData = statsGqlData.length > 0 || chartFwData.length > 0;
+      if (!statsCache && _hasLiveData && threatsToday > 0) {
         supabaseUpsert('zone_stats_cache', {
           domain,
           zone_id: zoneId,

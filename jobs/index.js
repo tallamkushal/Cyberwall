@@ -46,75 +46,53 @@ async function sendMonthlyReportReminder() {
 }
 
 // ── ZONE STATS POLLER ─────────────────────────────────────────────────────────
+// Sole job: keep threat_snapshots up to date for chart history beyond CF's 72h retention.
+// zone_stats_cache is written exclusively by routes/cloudflare.js on a cache miss,
+// so the poller never touches it (prevents the two-writer corruption that caused zeros).
 async function pollZoneStats(domain, zoneId, profileId) {
+  if (!profileId) return;
+
   const now        = new Date();
   const since30d   = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
   const since7d    = new Date(now -  7 * 24 * 60 * 60 * 1000).toISOString();
   const since7dStr = since7d.slice(0, 10);
-  const sinceToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const until      = now.toISOString();
+  const today      = now.toISOString().slice(0, 10);
 
-  // Two separate queries — Cloudflare analytics API rejects multiple aliases
-  // of the same dataset in a single request
-  const [gqlChart, gqlEvents] = await Promise.all([
-    cfGraphQL(`
-      query($zoneTag:String!,$since30d:String!,$since7d:String!,$until:String!){
-        viewer{
-          zones(filter:{zoneTag:$zoneTag}){
-            fwChart:firewallEventsAdaptiveGroups(
-              filter:{datetime_geq:$since7d,datetime_leq:$until}
-              limit:200 orderBy:[datetimeHour_ASC]
-            ){count dimensions{datetimeHour}}
-            requests:httpRequests1dGroups(
-              filter:{datetime_geq:$since30d,datetime_leq:$until}
-              limit:31 orderBy:[datetime_ASC]
-            ){sum{requests threats} dimensions{datetime}}
-          }
+  const gqlChart = await cfGraphQL(`
+    query($zoneTag:String!,$since30d:String!,$since7d:String!,$until:String!){
+      viewer{
+        zones(filter:{zoneTag:$zoneTag}){
+          fwChart:firewallEventsAdaptiveGroups(
+            filter:{datetime_geq:$since7d,datetime_leq:$until}
+            limit:200 orderBy:[datetimeHour_ASC]
+          ){count dimensions{datetimeHour}}
+          requests:httpRequests1dGroups(
+            filter:{datetime_geq:$since30d,datetime_leq:$until}
+            limit:31 orderBy:[datetime_ASC]
+          ){sum{requests threats} dimensions{datetime}}
         }
-      }`, { zoneTag: zoneId, since30d, since7d, until }
-    ).catch(() => null),
-    cfGraphQL(`
-      query($zoneTag:String!,$sinceToday:String!,$until:String!){
-        viewer{
-          zones(filter:{zoneTag:$zoneTag}){
-            fw:firewallEventsAdaptiveGroups(
-              filter:{datetime_geq:$sinceToday,datetime_leq:$until}
-              limit:10 orderBy:[count_DESC]
-            ){count dimensions{action clientIP clientCountryName}}
-          }
-        }
-      }`, { zoneTag: zoneId, sinceToday, until }
-    ).catch(() => null),
-  ]);
+      }
+    }`, { zoneTag: zoneId, since30d, since7d, until }
+  ).catch(() => null);
 
-  // Skip writing if both queries failed — never overwrite good cache with zeros
-  if (!gqlChart?.data && !gqlEvents?.data) return;
+  if (!gqlChart?.data) return;
 
-  const fwChart  = gqlChart?.data?.viewer?.zones?.[0]?.fwChart  || [];
-  const requests = gqlChart?.data?.viewer?.zones?.[0]?.requests || [];
-  const fw       = gqlEvents?.data?.viewer?.zones?.[0]?.fw      || [];
+  const fwChart  = gqlChart.data.viewer.zones[0]?.fwChart  || [];
+  const requests = gqlChart.data.viewer.zones[0]?.requests || [];
 
-  // Chart: aggregate firewall events by UTC day
+  // Aggregate firewall events by UTC day
   const chartDayMap = {};
   for (const h of fwChart) {
     const day = (h.dimensions?.datetimeHour || '').slice(0, 10);
     if (day) chartDayMap[day] = (chartDayMap[day] || 0) + (h.count || 0);
   }
 
-  const chartLabels = [], chartData = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const dateStr = d.toISOString().slice(0, 10);
-    chartLabels.push(dateStr); // ISO date — frontend formats to local day name
-    chartData.push(chartDayMap[dateStr] || 0);
-  }
-
-  // Request stats: from daily groups (accurate for total requests)
-  const today = now.toISOString().slice(0, 10);
+  // Request stats from daily groups
   const reqDayMap = {};
   for (const d of requests) {
     const day = (d.dimensions?.datetime || '').slice(0, 10);
-    if (day) reqDayMap[day] = { requests: d.sum?.requests || 0 };
+    if (day) reqDayMap[day] = { requests: d.sum?.requests || 0, threats: d.sum?.threats || 0 };
   }
   let totalRequests7d = 0, totalRequests30d = 0;
   for (const [day, vals] of Object.entries(reqDayMap)) {
@@ -122,72 +100,46 @@ async function pollZoneStats(domain, zoneId, profileId) {
     if (day >= since7dStr) totalRequests7d += vals.requests;
   }
 
-  // Threat counts: from firewall events (accurate for Pro WAF blocks)
-  const since24hStr  = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-  const threatsToday = fwChart.reduce((s, h) => {
-    const dt = h.dimensions?.datetimeHour || '';
-    return dt >= since24hStr ? s + (h.count || 0) : s;
-  }, 0);
-  const threats7d    = Object.entries(chartDayMap).reduce((s, [d, v]) => d >= since7dStr ? s + v : s, 0);
-  const threats30d   = Object.values(chartDayMap).reduce((s, v) => s + v, 0);
-
-  const threats = fw.map(g => ({
-    action:            g.dimensions?.action            || 'Block',
-    clientIP:          g.dimensions?.clientIP          || '—',
-    clientCountryName: g.dimensions?.clientCountryName || '—',
-  }));
-
-  // Write today's snapshot first — chart will read from this history
-  if (profileId) {
-    await supabaseUpsert(`threat_snapshots?on_conflict=profile_id,date`, {
-      profile_id:     profileId,
-      domain,
-      date:           today,
-      threats_today:  threatsToday,
-      threats_7d:     threats7d,
-      total_requests: totalRequests7d,
-      clean_requests: Math.max(0, totalRequests7d - threats7d),
-      block_rate_pct: totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0,
-      recorded_at:    now.toISOString(),
-    }).catch(err => console.error(`[poller-snap] ${domain}:`, err.message));
-
-    // Read last 7 days from threat_snapshots to build accurate chart
-    const since8dDate = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const snapRes = await supabaseRequest('GET',
-      `threat_snapshots?profile_id=eq.${encodeURIComponent(profileId)}&date=gte.${since8dDate}&select=date,threats_today&order=date.asc`,
-      null).catch(() => null);
-    let snapRows = [];
-    try { snapRows = JSON.parse(snapRes?.body || '[]'); if (!Array.isArray(snapRows)) snapRows = []; } catch(e) {}
-
-    const snapDayMap = {};
-    for (const s of snapRows) { if (s.date) snapDayMap[s.date] = s.threats_today || 0; }
-    snapDayMap[today] = threatsToday; // today's live count takes priority
-
-    chartLabels.length = 0; chartData.length = 0;
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const dateStr = d.toISOString().slice(0, 10);
-      chartLabels.push(dateStr); // ISO date — frontend formats to local day name
-      chartData.push(snapDayMap[dateStr] || 0);
+  // Fallback: when fwChart empty, use httpRequests daily threats (Free plan)
+  if (fwChart.length === 0) {
+    for (const [day, vals] of Object.entries(reqDayMap)) {
+      if (vals.threats > 0) chartDayMap[day] = (chartDayMap[day] || 0) + vals.threats;
     }
   }
 
-  await supabaseUpsert('zone_stats_cache', {
+  // threatsToday: 24h rolling count from fwChart, fallback to httpRequests
+  const since24hStr = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  let threatsToday = fwChart.reduce((s, h) => {
+    const dt = h.dimensions?.datetimeHour || '';
+    return dt >= since24hStr ? s + (h.count || 0) : s;
+  }, 0);
+  if (threatsToday === 0) threatsToday = reqDayMap[today]?.threats || 0;
+
+  const threats7d  = Object.entries(chartDayMap).reduce((s, [d, v]) => d >= since7dStr ? s + v : s, 0);
+  const threats30d = Object.values(chartDayMap).reduce((s, v) => s + v, 0);
+
+  // Read existing snapshot to avoid decreasing count due to CF data lag
+  const since8dDate = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const snapRes = await supabaseRequest('GET',
+    `threat_snapshots?profile_id=eq.${encodeURIComponent(profileId)}&date=gte.${since8dDate}&select=date,threats_today&order=date.asc`,
+    null).catch(() => null);
+  let snapRows = [];
+  try { snapRows = JSON.parse(snapRes?.body || '[]'); if (!Array.isArray(snapRows)) snapRows = []; } catch(e) {}
+
+  const existingToday     = snapRows.find(s => s.date === today);
+  const effectiveThreats  = Math.max(threatsToday, existingToday?.threats_today || 0);
+
+  await supabaseUpsert(`threat_snapshots?on_conflict=profile_id,date`, {
+    profile_id:     profileId,
     domain,
-    zone_id:    zoneId,
-    data: {
-      chart7d:          { labels: chartLabels, data: chartData, days: 7 },
-      threatsToday,
-      threats7d,
-      threats30d,
-      totalRequests24h: reqDayMap[today]?.requests || 0,
-      totalRequests7d,
-      totalRequests30d,
-      threats,
-      attackTypes:      { labels: [], data: [] },
-    },
-    fetched_at: now.toISOString(),
-  });
+    date:           today,
+    threats_today:  effectiveThreats,
+    threats_7d:     threats7d,
+    total_requests: totalRequests7d,
+    clean_requests: Math.max(0, totalRequests7d - threats7d),
+    block_rate_pct: totalRequests7d > 0 ? Math.round((threats7d / totalRequests7d) * 100) : 0,
+    recorded_at:    now.toISOString(),
+  }).catch(err => console.error(`[poller-snap] ${domain}:`, err.message));
 }
 
 async function pollAllZones() {
